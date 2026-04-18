@@ -2,6 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══ Theme CSS Variables (defaults = aurora) ═══ */
+:root {
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-light: #eef2ff;
+  --accent-glow: rgba(99,102,241,0.35);
+  --btn-grad: linear-gradient(135deg, #6366f1, #8b5cf6);
+  --btn-grad2: linear-gradient(135deg, #4f46e5, #6366f1);
+  --page-bg: linear-gradient(135deg, #f8fafc 0%, #eef2ff 40%, #faf5ff 70%, #f0fdf4 100%);
+  --orb-0: rgba(99,102,241,0.15);
+  --orb-1: rgba(168,85,247,0.12);
+  --orb-2: rgba(34,211,238,0.10);
+}
+
+/* ═══ Floating orb animation ═══ */
+@keyframes orb-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(30px, -40px) scale(1.05); }
+  50% { transform: translate(-20px, 20px) scale(0.95); }
+  75% { transform: translate(15px, 35px) scale(1.03); }
+}
+.animate-orb-float {
+  animation: orb-float var(--duration, 20s) ease-in-out infinite;
+}
+
+/* ═══ Theme accent button ═══ */
+.btn-accent {
+  background: var(--btn-grad);
+  transition: all 0.3s ease;
+}
+.btn-accent:hover {
+  background: var(--btn-grad2);
+  box-shadow: 0 8px 24px var(--accent-glow);
+  transform: scale(1.05);
+}
+.btn-accent:active {
+  transform: scale(0.95);
+}
+
 /* ═══ Custom scrollbar ═══ */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -74,7 +113,7 @@
 
 /* ═══ Progress bar glow on fill ═══ */
 .progress-glow {
-  box-shadow: 0 0 8px rgba(99,102,241,0.4), 0 0 16px rgba(99,102,241,0.2);
+  box-shadow: 0 0 8px var(--accent-glow), 0 0 16px rgba(99,102,241,0.2);
   transition: box-shadow 0.4s ease;
 }
 

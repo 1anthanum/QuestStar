@@ -1,6 +1,6 @@
 import { CATEGORIES } from "../utils/constants";
 
-export default function QuestCard({ quest, onClick, isActive }) {
+export default function QuestCard({ quest, onClick, isActive, theme }) {
   const cat = CATEGORIES[quest.category] || CATEGORIES.work;
   const done = quest.steps.filter((s) => s.done).length;
   const total = quest.steps.length;
@@ -11,13 +11,15 @@ export default function QuestCard({ quest, onClick, isActive }) {
     <div
       onClick={onClick}
       className={`relative rounded-2xl p-5 cursor-pointer border-2 card-hover overflow-hidden
-        ${isActive
-          ? `${cat.border} shadow-lg ring-2 ring-offset-2 ${cat.border.replace("border-", "ring-")}`
-          : "border-white/60 shadow-sm"
-        }
         ${isComplete ? "opacity-70" : ""}
         bg-white/90
       `}
+      style={isActive ? {
+        borderColor: theme?.accent || "#6366f1",
+        boxShadow: `0 0 0 2px ${theme?.accentGlow || "rgba(99,102,241,0.35)"}`,
+      } : {
+        borderColor: "rgba(255,255,255,0.6)",
+      }}
     >
       {/* Subtle gradient overlay */}
       <div className={`absolute inset-0 opacity-[0.04] bg-gradient-to-br ${cat.color} rounded-2xl pointer-events-none`} />

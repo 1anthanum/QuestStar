@@ -21,7 +21,7 @@ function groupByLayer(steps) {
   return groups;
 }
 
-export default function QuestDetail({ quest, streak, onToggleStep, onDelete }) {
+export default function QuestDetail({ quest, streak, onToggleStep, onDelete, theme }) {
   const cat = CATEGORIES[quest.category] || CATEGORIES.work;
   const done = quest.steps.filter((s) => s.done).length;
   const total = quest.steps.length;
@@ -130,8 +130,13 @@ export default function QuestDetail({ quest, streak, onToggleStep, onDelete }) {
 
                 {/* Trail line + steps */}
                 <div className="relative pl-5">
-                  <div className={`absolute left-[18px] top-0 bottom-0 w-0.5 rounded-full transition-colors duration-500
-                    ${groupDone ? "bg-gradient-to-b from-emerald-300 to-emerald-200" : "bg-gradient-to-b from-indigo-200 to-gray-100"}`}
+                  <div
+                    className="absolute left-[18px] top-0 bottom-0 w-0.5 rounded-full transition-all duration-500"
+                    style={{
+                      background: groupDone
+                        ? "linear-gradient(to bottom, #6ee7b7, #34d399)"
+                        : `linear-gradient(to bottom, ${theme?.accent || "#818cf8"}44, #f3f4f6)`,
+                    }}
                   />
                   <div className="space-y-2 stagger-children">{items}</div>
                 </div>

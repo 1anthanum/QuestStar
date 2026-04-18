@@ -1,17 +1,20 @@
 import { useState, useCallback } from "react";
 import { useGameState } from "./hooks/useGameState";
 import { useAI } from "./hooks/useAI";
+import { useTheme } from "./hooks/useTheme";
 import Header from "./components/Header";
 import QuestBoard from "./components/QuestBoard";
 import QuestDetail from "./components/QuestDetail";
 import AddQuestModal from "./components/AddQuestModal";
 import AIDecomposeModal from "./components/AIDecomposeModal";
 import SettingsPanel from "./components/SettingsPanel";
+import AnimatedBackground from "./components/AnimatedBackground";
 import { XpPopup, LevelUpOverlay, QuestCompleteOverlay } from "./components/Celebrations";
 
 export default function App() {
   const game = useGameState();
   const ai = useAI();
+  const themeCtx = useTheme();
 
   const [activeQuestId, setActiveQuestId] = useState(null);
   const [view, setView] = useState("board"); // "board" | "detail"
@@ -74,8 +77,13 @@ export default function App() {
     setView("detail");
   }, []);
 
+  const { theme } = themeCtx;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-violet-50/20">
+    <div className="min-h-screen relative">
+      {/* Dynamic themed background */}
+      <AnimatedBackground theme={theme} />
+
       {/* Celebrations */}
       <XpPopup {...xpPopup} />
       <LevelUpOverlay level={levelUpOverlay} onClose={() => setLevelUpOverlay(null)} />
@@ -87,6 +95,7 @@ export default function App() {
       {showSettings && (
         <SettingsPanel
           ai={ai}
+          themeCtx={themeCtx}
           onExport={game.exportData}
           onImport={game.importData}
           onReset={game.resetAll}
@@ -100,18 +109,20 @@ export default function App() {
         xp={game.xp}
         streak={game.streak}
         completedSteps={game.completedSteps}
+        theme={theme}
         onOpenSettings={() => setShowSettings(true)}
       />
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="max-w-4xl mx-auto px-4 py-6 relative">
         {/* Navigation + Actions */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             {view === "detail" && (
               <button
                 onClick={() => setView("board")}
-                className="text-sm text-gray-500 hover:text-indigo-600 font-semibold flex items-center gap-1 mr-2 hover:-translate-x-0.5 transition-all"
+                className="text-sm font-semibold flex items-center gap-1 mr-2 hover:-translate-x-0.5 transition-all"
+                style={{ color: theme.accent }}
               >
                 ← 返回
               </button>
@@ -123,14 +134,16 @@ export default function App() {
           <div className="flex gap-2">
             <button
               onClick={() => setShowAIModal(true)}
-              className="relative bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:shadow-violet-200/50 hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
+              className="relative text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
+              style={{ background: theme.btnGrad, boxShadow: `0 4px 14px ${theme.accentGlow}` }}
             >
               <span className="relative z-10">🤖 AI 拆解</span>
               <div className="absolute inset-0 xp-bar-shimmer opacity-20" />
             </button>
             <button
               onClick={() => setShowAddModal(true)}
-              className="bg-gradient-to-r from-indigo-500 to-blue-600 text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:shadow-indigo-200/50 hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
+              className="text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
+              style={{ background: theme.btnGrad2 }}
             >
               ✍️ 手动
             </button>
@@ -146,6 +159,7 @@ export default function App() {
               onSelectQuest={handleSelectQuest}
               nextStep={nextStep}
               activeQuest={activeQuest}
+              theme={theme}
             />
           )}
 
@@ -155,12 +169,13 @@ export default function App() {
               streak={game.streak}
               onToggleStep={handleToggleStep}
               onDelete={handleDeleteQuest}
+              theme={theme}
             />
           )}
         </div>
       </main>
 
-      <footer className="text-center py-8 text-xs text-gray-300">
+      <footer className="text-center py-8 text-xs text-gray-300 relative">
         Quest Tracker — ADHD-Friendly Gamified System ⚡
       </footer>
     </div>

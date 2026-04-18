@@ -104,3 +104,94 @@ export const ANCHOR_STEPS = {
   master:    { label: "掌握", icon: "🎯", color: "text-emerald-600" },
   review:    { label: "复习", icon: "🔄", color: "text-violet-600" },
 };
+
+// ═══════════════════════════════════════════
+// 主题色系统
+// ═══════════════════════════════════════════
+
+export const THEMES = {
+  aurora: {
+    id: "aurora",
+    name: "极光",
+    emoji: "🌌",
+    // CSS variable values
+    accent: "#6366f1",
+    accentHover: "#4f46e5",
+    accentLight: "#eef2ff",
+    accentGlow: "rgba(99,102,241,0.35)",
+    // Button gradients (inline style)
+    btnGrad: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+    btnGrad2: "linear-gradient(135deg, #4f46e5, #6366f1)",
+    // Background orbs
+    orbs: ["rgba(99,102,241,0.15)", "rgba(168,85,247,0.12)", "rgba(34,211,238,0.10)"],
+    // Page bg
+    pageBg: "linear-gradient(135deg, #f8fafc 0%, #eef2ff 40%, #faf5ff 70%, #f0fdf4 100%)",
+  },
+  sunset: {
+    id: "sunset",
+    name: "日落",
+    emoji: "🌅",
+    accent: "#f97316",
+    accentHover: "#ea580c",
+    accentLight: "#fff7ed",
+    accentGlow: "rgba(249,115,22,0.35)",
+    btnGrad: "linear-gradient(135deg, #f97316, #ef4444)",
+    btnGrad2: "linear-gradient(135deg, #ea580c, #f97316)",
+    orbs: ["rgba(249,115,22,0.15)", "rgba(239,68,68,0.12)", "rgba(250,204,21,0.10)"],
+    pageBg: "linear-gradient(135deg, #fffbeb 0%, #fff7ed 40%, #fef2f2 70%, #fefce8 100%)",
+  },
+  ocean: {
+    id: "ocean",
+    name: "海洋",
+    emoji: "🌊",
+    accent: "#0ea5e9",
+    accentHover: "#0284c7",
+    accentLight: "#f0f9ff",
+    accentGlow: "rgba(14,165,233,0.35)",
+    btnGrad: "linear-gradient(135deg, #0ea5e9, #6366f1)",
+    btnGrad2: "linear-gradient(135deg, #0284c7, #0ea5e9)",
+    orbs: ["rgba(14,165,233,0.15)", "rgba(99,102,241,0.12)", "rgba(45,212,191,0.10)"],
+    pageBg: "linear-gradient(135deg, #f0f9ff 0%, #ecfeff 40%, #eef2ff 70%, #f0fdfa 100%)",
+  },
+  sakura: {
+    id: "sakura",
+    name: "樱花",
+    emoji: "🌸",
+    accent: "#ec4899",
+    accentHover: "#db2777",
+    accentLight: "#fdf2f8",
+    accentGlow: "rgba(236,72,153,0.35)",
+    btnGrad: "linear-gradient(135deg, #ec4899, #a855f7)",
+    btnGrad2: "linear-gradient(135deg, #db2777, #ec4899)",
+    orbs: ["rgba(236,72,153,0.15)", "rgba(168,85,247,0.12)", "rgba(251,191,36,0.08)"],
+    pageBg: "linear-gradient(135deg, #fdf2f8 0%, #faf5ff 40%, #fff1f2 70%, #fef9c3 100%)",
+  },
+  forest: {
+    id: "forest",
+    name: "森林",
+    emoji: "🌿",
+    accent: "#22c55e",
+    accentHover: "#16a34a",
+    accentLight: "#f0fdf4",
+    accentGlow: "rgba(34,197,94,0.35)",
+    btnGrad: "linear-gradient(135deg, #22c55e, #14b8a6)",
+    btnGrad2: "linear-gradient(135deg, #16a34a, #22c55e)",
+    orbs: ["rgba(34,197,94,0.15)", "rgba(20,184,166,0.12)", "rgba(163,230,53,0.10)"],
+    pageBg: "linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 40%, #f0fdfa 70%, #fefce8 100%)",
+  },
+  midnight: {
+    id: "midnight",
+    name: "暗夜",
+    emoji: "🌙",
+    accent: "#a855f7",
+    accentHover: "#9333ea",
+    accentLight: "#faf5ff",
+    accentGlow: "rgba(168,85,247,0.35)",
+    btnGrad: "linear-gradient(135deg, #a855f7, #6366f1)",
+    btnGrad2: "linear-gradient(135deg, #9333ea, #a855f7)",
+    orbs: ["rgba(168,85,247,0.15)", "rgba(99,102,241,0.12)", "rgba(236,72,153,0.08)"],
+    pageBg: "linear-gradient(135deg, #faf5ff 0%, #eef2ff 40%, #fdf2f8 70%, #f5f3ff 100%)",
+  },
+};
+
+export const DEFAULT_THEME = "aurora";

@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
-import { AI_MODELS } from "../utils/constants";
+import { AI_MODELS, THEMES } from "../utils/constants";
 
-export default function SettingsPanel({ ai, onExport, onImport, onReset, onClose }) {
+export default function SettingsPanel({ ai, themeCtx, onExport, onImport, onReset, onClose }) {
   const [showKey, setShowKey] = useState(false);
   const [importStatus, setImportStatus] = useState(null);
   const fileRef = useRef(null);
@@ -38,6 +38,43 @@ export default function SettingsPanel({ ai, onExport, onImport, onReset, onClose
         </h2>
 
         <div className="space-y-6">
+          {/* ── Theme Picker ── */}
+          {themeCtx && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-600 mb-2.5">🎨 主题色</label>
+              <div className="flex gap-2.5 flex-wrap">
+                {Object.values(THEMES).map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => themeCtx.setTheme(t.id)}
+                    className={`group relative w-12 h-12 rounded-xl transition-all duration-300 hover:scale-110 active:scale-95
+                      ${themeCtx.themeId === t.id
+                        ? "ring-2 ring-offset-2 scale-110 shadow-lg"
+                        : "hover:shadow-md"
+                      }
+                    `}
+                    style={{
+                      background: t.btnGrad,
+                      ringColor: t.accent,
+                      "--tw-ring-color": t.accent,
+                    }}
+                    title={`${t.emoji} ${t.name}`}
+                  >
+                    <span className="text-lg">{t.emoji}</span>
+                    {themeCtx.themeId === t.id && (
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-sm">
+                        <span className="text-[10px]">✓</span>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                当前：{themeCtx.theme.emoji} {themeCtx.theme.name}
+              </p>
+            </div>
+          )}
+
           {/* API Key */}
           <div>
             <label className="block text-sm font-semibold text-gray-600 mb-1.5">Claude API Key</label>
@@ -98,16 +135,20 @@ export default function SettingsPanel({ ai, onExport, onImport, onReset, onClose
               {Object.entries(AI_MODELS).map(([id, model]) => (
                 <label
                   key={id}
-                  className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2
-                    ${ai.aiModel === id ? "border-violet-300 bg-violet-50" : "border-gray-100 hover:bg-gray-50"}
-                  `}
+                  className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2"
+                  style={ai.aiModel === id ? {
+                    borderColor: themeCtx?.theme.accent || "#8b5cf6",
+                    background: themeCtx?.theme.accentLight || "#f5f3ff",
+                  } : {
+                    borderColor: "#f3f4f6",
+                  }}
                 >
                   <input
                     type="radio"
                     name="model"
                     checked={ai.aiModel === id}
                     onChange={() => ai.setAiModel(id)}
-                    className="accent-violet-500"
+                    style={{ accentColor: themeCtx?.theme.accent || "#8b5cf6" }}
                   />
                   <div>
                     <div className="text-sm font-semibold text-gray-700">{model.label}</div>
@@ -155,7 +196,8 @@ export default function SettingsPanel({ ai, onExport, onImport, onReset, onClose
 
         <button
           onClick={onClose}
-          className="w-full mt-6 py-3 rounded-xl bg-gray-100 text-gray-600 font-semibold hover:bg-gray-200 transition-all"
+          className="w-full mt-6 py-3 rounded-xl font-semibold transition-all text-white"
+          style={{ background: themeCtx?.theme.btnGrad || "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
         >
           关闭
         </button>

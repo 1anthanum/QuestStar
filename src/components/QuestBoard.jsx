@@ -1,12 +1,13 @@
 import QuestCard from "./QuestCard";
 
-export default function QuestBoard({ quests, activeQuestId, onSelectQuest, nextStep, activeQuest }) {
+export default function QuestBoard({ quests, activeQuestId, onSelectQuest, nextStep, activeQuest, theme }) {
   return (
     <>
       {/* Quick action: next step — with breathe effect */}
       {nextStep && activeQuest && (
         <div
-          className="mb-6 bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-600 rounded-2xl p-5 text-white cursor-pointer card-hover animate-breathe relative overflow-hidden"
+          className="mb-6 rounded-2xl p-5 text-white cursor-pointer card-hover animate-breathe relative overflow-hidden"
+          style={{ background: theme?.btnGrad || "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
           onClick={() => onSelectQuest(activeQuest.id)}
         >
           {/* Shimmer overlay */}
@@ -36,6 +37,7 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, nextS
               quest={q}
               isActive={q.id === activeQuestId}
               onClick={() => onSelectQuest(q.id)}
+              theme={theme}
             />
           ))}
         </div>
