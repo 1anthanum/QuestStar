@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 import { CATEGORIES, XP_CONFIG, ANCHOR_LAYERS } from "../utils/constants";
+import { useLanguage } from "../hooks/useLanguage";
 import ProgressRing from "./ProgressRing";
 import StepItem from "./StepItem";
+import MathText from "./MathText";
 
 // Group consecutive steps by mountain layer
 function groupByLayer(steps) {
@@ -22,6 +24,7 @@ function groupByLayer(steps) {
 }
 
 export default function QuestDetail({ quest, streak, onToggleStep, onDelete, theme }) {
+  const { t } = useLanguage();
   const cat = CATEGORIES[quest.category] || CATEGORIES.work;
   const done = quest.steps.filter((s) => s.done).length;
   const total = quest.steps.length;
@@ -42,12 +45,12 @@ export default function QuestDetail({ quest, streak, onToggleStep, onDelete, the
         <div className={`absolute inset-0 opacity-[0.06] bg-gradient-to-br ${cat.color}`} />
         <div className="relative">
           <div className="flex items-center justify-between mb-4">
-            <span className={`text-sm font-semibold px-3 py-1 rounded-full ${cat.badge}`}>{cat.label}</span>
+            <span className={`text-sm font-semibold px-3 py-1 rounded-full ${cat.badge}`}>{t("cat." + quest.category)}</span>
             <button
-              onClick={() => { if (window.confirm("确定删除这个任务吗？")) onDelete(quest.id); }}
+              onClick={() => { if (window.confirm(t("detail.deleteConfirm"))) onDelete(quest.id); }}
               className="text-xs text-gray-400 hover:text-red-500 transition-all"
             >
-              删除任务
+              {t("detail.deleteQuest")}
             </button>
           </div>
           <div className="flex items-center gap-5">
@@ -56,7 +59,7 @@ export default function QuestDetail({ quest, streak, onToggleStep, onDelete, the
             </ProgressRing>
             <div className="flex-1">
               <div className="text-sm text-gray-500 mb-1.5">
-                {isComplete ? "🏆 任务完成！" : `已完成 ${done} / ${total} 步`}
+                {isComplete ? t("detail.complete") : t("detail.stepsDone", { done, total })}
               </div>
               <div className={`relative w-full bg-white/60 rounded-full h-3.5 overflow-hidden ${!isComplete ? "progress-glow" : ""}`}>
                 <div
@@ -69,8 +72,8 @@ export default function QuestDetail({ quest, streak, onToggleStep, onDelete, the
               </div>
               {!isComplete && next && (
                 <div className="mt-2 text-sm">
-                  <span className="text-gray-400">下一步：</span>
-                  <span className={`font-semibold ${cat.text}`}>{next.text}</span>
+                  <span className="text-gray-400">{t("detail.next")}</span>
+                  <MathText text={next.text} className={`font-semibold ${cat.text}`} />
                 </div>
               )}
             </div>
@@ -81,15 +84,15 @@ export default function QuestDetail({ quest, streak, onToggleStep, onDelete, the
       {/* ── XP info cards ── */}
       <div className="flex gap-3 stagger-children">
         <div className="flex-1 bg-white/90 rounded-xl p-3 text-center border border-gray-100 card-hover">
-          <div className="text-xs text-gray-400">每步奖励</div>
-          <div className="font-bold text-amber-500">10~35 XP</div>
+          <div className="text-xs text-gray-400">{t("detail.perStep")}</div>
+          <div className="font-bold text-amber-500">{t("detail.perStepVal")}</div>
         </div>
         <div className="flex-1 bg-white/90 rounded-xl p-3 text-center border border-gray-100 card-hover">
-          <div className="text-xs text-gray-400">连续加成</div>
+          <div className="text-xs text-gray-400">{t("detail.streakBonus")}</div>
           <div className="font-bold text-orange-500">+{streakBonus}%</div>
         </div>
         <div className="flex-1 bg-white/90 rounded-xl p-3 text-center border border-gray-100 card-hover">
-          <div className="text-xs text-gray-400">完成奖励</div>
+          <div className="text-xs text-gray-400">{t("detail.completion")}</div>
           <div className="font-bold text-emerald-500">+{XP_CONFIG.questBonus} XP</div>
         </div>
       </div>
@@ -122,10 +125,10 @@ export default function QuestDetail({ quest, streak, onToggleStep, onDelete, the
                     {group.layer === "base" ? "🏔️" : group.layer === "top" ? "⛰️" : "🥾"}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm font-bold text-gray-700">{layerConf.label}</span>
-                    <span className="text-xs text-gray-400 ml-2">{layerConf.desc}</span>
+                    <span className="text-sm font-bold text-gray-700">{t("anchor." + group.layer + ".label")}</span>
+                    <span className="text-xs text-gray-400 ml-2">{t("anchor." + group.layer + ".desc")}</span>
                   </div>
-                  {groupDone && <span className="text-xs text-emerald-500 font-semibold animate-pop">✓ 完成</span>}
+                  {groupDone && <span className="text-xs text-emerald-500 font-semibold animate-pop">{t("detail.layerDone")}</span>}
                 </div>
 
                 {/* Trail line + steps */}
@@ -148,7 +151,7 @@ export default function QuestDetail({ quest, streak, onToggleStep, onDelete, the
           {isComplete && (
             <div className="text-center py-6 animate-pop">
               <div className="text-5xl mb-2">🏔️</div>
-              <div className="text-base font-bold text-emerald-600">登顶成功！</div>
+              <div className="text-base font-bold text-emerald-600">{t("detail.summitReached")}</div>
             </div>
           )}
         </div>

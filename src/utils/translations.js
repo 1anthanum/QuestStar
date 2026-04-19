@@ -1,0 +1,561 @@
+// ═══════════════════════════════════════════
+// i18n Translations — EN / ZH
+// ═══════════════════════════════════════════
+
+const translations = {
+  en: {
+    // ── App ──
+    "app.title": "Quest Board",
+    "app.back": "← Back",
+    "app.aiDecompose": "🤖 AI Decompose",
+    "app.manual": "✍️ Manual",
+    "app.footer": "Quest Tracker — ADHD-Friendly Gamified System ⚡",
+
+    // ── Header ──
+    "header.lv": "Lv.",
+    "header.max": "MAX",
+    "header.settings": "Settings",
+
+    // ── Categories ──
+    "cat.learning": "📚 Learning",
+    "cat.work": "💼 Work",
+    "cat.habit": "🔄 Habit",
+    "cat.code": "💻 Code",
+
+    // ── Level Titles ──
+    "level.1": "Novice Adventurer",
+    "level.2": "Apprentice Hero",
+    "level.3": "Steady Strider",
+    "level.4": "Iron Will",
+    "level.5": "Efficient Executor",
+    "level.6": "Focus Master",
+    "level.7": "Habit Forger",
+    "level.8": "Unstoppable",
+    "level.9": "Legendary Conqueror",
+    "level.10": "Ultimate Champion",
+
+    // ── Anchor Layers ──
+    "anchor.base.label": "🏔️ Base Camp",
+    "anchor.base.desc": "Input: core concepts",
+    "anchor.mid.label": "⛰️ Mid Trail",
+    "anchor.mid.desc": "Process: logic & methods",
+    "anchor.top.label": "🏔️ Summit",
+    "anchor.top.desc": "Output: apply & create",
+
+    // ── Anchor Steps ──
+    "anchorStep.anchor": "Anchor",
+    "anchorStep.decompose": "Classify",
+    "anchorStep.infer": "Infer",
+    "anchorStep.master": "Master",
+    "anchorStep.review": "Review",
+
+    // ── Difficulty ──
+    "diff.easy": "Easy",
+    "diff.medium": "Medium",
+    "diff.hard": "Hard",
+
+    // ── AddQuestModal ──
+    "addQuest.title": "✍️ Create Quest Manually",
+    "addQuest.nameLabel": "Quest Name",
+    "addQuest.namePlaceholder": "e.g. Finish React basics course",
+    "addQuest.categoryLabel": "Category",
+    "addQuest.stepsLabel": "Steps",
+    "addQuest.stepsHint": "(one step per line)",
+    "addQuest.stepsPlaceholder": "Watch Chapter 1 video\nDo Chapter 1 exercises\nSummarize notes\nWatch Chapter 2 video\nDo Chapter 2 exercises",
+    "addQuest.tip": "💡 ADHD tip: Smaller steps = easier to start.",
+    "addQuest.cancel": "Cancel",
+    "addQuest.create": "Create Quest",
+
+    // ── AIDecomposeModal ──
+    "aiModal.title": "🤖 AI Anchored Decompose",
+    "aiModal.noKey": "⚠️ Please configure your Claude API Key in Settings to use AI decomposition",
+    "aiModal.goalLabel": "Your Goal",
+    "aiModal.goalPlaceholder": "e.g. Learn Python basics",
+    "aiModal.domainLabel": "🔗 Your Familiar Domain",
+    "aiModal.domainHint": "(AI uses this as an anchor for analogies)",
+    "aiModal.domainPlaceholder": "e.g. cooking, gaming, music, architecture…",
+    "aiModal.loading": "AI is decomposing...",
+    "aiModal.decompose": "🔗 Anchored Decompose",
+    "aiModal.dismiss": "Dismiss",
+    "aiModal.stepsGenerated": "AI generated {n} steps (editable)",
+    "aiModal.regenerate": "Regenerate",
+    "aiModal.cancel": "Cancel",
+    "aiModal.confirm": "Confirm & Create ⚡",
+
+    // ── SettingsPanel ──
+    "settings.title": "⚙️ Settings",
+    "settings.theme": "🎨 Theme",
+    "settings.themeCurrent": "Current:",
+    "settings.apiKey": "Claude API Key",
+    "settings.apiKeyLoaded": "✅ Loaded from .env file",
+    "settings.apiKeyEnvHint": "Using VITE_CLAUDE_API_KEY environment variable — no manual input needed",
+    "settings.apiKeyHide": "Hide",
+    "settings.apiKeyShow": "Show",
+    "settings.apiKeyManualHint": "Recommended: Create a .env file in the project root with VITE_CLAUDE_API_KEY=your_key",
+    "settings.domainLabel": "🔗 Default Familiar Domain",
+    "settings.domainPlaceholder": "e.g. cooking, gaming, music…",
+    "settings.domainHint": "AI will use your familiar domain as an anchor for analogies when decomposing tasks",
+    "settings.modelLabel": "AI Model",
+    "settings.dataLabel": "Data Management",
+    "settings.export": "📤 Export Data",
+    "settings.import": "📥 Import Data",
+    "settings.importSuccess": "Import successful!",
+    "settings.importFail": "Import failed — invalid file format",
+    "settings.resetConfirm": "Are you sure you want to reset all data? This cannot be undone!",
+    "settings.reset": "🗑️ Reset All Data",
+    "settings.close": "Close",
+    "settings.language": "🌐 Language",
+
+    // ── OnboardingGuide ──
+    "onboard.0.title": "Welcome to Quest Tracker! 🗡️",
+    "onboard.0.body": "A gamified task system built for ADHD brains\nTurn boring tasks into adventures, one step at a time",
+    "onboard.1.title": "Quick Start ⚡",
+    "onboard.1.body": "Pick a preset template — don't overthink, just tap",
+    "onboard.2.title": "AI Breaks It Down 🤖",
+    "onboard.2.body": "Enter a big goal and AI will split it into small steps",
+    "onboard.3.title": "Or Create Manually ✍️",
+    "onboard.3.body": "Write your own steps with full control",
+    "onboard.4.title": "Level Up by Doing ✨",
+    "onboard.4.body": "Every completed step earns XP\nDaily streaks give bonus rewards",
+    "onboard.5.title": "Switch It Up 🎨",
+    "onboard.5.body": "Tap to change the theme — 6 styles to choose from",
+    "onboard.skip": "Skip Guide",
+    "onboard.start": "Start Adventure! 🚀",
+    "onboard.next": "Next ({n}/{total})",
+
+    // ── Celebrations ──
+    "celeb.levelUp": "Level Up!",
+    "celeb.continue": "Continue →",
+    "celeb.questComplete": "Quest Complete!",
+    "celeb.awesome": "Awesome!",
+
+    // ── QuestDetail ──
+    "detail.deleteQuest": "Delete Quest",
+    "detail.deleteConfirm": "Are you sure you want to delete this quest?",
+    "detail.complete": "🏆 Quest Complete!",
+    "detail.stepsDone": "{done} / {total} steps done",
+    "detail.next": "Next: ",
+    "detail.perStep": "Per Step",
+    "detail.perStepVal": "10~35 XP",
+    "detail.streakBonus": "Streak Bonus",
+    "detail.completion": "Completion",
+    "detail.summitReached": "Summit Reached!",
+    "detail.layerDone": "✓ Done",
+
+    // ── StepItem ──
+    "step.hideNote": "Hide ▲",
+    "step.showNote": "💡 Info",
+
+    // ── QuestCard ──
+    "card.steps": "{done}/{total} steps",
+    "card.deleteConfirm": "Delete \"{name}\"?",
+
+    // ── QuestBoard ──
+    "board.nextAction": "Next Action",
+    "board.from": "From:",
+
+    // ── PresetPicker ──
+    "preset.title": "Pick one to get started",
+    "preset.subtitle": "Don't overthink it — just tap and go",
+    "preset.steps": "{n} steps",
+    "preset.divider": "or create your own with the buttons above",
+
+    // ── Preset Names & Descriptions ──
+    "preset.clean-room": "Clean Room",
+    "preset.clean-room.desc": "Eat the elephant one bite at a time",
+    "preset.morning-routine": "Morning Routine",
+    "preset.morning-routine.desc": "Fixed flow, zero thinking required",
+    "preset.study-session": "25-Min Study",
+    "preset.study-session.desc": "Pomodoro-style focus sprint",
+    "preset.work-email": "Clear Inbox",
+    "preset.work-email.desc": "Don't let emails pile up",
+    "preset.code-feature": "Build a Small Feature",
+    "preset.code-feature.desc": "Start with the minimum viable version",
+    "preset.grocery": "Grocery Run",
+    "preset.grocery.desc": "Don't forget your phone & keys",
+    "preset.exercise": "20-Min Workout",
+    "preset.exercise.desc": "Just moving is winning",
+    "preset.sleep-prep": "Bedtime Routine",
+    "preset.sleep-prep.desc": "Help your brain switch to rest mode",
+
+    // ── MicroLearn ──
+    "micro.title": "3-Minute Bites",
+    "micro.explored": "{seen}/{total} explored",
+    "micro.shuffle": "🔀 Shuffle",
+    "micro.clear": "✕ Clear",
+    "micro.allExplored": "All {n} bites explored!",
+    "micro.allExploredHint": "Generate fresh ones with AI or reset to revisit",
+    "micro.resetProgress": "🔄 Reset Progress",
+    "micro.generateMore": "🤖 Generate More",
+    "micro.time": "~3 min",
+    "micro.aiTag": "🤖 AI",
+    "micro.exploredTag": "✓ explored",
+    "micro.tapPreview": "Tap to preview →",
+    "micro.close": "Close",
+    "micro.revisit": "Revisit ⚡",
+    "micro.startQuest": "Start Quest ⚡",
+    "micro.generateAI": "🤖 Generate More with AI",
+    "micro.generating": "Generating new bites...",
+    "micro.generatingShort": "✨ Generating...",
+
+    // ── MicroLearn XP ──
+    "microXp.title": "Scholar Level",
+    "microXp.xp": "{xp} XP",
+    "microXp.nextLevel": "Next: {icon} {title}",
+    "microXp.maxLevel": "Max Level!",
+    "microXp.explore": "+{n} XP explore",
+    "microXp.start": "+{n} XP quest",
+    "microXp.domainClear": "+{n} XP domain clear!",
+    "microXp.domainProgress": "{done}/{total}",
+
+    // ── RecentTasks ──
+    "recent.title": "⛓️ Achievement Chain",
+    "recent.conquered": "{n} quest{s} conquered",
+    "recent.nextMilestone": "Next: {icon} {label}",
+    "recent.activeNow": "Active Now",
+    "recent.completed": "Completed",
+    "recent.steps": "{n} steps",
+    "recent.stepsShort": "steps",
+    "recent.collapse": "Collapse ↑",
+    "recent.showMore": "+ {n} more achievement{s}",
+    "recent.queued": "Queued ({n})",
+    "recent.moreQueued": "+{n} more",
+    "recent.emptyHint": "Start completing steps to build your achievement chain!",
+
+    // ── Time Ago ──
+    "time.justNow": "just now",
+    "time.minsAgo": "{n}m ago",
+    "time.hrsAgo": "{n}h ago",
+    "time.daysAgo": "{n}d ago",
+    "time.weeksAgo": "{n}w ago",
+
+    // ── Milestones ──
+    "milestone.1": "First Quest!",
+    "milestone.3": "On Fire",
+    "milestone.5": "Unstoppable",
+    "milestone.10": "Quest Master",
+    "milestone.20": "Legendary",
+    "milestone.50": "Hall of Fame",
+
+    // ── MicroLearn Domains ──
+    "domain.Math": "Math",
+    "domain.Physics": "Physics",
+    "domain.Chemistry": "Chemistry",
+    "domain.Biology": "Biology",
+    "domain.CS": "CS",
+    "domain.Psychology": "Psychology",
+    "domain.Space": "Space",
+    "domain.Music": "Music",
+    "domain.History": "History",
+    "domain.Finance": "Finance",
+
+    // ── File Import ──
+    "file.title": "📄 Import File",
+    "file.dropHint": "Drop a file here or click to browse",
+    "file.supported": "Supports: TXT, MD, CSV, JSON, PDF",
+    "file.selected": "Selected:",
+    "file.size": "Size:",
+    "file.pages": "{n} pages",
+    "file.extracting": "Extracting text...",
+    "file.extracted": "Extracted {n} characters",
+    "file.truncated": "(truncated from {n} pages, showing first 30)",
+    "file.preview": "Text Preview",
+    "file.noApiKey": "⚠️ Please configure your Claude API Key in Settings to use AI summarization",
+    "file.summarizing": "AI is summarizing...",
+    "file.summaryLabel": "AI Summary",
+    "file.questNameLabel": "Quest Name",
+    "file.categoryLabel": "Category",
+    "file.stepsLabel": "Steps ({n})",
+    "file.summarize": "🤖 Summarize & Create Tasks",
+    "file.regenerate": "Regenerate",
+    "file.cancel": "Cancel",
+    "file.create": "Create Quest ⚡",
+    "file.changeFile": "Change File",
+    "file.error": "Error: {msg}",
+
+    // ── AI Models ──
+    "model.sonnet.label": "Claude Sonnet 4.6",
+    "model.sonnet.desc": "Balanced speed & quality",
+    "model.haiku.label": "Claude Haiku 4.5",
+    "model.haiku.desc": "Faster & cheaper",
+  },
+
+  zh: {
+    // ── App ──
+    "app.title": "任务看板",
+    "app.back": "← 返回",
+    "app.aiDecompose": "🤖 AI 拆解",
+    "app.manual": "✍️ 手动创建",
+    "app.footer": "Quest Tracker — ADHD 友好的游戏化任务系统 ⚡",
+
+    // ── Header ──
+    "header.lv": "Lv.",
+    "header.max": "满级",
+    "header.settings": "设置",
+
+    // ── Categories ──
+    "cat.learning": "📚 学习",
+    "cat.work": "💼 工作",
+    "cat.habit": "🔄 习惯",
+    "cat.code": "💻 编程",
+
+    // ── Level Titles ──
+    "level.1": "初心冒险者",
+    "level.2": "见习英雄",
+    "level.3": "稳步前行者",
+    "level.4": "钢铁意志",
+    "level.5": "高效执行者",
+    "level.6": "专注大师",
+    "level.7": "习惯锻造者",
+    "level.8": "势不可挡",
+    "level.9": "传奇征服者",
+    "level.10": "终极冠军",
+
+    // ── Anchor Layers ──
+    "anchor.base.label": "🏔️ 大本营",
+    "anchor.base.desc": "输入：核心概念",
+    "anchor.mid.label": "⛰️ 半山腰",
+    "anchor.mid.desc": "加工：逻辑与方法",
+    "anchor.top.label": "🏔️ 山顶",
+    "anchor.top.desc": "输出：应用与创造",
+
+    // ── Anchor Steps ──
+    "anchorStep.anchor": "锚定",
+    "anchorStep.decompose": "分类",
+    "anchorStep.infer": "推理",
+    "anchorStep.master": "掌握",
+    "anchorStep.review": "复习",
+
+    // ── Difficulty ──
+    "diff.easy": "简单",
+    "diff.medium": "中等",
+    "diff.hard": "困难",
+
+    // ── AddQuestModal ──
+    "addQuest.title": "✍️ 手动创建任务",
+    "addQuest.nameLabel": "任务名称",
+    "addQuest.namePlaceholder": "例如：完成 React 基础课程",
+    "addQuest.categoryLabel": "分类",
+    "addQuest.stepsLabel": "步骤",
+    "addQuest.stepsHint": "（每行一个步骤）",
+    "addQuest.stepsPlaceholder": "观看第一章视频\n完成第一章练习\n整理笔记\n观看第二章视频\n完成第二章练习",
+    "addQuest.tip": "💡 ADHD 小贴士：步骤越小，越容易开始。",
+    "addQuest.cancel": "取消",
+    "addQuest.create": "创建任务",
+
+    // ── AIDecomposeModal ──
+    "aiModal.title": "🤖 AI 锚定拆解",
+    "aiModal.noKey": "⚠️ 请在设置中配置 Claude API Key 以使用 AI 拆解功能",
+    "aiModal.goalLabel": "你的目标",
+    "aiModal.goalPlaceholder": "例如：学习 Python 基础",
+    "aiModal.domainLabel": "🔗 你熟悉的领域",
+    "aiModal.domainHint": "（AI 会用你熟悉的领域作为类比锚点）",
+    "aiModal.domainPlaceholder": "例如：烹饪、游戏、音乐、建筑…",
+    "aiModal.loading": "AI 正在拆解中...",
+    "aiModal.decompose": "🔗 锚定拆解",
+    "aiModal.dismiss": "忽略",
+    "aiModal.stepsGenerated": "AI 生成了 {n} 个步骤（可编辑）",
+    "aiModal.regenerate": "重新生成",
+    "aiModal.cancel": "取消",
+    "aiModal.confirm": "确认创建 ⚡",
+
+    // ── SettingsPanel ──
+    "settings.title": "⚙️ 设置",
+    "settings.theme": "🎨 主题",
+    "settings.themeCurrent": "当前：",
+    "settings.apiKey": "Claude API Key",
+    "settings.apiKeyLoaded": "✅ 已从 .env 文件加载",
+    "settings.apiKeyEnvHint": "使用 VITE_CLAUDE_API_KEY 环境变量 — 无需手动输入",
+    "settings.apiKeyHide": "隐藏",
+    "settings.apiKeyShow": "显示",
+    "settings.apiKeyManualHint": "建议：在项目根目录创建 .env 文件，添加 VITE_CLAUDE_API_KEY=你的密钥",
+    "settings.domainLabel": "🔗 默认熟悉领域",
+    "settings.domainPlaceholder": "例如：烹饪、游戏、音乐…",
+    "settings.domainHint": "AI 拆解任务时会使用你熟悉的领域作为类比锚点",
+    "settings.modelLabel": "AI 模型",
+    "settings.dataLabel": "数据管理",
+    "settings.export": "📤 导出数据",
+    "settings.import": "📥 导入数据",
+    "settings.importSuccess": "导入成功！",
+    "settings.importFail": "导入失败 — 文件格式无效",
+    "settings.resetConfirm": "确定要重置所有数据吗？此操作不可撤销！",
+    "settings.reset": "🗑️ 重置所有数据",
+    "settings.close": "关闭",
+    "settings.language": "🌐 语言",
+
+    // ── OnboardingGuide ──
+    "onboard.0.title": "欢迎来到 Quest Tracker！🗡️",
+    "onboard.0.body": "一个为 ADHD 大脑设计的游戏化任务系统\n把无聊的任务变成冒险，一步一步来",
+    "onboard.1.title": "快速开始 ⚡",
+    "onboard.1.body": "选一个预设模板 — 别想太多，直接点",
+    "onboard.2.title": "AI 帮你拆解 🤖",
+    "onboard.2.body": "输入一个大目标，AI 会把它拆成小步骤",
+    "onboard.3.title": "或者手动创建 ✍️",
+    "onboard.3.body": "自己写步骤，完全掌控",
+    "onboard.4.title": "做了就能升级 ✨",
+    "onboard.4.body": "每完成一个步骤都能获得经验值\n连续打卡还有额外奖励",
+    "onboard.5.title": "换个主题 🎨",
+    "onboard.5.body": "点击切换主题 — 有 6 种风格可选",
+    "onboard.skip": "跳过引导",
+    "onboard.start": "开始冒险！🚀",
+    "onboard.next": "下一步 ({n}/{total})",
+
+    // ── Celebrations ──
+    "celeb.levelUp": "升级了！",
+    "celeb.continue": "继续 →",
+    "celeb.questComplete": "任务完成！",
+    "celeb.awesome": "太棒了！",
+
+    // ── QuestDetail ──
+    "detail.deleteQuest": "删除任务",
+    "detail.deleteConfirm": "确定要删除这个任务吗？",
+    "detail.complete": "🏆 任务完成！",
+    "detail.stepsDone": "{done} / {total} 步已完成",
+    "detail.next": "下一步：",
+    "detail.perStep": "每步",
+    "detail.perStepVal": "10~35 XP",
+    "detail.streakBonus": "连续奖励",
+    "detail.completion": "完成奖励",
+    "detail.summitReached": "到达山顶！",
+    "detail.layerDone": "✓ 完成",
+
+    // ── StepItem ──
+    "step.hideNote": "收起 ▲",
+    "step.showNote": "💡 详情",
+
+    // ── QuestCard ──
+    "card.steps": "{done}/{total} 步",
+    "card.deleteConfirm": "删除「{name}」？",
+
+    // ── QuestBoard ──
+    "board.nextAction": "下一步行动",
+    "board.from": "来自：",
+
+    // ── PresetPicker ──
+    "preset.title": "选一个开始吧",
+    "preset.subtitle": "别想太多 — 点了就走",
+    "preset.steps": "{n} 步",
+    "preset.divider": "或者用上面的按钮自己创建",
+
+    // ── Preset Names & Descriptions ──
+    "preset.clean-room": "整理房间",
+    "preset.clean-room.desc": "大象也是一口一口吃的",
+    "preset.morning-routine": "晨间流程",
+    "preset.morning-routine.desc": "固定流程，零思考",
+    "preset.study-session": "25分钟学习",
+    "preset.study-session.desc": "番茄钟式专注冲刺",
+    "preset.work-email": "清理收件箱",
+    "preset.work-email.desc": "别让邮件堆积如山",
+    "preset.code-feature": "开发小功能",
+    "preset.code-feature.desc": "从最简单的版本开始",
+    "preset.grocery": "买菜跑腿",
+    "preset.grocery.desc": "别忘了手机和钥匙",
+    "preset.exercise": "20分钟运动",
+    "preset.exercise.desc": "动起来就是胜利",
+    "preset.sleep-prep": "睡前流程",
+    "preset.sleep-prep.desc": "帮大脑切换到休息模式",
+
+    // ── MicroLearn ──
+    "micro.title": "3分钟知识卡",
+    "micro.explored": "{seen}/{total} 已探索",
+    "micro.shuffle": "🔀 换一批",
+    "micro.clear": "✕ 清除",
+    "micro.allExplored": "全部 {n} 个知识卡已探索！",
+    "micro.allExploredHint": "用 AI 生成新的，或重置进度重新探索",
+    "micro.resetProgress": "🔄 重置进度",
+    "micro.generateMore": "🤖 生成更多",
+    "micro.time": "~3 分钟",
+    "micro.aiTag": "🤖 AI",
+    "micro.exploredTag": "✓ 已探索",
+    "micro.tapPreview": "点击预览 →",
+    "micro.close": "关闭",
+    "micro.revisit": "重新探索 ⚡",
+    "micro.startQuest": "开始探索 ⚡",
+    "micro.generateAI": "🤖 用 AI 生成更多",
+    "micro.generating": "正在生成新知识卡...",
+    "micro.generatingShort": "✨ 生成中...",
+
+    // ── MicroLearn XP ──
+    "microXp.title": "学者等级",
+    "microXp.xp": "{xp} 经验",
+    "microXp.nextLevel": "下一级：{icon} {title}",
+    "microXp.maxLevel": "满级！",
+    "microXp.explore": "+{n} 经验 探索",
+    "microXp.start": "+{n} 经验 开启",
+    "microXp.domainClear": "+{n} 经验 领域通关！",
+    "microXp.domainProgress": "{done}/{total}",
+
+    // ── RecentTasks ──
+    "recent.title": "⛓️ 成就链",
+    "recent.conquered": "已征服 {n} 个任务",
+    "recent.nextMilestone": "下一个：{icon} {label}",
+    "recent.activeNow": "进行中",
+    "recent.completed": "已完成",
+    "recent.steps": "{n} 步",
+    "recent.stepsShort": "步",
+    "recent.collapse": "收起 ↑",
+    "recent.showMore": "+ {n} 个成就",
+    "recent.queued": "排队中 ({n})",
+    "recent.moreQueued": "+{n} 个",
+    "recent.emptyHint": "开始完成步骤，打造你的成就链！",
+
+    // ── Time Ago ──
+    "time.justNow": "刚刚",
+    "time.minsAgo": "{n}分钟前",
+    "time.hrsAgo": "{n}小时前",
+    "time.daysAgo": "{n}天前",
+    "time.weeksAgo": "{n}周前",
+
+    // ── Milestones ──
+    "milestone.1": "首次征服！",
+    "milestone.3": "势头正猛",
+    "milestone.5": "势不可挡",
+    "milestone.10": "任务大师",
+    "milestone.20": "传奇",
+    "milestone.50": "名人堂",
+
+    // ── MicroLearn Domains ──
+    "domain.Math": "数学",
+    "domain.Physics": "物理",
+    "domain.Chemistry": "化学",
+    "domain.Biology": "生物",
+    "domain.CS": "计算机",
+    "domain.Psychology": "心理学",
+    "domain.Space": "太空",
+    "domain.Music": "音乐",
+    "domain.History": "历史",
+    "domain.Finance": "金融",
+
+    // ── File Import ──
+    "file.title": "📄 导入文件",
+    "file.dropHint": "拖放文件到此处，或点击选择",
+    "file.supported": "支持：TXT、MD、CSV、JSON、PDF",
+    "file.selected": "已选择：",
+    "file.size": "大小：",
+    "file.pages": "{n} 页",
+    "file.extracting": "正在提取文字...",
+    "file.extracted": "已提取 {n} 个字符",
+    "file.truncated": "（从 {n} 页截取，显示前 30 页）",
+    "file.preview": "文字预览",
+    "file.noApiKey": "⚠️ 请在设置中配置 Claude API Key 以使用 AI 总结功能",
+    "file.summarizing": "AI 正在总结...",
+    "file.summaryLabel": "AI 总结",
+    "file.questNameLabel": "任务名称",
+    "file.categoryLabel": "分类",
+    "file.stepsLabel": "步骤 ({n})",
+    "file.summarize": "🤖 总结并生成任务",
+    "file.regenerate": "重新生成",
+    "file.cancel": "取消",
+    "file.create": "创建任务 ⚡",
+    "file.changeFile": "更换文件",
+    "file.error": "错误：{msg}",
+
+    // ── AI Models ──
+    "model.sonnet.label": "Claude Sonnet 4.6",
+    "model.sonnet.desc": "速度与质量平衡",
+    "model.haiku.label": "Claude Haiku 4.5",
+    "model.haiku.desc": "更快更便宜",
+  },
+};
+
+export default translations;

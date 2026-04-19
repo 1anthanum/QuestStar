@@ -1,50 +1,57 @@
 import { DEFAULT_AI_MODEL } from "./constants";
 
-const SYSTEM_PROMPT = `你是一个基于「锚定学习法」的任务拆解专家，专门帮助有 ADHD 的人把学习/工作目标拆解为认知友好的步骤路径。
+const SYSTEM_PROMPT = `You are a task decomposition expert based on the "Anchored Learning Method," specializing in helping people with ADHD break down learning/work goals into cognitively friendly step-by-step paths.
 
-## 锚定学习法核心框架
+## Anchored Learning Method — Core Framework
 
-### 五步模型
-1. **类比（Anchor）**— 从用户已知领域找到一个结构类似的概念，建立锚点
-2. **归类（Decompose）**— 将新知识按「山模型」分层拆解：山脚（输入层）→ 山腰（处理层）→ 山顶（输出层）
-3. **推断（Infer）**— 利用锚点的已知逻辑，推断新领域的运作规律
-4. **掌握（Master）**— 三级掌握：能讲清楚 → 能应用 → 能迁移
-5. **复习（Review）**— 回顾并加固逻辑链
+### Five-Step Model
+1. **Anchor** — Find a structurally similar concept from the user's familiar domain to establish an anchor point
+2. **Decompose** — Break down new knowledge using the "Mountain Model": Base Camp (input layer) → Mid Trail (processing layer) → Summit (output layer)
+3. **Infer** — Use the known logic from the anchor to infer how the new domain works
+4. **Master** — Three levels of mastery: can explain → can apply → can transfer
+5. **Review** — Revisit and reinforce the logical chain
 
-### 山模型分层
-- **base**（山脚/输入层）：基础概念、术语、原材料，最先学
-- **mid**（山腰/处理层）：处理逻辑、推理过程、方法步骤
-- **top**（山顶/输出层）：应用产出、综合判断、创造性运用
+### Mountain Model Layers
+- **base** (Base Camp / Input Layer): Foundational concepts, terminology, raw materials — learn first
+- **mid** (Mid Trail / Processing Layer): Processing logic, reasoning, methods and procedures
+- **top** (Summit / Output Layer): Applied output, synthesis, creative application
 
-### ADHD 约束
-- 每步 ≤ 30 分钟，动词开头，具体可执行
-- 从简单到困难排列，降低启动阻力
-- 避免模糊描述；每步只聚焦一个认知点（单链激活）
-- 在关键转折处插入复习步骤，防止遗忘
+### ADHD Constraints
+- Each step ≤ 30 minutes, starts with an action verb, specific and actionable
+- Ordered from easy to hard to reduce activation energy
+- Avoid vague descriptions; each step focuses on a single cognitive point (single-chain activation)
+- Insert review steps at key turning points to prevent forgetting
 
-## 输出规则
-将目标拆成 5-15 个步骤，每步标注：
-- **text**: 具体动作描述
+### LaTeX Math Support
+When the goal involves math, science, or any technical formulas, use LaTeX notation in your step text and anchor notes:
+- Inline math: wrap with single dollar signs, e.g. $f(x) = x^2$
+- Block math: wrap with double dollar signs, e.g. $$\\int_0^1 x^2 \\, dx = \\frac{1}{3}$$
+- Use LaTeX freely for derivatives ($\\frac{dy}{dx}$), integrals ($\\int$), limits ($\\lim_{x \\to 0}$), summations ($\\sum_{i=1}^{n}$), Greek letters ($\\alpha, \\beta, \\theta$), matrices, etc.
+- Keep the surrounding text in plain English; only wrap actual mathematical expressions in $ delimiters
+
+## Output Rules
+Break the goal into 5-15 steps, each annotated with:
+- **text**: Specific action description
 - **difficulty**: easy / medium / hard
-- **layer**: base / mid / top（山模型层级）
-- **anchorStep**: anchor / decompose / infer / master / review（属于五步中的哪一步）
-- **anchorNote**: 简短说明该步骤的锚定逻辑（如类比了什么、为何这样分层）
+- **layer**: base / mid / top (Mountain Model layer)
+- **anchorStep**: anchor / decompose / infer / master / review (which of the five steps it belongs to)
+- **anchorNote**: Brief explanation of the anchoring logic (e.g. what analogy was used, why this layer)
 
-你必须严格按以下 JSON 格式返回，不要包含任何其他文字：
+You must return strictly in the following JSON format with no other text:
 [
-  {"text": "步骤描述", "difficulty": "easy", "layer": "base", "anchorStep": "anchor", "anchorNote": "锚定说明"},
-  {"text": "步骤描述", "difficulty": "medium", "layer": "mid", "anchorStep": "infer", "anchorNote": "锚定说明"}
+  {"text": "Step description", "difficulty": "easy", "layer": "base", "anchorStep": "anchor", "anchorNote": "Anchoring explanation"},
+  {"text": "Step description", "difficulty": "medium", "layer": "mid", "anchorStep": "infer", "anchorNote": "Anchoring explanation"}
 ]`;
 
 /**
- * 获取 API Key：.env 优先，其次 localStorage 手动输入
+ * Get API Key: .env takes priority, then localStorage manual input
  */
 export function getApiKey(manualKey = "") {
   return import.meta.env.VITE_CLAUDE_API_KEY || manualKey;
 }
 
 /**
- * 检查 API Key 来源
+ * Check API Key source
  */
 export function getApiKeySource(manualKey = "") {
   if (import.meta.env.VITE_CLAUDE_API_KEY) return "env";
@@ -53,34 +60,38 @@ export function getApiKeySource(manualKey = "") {
 }
 
 /**
- * 调用 Claude API 拆解任务
- * @param {string} goal - 用户输入的目标
- * @param {string} category - 任务分类
- * @param {string} apiKey - Claude API Key（手动输入的，.env 会自动合并）
- * @param {string} model - 模型 ID
- * @param {string} knownDomain - 用户的已知领域（用于锚定类比）
- * @returns {Promise<Array>} 步骤数组
+ * Call Claude API to decompose a task
+ * @param {string} goal - User's input goal
+ * @param {string} category - Task category
+ * @param {string} apiKey - Claude API Key (manual input; .env is merged automatically)
+ * @param {string} model - Model ID
+ * @param {string} knownDomain - User's familiar domain (for anchored analogies)
+ * @returns {Promise<Array>} Array of steps
  */
-export async function decomposeTask(goal, category, apiKey, model = DEFAULT_AI_MODEL, knownDomain = "") {
+export async function decomposeTask(goal, category, apiKey, model = DEFAULT_AI_MODEL, knownDomain = "", lang = "en") {
   const resolvedKey = getApiKey(apiKey);
   if (!resolvedKey) {
-    throw new Error("未找到 API Key。请在 .env 文件中设置 VITE_CLAUDE_API_KEY，或在设置中手动输入。");
+    throw new Error("API Key not found. Set VITE_CLAUDE_API_KEY in your .env file, or enter it manually in Settings.");
   }
 
   const categoryLabels = {
-    learning: "学习",
-    work: "工作",
-    habit: "日常习惯",
-    code: "编程/技术",
+    learning: "learning",
+    work: "work",
+    habit: "daily habit",
+    code: "programming/tech",
   };
 
   const anchorPart = knownDomain.trim()
-    ? `\n\n我熟悉的领域是「${knownDomain.trim()}」，请用这个领域的概念作为锚点来类比和拆解新知识。`
-    : `\n\n请自行选择一个大众容易理解的日常概念作为锚点来辅助类比。`;
+    ? `\n\nMy familiar domain is "${knownDomain.trim()}". Please use concepts from this domain as anchor points for analogies when decomposing the new knowledge.`
+    : `\n\nPlease choose a commonly understood everyday concept as an anchor point for analogies.`;
 
-  const userMessage = `请用锚定学习法帮我拆解以下${categoryLabels[category] || ""}目标：\n\n「${goal}」${anchorPart}\n\n请返回 JSON 格式的步骤数组。`;
+  const langPart = lang === "zh"
+    ? `\n\nIMPORTANT: Write ALL step text and anchorNote content in Chinese (中文). Use natural, casual Chinese — avoid textbook tone. Keep JSON field names in English.`
+    : "";
 
-  // 开发环境通过 Vite proxy，生产环境直接调用（需要 CORS header）
+  const userMessage = `Using the Anchored Learning Method, help me decompose the following ${categoryLabels[category] || ""} goal:\n\n"${goal}"${anchorPart}${langPart}\n\nPlease return a JSON array of steps.`;
+
+  // Dev uses Vite proxy; production calls directly (needs CORS header)
   const apiUrl = import.meta.env.DEV
     ? "/api/claude/v1/messages"
     : "https://api.anthropic.com/v1/messages";
@@ -104,28 +115,28 @@ export async function decomposeTask(goal, category, apiKey, model = DEFAULT_AI_M
   if (!response.ok) {
     const errBody = await response.text();
     if (response.status === 401) {
-      throw new Error("API Key 无效，请检查设置");
+      throw new Error("Invalid API Key — please check your Settings");
     }
     if (response.status === 429) {
-      throw new Error("请求太频繁，请稍后再试");
+      throw new Error("Too many requests — please try again later");
     }
-    throw new Error(`API 请求失败 (${response.status}): ${errBody}`);
+    throw new Error(`API request failed (${response.status}): ${errBody}`);
   }
 
   const data = await response.json();
   const text = data.content?.[0]?.text || "";
 
-  // 从返回文本中提取 JSON 数组
+  // Extract JSON array from response text
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) {
-    throw new Error("AI 返回格式异常，请重试");
+    throw new Error("Unexpected AI response format — please try again");
   }
 
   const steps = JSON.parse(jsonMatch[0]);
 
-  // 验证格式
+  // Validate format
   if (!Array.isArray(steps) || steps.length === 0) {
-    throw new Error("AI 返回了空的步骤列表，请重试");
+    throw new Error("AI returned an empty step list — please try again");
   }
 
   const validLayers = ["base", "mid", "top"];
@@ -138,4 +149,223 @@ export async function decomposeTask(goal, category, apiKey, model = DEFAULT_AI_M
     anchorStep: validAnchorSteps.includes(s.anchorStep) ? s.anchorStep : "decompose",
     anchorNote: String(s.anchorNote || "").trim(),
   }));
+}
+
+// ═══════════════════════════════════════════
+// Micro-Learn Bite Generator
+// ═══════════════════════════════════════════
+
+function getMicroLearnPrompt(lang) {
+  const langInstruction = lang === "zh"
+    ? "\n- IMPORTANT: Write ALL content (title, hook, steps) in Chinese (中文). Use casual, vivid Chinese — no textbook tone. Domain names should stay in English for consistency."
+    : "\n- Write all content in English. Keep language casual and vivid — no textbook tone.";
+
+  return `You are a knowledge curator who creates fascinating, bite-sized learning cards for people with ADHD. Each card should teach ONE cool concept that can be understood in ~3 minutes.
+
+Rules:
+- Make it genuinely interesting — the kind of fact that makes someone say "wait, really?!"
+- Start with a surprising hook that creates curiosity
+- Break it into 3-4 tiny steps, each one sentence
+- Use LaTeX for any math/science formulas: inline $...$ or block $$...$$
+- Each step should build on the previous one${langInstruction}
+- Difficulty should be mostly "easy" with at most one "medium"
+
+You must return strictly in the following JSON format with no other text:
+[
+  {
+    "id": "ml-unique-kebab-id",
+    "emoji": "relevant emoji",
+    "domain": "domain name in English",
+    "title": "Catchy question or statement",
+    "hook": "One-sentence mind-blowing hook",
+    "category": "learning",
+    "steps": [
+      {"text": "Step 1 text", "difficulty": "easy"},
+      {"text": "Step 2 text", "difficulty": "easy"},
+      {"text": "Step 3 text", "difficulty": "medium"}
+    ]
+  }
+]`;
+}
+
+/**
+ * Generate new micro-learn bites via Claude API
+ * @param {string[]} domains - Domains to generate for
+ * @param {string[]} existingTitles - Titles already seen (to avoid repeats)
+ * @param {number} count - Number of bites to generate
+ * @param {string} apiKey - Claude API Key
+ * @param {string} model - Model ID
+ * @returns {Promise<Array>} Array of micro-learn bite objects
+ */
+export async function generateMicroLearns(domains, existingTitles, count, apiKey, model = DEFAULT_AI_MODEL, lang = "en") {
+  const resolvedKey = getApiKey(apiKey);
+  if (!resolvedKey) {
+    throw new Error("API Key not found. Set VITE_CLAUDE_API_KEY in your .env file, or enter it manually in Settings.");
+  }
+
+  const avoidList = existingTitles.length > 0
+    ? `\n\nDo NOT repeat these topics (already seen):\n${existingTitles.map(t => `- ${t}`).join("\n")}`
+    : "";
+
+  const userMessage = `Generate ${count} fascinating micro-learn bites across these domains: ${domains.join(", ")}.
+
+Each bite should cover a different surprising concept.${avoidList}
+
+Return a JSON array of bite objects.`;
+
+  const apiUrl = import.meta.env.DEV
+    ? "/api/claude/v1/messages"
+    : "https://api.anthropic.com/v1/messages";
+
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": resolvedKey,
+      "anthropic-version": "2023-06-01",
+      ...(import.meta.env.DEV ? {} : { "anthropic-dangerous-direct-browser-access": "true" }),
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 4096,
+      system: getMicroLearnPrompt(lang),
+      messages: [{ role: "user", content: userMessage }],
+    }),
+  });
+
+  if (!response.ok) {
+    const errBody = await response.text();
+    if (response.status === 401) throw new Error("Invalid API Key — please check your Settings");
+    if (response.status === 429) throw new Error("Too many requests — please try again later");
+    throw new Error(`API request failed (${response.status}): ${errBody}`);
+  }
+
+  const data = await response.json();
+  const text = data.content?.[0]?.text || "";
+
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) throw new Error("Unexpected AI response format — please try again");
+
+  const bites = JSON.parse(jsonMatch[0]);
+  if (!Array.isArray(bites) || bites.length === 0) throw new Error("AI returned empty results — please try again");
+
+  return bites.map((b, i) => ({
+    id: b.id || `ml-ai-${Date.now()}-${i}`,
+    emoji: b.emoji || "🧠",
+    domain: String(b.domain || domains[0] || "General").trim(),
+    title: String(b.title || "").trim(),
+    hook: String(b.hook || "").trim(),
+    category: "learning",
+    isAI: true,
+    steps: Array.isArray(b.steps) ? b.steps.map((s) => ({
+      text: String(s.text || "").trim(),
+      difficulty: ["easy", "medium", "hard"].includes(s.difficulty) ? s.difficulty : "easy",
+    })) : [],
+  }));
+}
+
+// ═══════════════════════════════════════════
+// File Summarize & Decompose
+// ═══════════════════════════════════════════
+
+const FILE_SUMMARIZE_PROMPT = `You are a task extraction expert. Given the text content of a document, you must:
+1. Summarize the document in 2-3 sentences (the "summary")
+2. Suggest a short quest name (the "questName")
+3. Suggest an appropriate category: learning / work / habit / code
+4. Extract 5-12 actionable steps the reader should take to understand, apply, or complete the content described in the document
+
+Each step should be:
+- Specific and actionable (starts with a verb)
+- ≤ 30 minutes of effort
+- Ordered from easy to hard
+- ADHD-friendly: small, concrete, no vague descriptions
+
+Use LaTeX ($...$) for any math/science formulas found in the document.
+
+Return strictly in this JSON format:
+{
+  "summary": "2-3 sentence summary",
+  "questName": "Short quest name",
+  "category": "learning",
+  "steps": [
+    {"text": "Step description", "difficulty": "easy"},
+    {"text": "Step description", "difficulty": "medium"}
+  ]
+}`;
+
+/**
+ * Summarize a file's text and decompose into steps.
+ * @param {string} fileText - Extracted text from the file
+ * @param {string} fileName - Original file name
+ * @param {string} apiKey
+ * @param {string} model
+ * @param {string} lang
+ * @returns {Promise<{summary, questName, category, steps}>}
+ */
+export async function summarizeFile(fileText, fileName, apiKey, model = DEFAULT_AI_MODEL, lang = "en") {
+  const resolvedKey = getApiKey(apiKey);
+  if (!resolvedKey) {
+    throw new Error("API Key not found. Set VITE_CLAUDE_API_KEY in your .env file, or enter it manually in Settings.");
+  }
+
+  const langPart = lang === "zh"
+    ? `\n\nIMPORTANT: Write the summary, questName, and ALL step text in Chinese (中文). Keep JSON field names in English.`
+    : "";
+
+  const userMessage = `Here is the content of a document named "${fileName}":
+
+---
+${fileText}
+---
+
+Please summarize this document and extract actionable steps.${langPart}
+
+Return a JSON object.`;
+
+  const apiUrl = import.meta.env.DEV
+    ? "/api/claude/v1/messages"
+    : "https://api.anthropic.com/v1/messages";
+
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": resolvedKey,
+      "anthropic-version": "2023-06-01",
+      ...(import.meta.env.DEV ? {} : { "anthropic-dangerous-direct-browser-access": "true" }),
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 2048,
+      system: FILE_SUMMARIZE_PROMPT,
+      messages: [{ role: "user", content: userMessage }],
+    }),
+  });
+
+  if (!response.ok) {
+    const errBody = await response.text();
+    if (response.status === 401) throw new Error("Invalid API Key — please check your Settings");
+    if (response.status === 429) throw new Error("Too many requests — please try again later");
+    throw new Error(`API request failed (${response.status}): ${errBody}`);
+  }
+
+  const data = await response.json();
+  const text = data.content?.[0]?.text || "";
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("Unexpected AI response format — please try again");
+
+  const result = JSON.parse(jsonMatch[0]);
+
+  return {
+    summary: String(result.summary || "").trim(),
+    questName: String(result.questName || fileName).trim(),
+    category: ["learning", "work", "habit", "code"].includes(result.category) ? result.category : "learning",
+    steps: Array.isArray(result.steps)
+      ? result.steps.map((s) => ({
+          text: String(s.text || "").trim(),
+          difficulty: ["easy", "medium", "hard"].includes(s.difficulty) ? s.difficulty : "medium",
+        }))
+      : [],
+  };
 }

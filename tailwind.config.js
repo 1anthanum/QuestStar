@@ -1,8 +1,13 @@
+import defaultTheme from "tailwindcss/defaultTheme";
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["Inter", ...defaultTheme.fontFamily.sans],
+      },
       animation: {
         "bounce-slow": "bounce-slow 0.6s ease-in-out",
         "fade-in": "fade-in 0.3s ease-out forwards",

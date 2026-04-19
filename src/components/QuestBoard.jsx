@@ -1,6 +1,12 @@
 import QuestCard from "./QuestCard";
+import PresetPicker from "./PresetPicker";
+import MicroLearn from "./MicroLearn";
+import RecentTasks from "./RecentTasks";
+import MathText from "./MathText";
+import { useLanguage } from "../hooks/useLanguage";
 
-export default function QuestBoard({ quests, activeQuestId, onSelectQuest, nextStep, activeQuest, theme }) {
+export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDeleteQuest, onAddQuest, nextStep, activeQuest, theme, ai }) {
+  const { t } = useLanguage();
   return (
     <>
       {/* Quick action: next step — with breathe effect */}
@@ -15,20 +21,16 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, nextS
           <div className="relative">
             <div className="text-xs font-semibold opacity-80 mb-1 flex items-center gap-1.5">
               <span className="inline-block w-2 h-2 bg-white rounded-full animate-pulse" />
-              下一步行动
+              {t("board.nextAction")}
             </div>
-            <div className="text-lg font-bold leading-snug">{nextStep.text}</div>
-            <div className="text-xs opacity-60 mt-1.5">来自：{activeQuest.name}</div>
+            <div className="text-lg font-bold leading-snug"><MathText text={nextStep.text} /></div>
+            <div className="text-xs opacity-60 mt-1.5">{t("board.from")} <MathText text={activeQuest.name} /></div>
           </div>
         </div>
       )}
 
       {quests.length === 0 ? (
-        <div className="text-center py-20 animate-fade-in">
-          <div className="text-6xl mb-5">🗡️</div>
-          <div className="text-xl font-bold text-gray-400 mb-2">还没有任务</div>
-          <div className="text-gray-400 mb-6">点击上方按钮开始你的冒险</div>
-        </div>
+        <PresetPicker onSelect={onAddQuest} theme={theme} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 stagger-children">
           {quests.map((q) => (
@@ -37,11 +39,18 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, nextS
               quest={q}
               isActive={q.id === activeQuestId}
               onClick={() => onSelectQuest(q.id)}
+              onDelete={onDeleteQuest}
               theme={theme}
             />
           ))}
         </div>
       )}
+
+      {/* Achievement Chain — timeline of progress */}
+      <RecentTasks quests={quests} onSelectQuest={onSelectQuest} onDeleteQuest={onDeleteQuest} theme={theme} />
+
+      {/* 3-Minute Bites — always visible on board */}
+      <MicroLearn onStartQuest={onAddQuest} theme={theme} ai={ai} />
     </>
   );
 }

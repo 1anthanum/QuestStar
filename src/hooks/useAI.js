@@ -20,12 +20,12 @@ export function useAI() {
   const hasApiKey = Boolean(resolvedKey);
 
   const decompose = useCallback(
-    async (goal, category, overrideKnownDomain) => {
+    async (goal, category, overrideKnownDomain, lang = "en") => {
       setLoading(true);
       setError(null);
       try {
         const domain = overrideKnownDomain !== undefined ? overrideKnownDomain : knownDomain;
-        const steps = await decomposeTask(goal, category, manualApiKey, aiModel, domain);
+        const steps = await decomposeTask(goal, category, manualApiKey, aiModel, domain, lang);
         return steps;
       } catch (err) {
         setError(err.message);

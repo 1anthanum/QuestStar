@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══ KaTeX inline fixes ═══ */
+.katex { font-size: 1em !important; }
+.katex-display { margin: 0.5em 0 !important; }
+
 /* ═══ Theme CSS Variables (defaults = aurora) ═══ */
 :root {
   --accent: #6366f1;
@@ -25,6 +29,17 @@
 }
 .animate-orb-float {
   animation: orb-float var(--duration, 20s) ease-in-out infinite;
+}
+
+/* ═══ Floating micro-particles ═══ */
+@keyframes particle-drift {
+  0%, 100% { transform: translateY(0) translateX(0) scale(1); opacity: 0.12; }
+  25% { transform: translateY(-18px) translateX(8px) scale(1.5); opacity: 0.2; }
+  50% { transform: translateY(-8px) translateX(-12px) scale(0.8); opacity: 0.08; }
+  75% { transform: translateY(-25px) translateX(5px) scale(1.2); opacity: 0.18; }
+}
+.animate-particle-drift {
+  animation: particle-drift var(--duration, 8s) ease-in-out infinite;
 }
 
 /* ═══ Theme accent button ═══ */
@@ -162,4 +177,79 @@
 @keyframes stagger-slide-up {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══ Checkbox bounce ═══ */
+.checkbox-bounce {
+  transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}
+.checkbox-bounce:active {
+  transform: scale(0.85);
+}
+.checkbox-bounce.checked {
+  animation: checkbox-pop 0.35s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes checkbox-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+/* ═══ Ripple effect ═══ */
+.ripple-container {
+  position: relative;
+  overflow: hidden;
+}
+.ripple-container .ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.35);
+  transform: scale(0);
+  animation: ripple-expand 0.6s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes ripple-expand {
+  to { transform: scale(4); opacity: 0; }
+}
+
+/* ═══ Shake on error ═══ */
+.shake {
+  animation: shake 0.4s ease;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+/* ═══ Bounce on complete ═══ */
+.bounce-in {
+  animation: bounce-in 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes bounce-in {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ═══ Glow pulse ═══ */
+.glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 5px var(--accent-glow); }
+  50% { box-shadow: 0 0 20px var(--accent-glow), 0 0 40px var(--accent-glow); }
+}
+
+/* ═══ Smooth number counter ═══ */
+.number-pop {
+  animation: number-pop 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes number-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.4); }
+  100% { transform: scale(1); }
 }

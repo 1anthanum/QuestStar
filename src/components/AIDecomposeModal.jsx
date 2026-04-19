@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { CATEGORIES, ANCHOR_LAYERS, ANCHOR_STEPS } from "../utils/constants";
 import { generateId } from "../utils/gameLogic";
+import MathText from "./MathText";
+import { useLanguage } from "../hooks/useLanguage";
 
 const DIFFICULTY_COLORS = {
   easy: "bg-emerald-100 text-emerald-700",
@@ -8,13 +10,14 @@ const DIFFICULTY_COLORS = {
   hard: "bg-red-100 text-red-700",
 };
 
-const DIFFICULTY_LABELS = { easy: "简单", medium: "中等", hard: "困难" };
+const DIFFICULTY_LABELS = { easy: "easy", medium: "medium", hard: "hard" };
 
 export default function AIDecomposeModal({ onAdd, onClose, ai }) {
+  const { t, lang } = useLanguage();
   const [goal, setGoal] = useState("");
   const [category, setCategory] = useState("learning");
   const [localKnownDomain, setLocalKnownDomain] = useState(ai.knownDomain || "");
-  const [steps, setSteps] = useState(null); // AI 生成的步骤
+  const [steps, setSteps] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
   const [editText, setEditText] = useState("");
   const inputRef = useRef(null);
@@ -25,11 +28,10 @@ export default function AIDecomposeModal({ onAdd, onClose, ai }) {
 
   const handleGenerate = async () => {
     if (!goal.trim()) return;
-    // 保存已知领域到 localStorage，下次自动填充
     if (localKnownDomain.trim() !== ai.knownDomain) {
       ai.setKnownDomain(localKnownDomain.trim());
     }
-    const result = await ai.decompose(goal.trim(), category, localKnownDomain.trim());
+    const result = await ai.decompose(goal.trim(), category, localKnownDomain.trim(), lang);
     if (result) {
       setSteps(result);
     }
@@ -77,24 +79,24 @@ export default function AIDecomposeModal({ onAdd, onClose, ai }) {
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 max-h-[90vh] overflow-y-auto animate-scale-in">
         <h2 className="text-2xl font-black text-gray-800 mb-6 flex items-center gap-2">
-          <span>🤖</span> AI 锚定拆解
+          <span>🤖</span> {t("aiModal.title")}
         </h2>
 
         {!ai.hasApiKey && (
           <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
-            ⚠️ 请先在设置中配置 Claude API Key 才能使用 AI 拆解功能
+            {t("aiModal.noKey")}
           </div>
         )}
 
         {/* Goal + Known Domain inputs */}
         <div className="space-y-4 mb-6">
           <div>
-            <label className="block text-sm font-semibold text-gray-600 mb-1.5">你的目标</label>
+            <label className="block text-sm font-semibold text-gray-600 mb-1.5">{t("aiModal.goalLabel")}</label>
             <input
               ref={inputRef}
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
-              placeholder="例：学会 Python 基础语法"
+              placeholder={t("aiModal.goalPlaceholder")}
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-violet-400 focus:outline-none text-gray-800 text-base"
               onKeyDown={(e) => e.key === "Enter" && !ai.loading && handleGenerate()}
             />
@@ -102,19 +104,19 @@ export default function AIDecomposeModal({ onAdd, onClose, ai }) {
 
           <div>
             <label className="block text-sm font-semibold text-gray-600 mb-1.5">
-              🔗 你熟悉的领域
-              <span className="font-normal text-gray-400 ml-1">（AI 会用这个领域做类比锚点）</span>
+              {t("aiModal.domainLabel")}
+              <span className="font-normal text-gray-400 ml-1">{t("aiModal.domainHint")}</span>
             </label>
             <input
               value={localKnownDomain}
               onChange={(e) => setLocalKnownDomain(e.target.value)}
-              placeholder="例：烹饪、打游戏、音乐、建筑…"
+              placeholder={t("aiModal.domainPlaceholder")}
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-400 focus:outline-none text-gray-800 text-base"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-600 mb-1.5">分类</label>
+            <label className="block text-sm font-semibold text-gray-600 mb-1.5">{t("aiModal.categoryLabel")}</label>
             <div className="grid grid-cols-2 gap-2">
               {Object.entries(CATEGORIES).map(([key, cat]) => (
                 <button
@@ -125,7 +127,7 @@ export default function AIDecomposeModal({ onAdd, onClose, ai }) {
                     ${category === key ? `${cat.badge} ring-2 ring-offset-1 ring-current` : "bg-gray-100 text-gray-500 hover:bg-gray-200"}
                   `}
                 >
-                  {cat.label}
+                  {t("cat." + key)}
                 </button>
               ))}
             </div>
@@ -139,10 +141,10 @@ export default function AIDecomposeModal({ onAdd, onClose, ai }) {
             >
               {ai.loading ? (
                 <>
-                  <span className="animate-spin">◌</span> AI 正在锚定拆解...
+                  <span className="animate-spin">◌</span> {t("aiModal.loading")}
                 </>
               ) : (
-                <>🔗 锚定拆解</>
+                <>{t("aiModal.decompose")}</>
               )}
             </button>
           )}
@@ -156,7 +158,7 @@ export default function AIDecomposeModal({ onAdd, onClose, ai }) {
               onClick={() => ai.setError(null)}
               className="ml-2 text-red-500 underline hover:text-red-700"
             >
-              关闭
+              {t("aiModal.dismiss")}
             </button>
           </div>
         )}
@@ -166,13 +168,13 @@ export default function AIDecomposeModal({ onAdd, onClose, ai }) {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-gray-600">
-                AI 生成了 {steps.length} 个步骤（可编辑）
+                {t("aiModal.stepsGenerated", { n: steps.length })}
               </h3>
               <button
                 onClick={() => { setSteps(null); ai.setError(null); }}
                 className="text-xs text-gray-400 hover:text-gray-600"
               >
-                重新生成
+                {t("aiModal.regenerate")}
               </button>
             </div>
 
@@ -198,11 +200,11 @@ export default function AIDecomposeModal({ onAdd, onClose, ai }) {
                           className="flex-1 text-sm text-gray-700 cursor-pointer hover:text-gray-900"
                           onClick={() => startEdit(i)}
                         >
-                          {step.text}
+                          <MathText text={step.text} />
                         </span>
                       )}
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${DIFFICULTY_COLORS[step.difficulty]}`}>
-                        {DIFFICULTY_LABELS[step.difficulty]}
+                        {t("diff." + step.difficulty)}
                       </span>
                       <button
                         onClick={() => removeStep(i)}
@@ -226,7 +228,7 @@ export default function AIDecomposeModal({ onAdd, onClose, ai }) {
                         )}
                         {step.anchorNote && (
                           <span className="text-[10px] text-gray-400 italic truncate max-w-[200px]" title={step.anchorNote}>
-                            💡 {step.anchorNote}
+                            💡 <MathText text={step.anchorNote} />
                           </span>
                         )}
                       </div>
@@ -238,14 +240,14 @@ export default function AIDecomposeModal({ onAdd, onClose, ai }) {
 
             <div className="flex gap-3 pt-3">
               <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-semibold hover:bg-gray-200 transition-all">
-                取消
+                {t("aiModal.cancel")}
               </button>
               <button
                 onClick={handleConfirm}
                 disabled={steps.length === 0}
                 className="flex-1 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold hover:shadow-lg disabled:opacity-40 transition-all"
               >
-                确认创建 ⚡
+                {t("aiModal.confirm")}
               </button>
             </div>
           </div>
@@ -254,7 +256,7 @@ export default function AIDecomposeModal({ onAdd, onClose, ai }) {
         {/* Cancel if no steps yet */}
         {!steps && (
           <button onClick={onClose} className="w-full py-3 rounded-xl bg-gray-100 text-gray-600 font-semibold hover:bg-gray-200 transition-all">
-            取消
+            {t("aiModal.cancel")}
           </button>
         )}
       </div>

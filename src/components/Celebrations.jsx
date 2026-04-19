@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { XP_CONFIG } from "../utils/constants";
+import MathText from "./MathText";
+import { useLanguage } from "../hooks/useLanguage";
 
 // ═══════════════════════════════════════
 // Confetti burst — spawns particles at a point
@@ -66,6 +68,7 @@ export function XpPopup({ amount, visible }) {
 // Level Up — with confetti
 // ═══════════════════════════════════════
 export function LevelUpOverlay({ level, onClose }) {
+  const { t } = useLanguage();
   const [showConfetti, setShowConfetti] = useState(false);
 
   useEffect(() => {
@@ -85,15 +88,15 @@ export function LevelUpOverlay({ level, onClose }) {
         <div className="bg-white rounded-3xl p-10 text-center shadow-2xl max-w-sm mx-4 animate-scale-in">
           <div className="text-6xl mb-4 animate-stamp">🎉</div>
           <div className="text-3xl font-black bg-gradient-to-r from-yellow-500 via-amber-500 to-orange-500 bg-clip-text text-transparent mb-2">
-            升级！
+            {t("celeb.levelUp")}
           </div>
-          <div className="text-5xl font-black text-gray-800 mb-2 animate-pop">Lv.{level.level}</div>
-          <div className="text-lg text-gray-500 mb-6">{level.title}</div>
+          <div className="text-5xl font-black text-gray-800 mb-2 animate-pop">{t("header.lv")}{level.level}</div>
+          <div className="text-lg text-gray-500 mb-6">{t("level." + level.level)}</div>
           <button
             onClick={onClose}
             className="bg-gradient-to-r from-yellow-400 to-amber-500 text-white font-bold px-8 py-3 rounded-xl hover:shadow-lg hover:scale-105 active:scale-95 transition-all"
           >
-            继续冒险 →
+            {t("celeb.continue")}
           </button>
         </div>
       </div>
@@ -105,6 +108,7 @@ export function LevelUpOverlay({ level, onClose }) {
 // Quest Complete — with confetti
 // ═══════════════════════════════════════
 export function QuestCompleteOverlay({ quest, onClose }) {
+  const { t } = useLanguage();
   const [showConfetti, setShowConfetti] = useState(false);
 
   useEffect(() => {
@@ -123,14 +127,14 @@ export function QuestCompleteOverlay({ quest, onClose }) {
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
         <div className="bg-white rounded-3xl p-10 text-center shadow-2xl max-w-sm mx-4 animate-scale-in">
           <div className="text-6xl mb-4 animate-stamp">🏆</div>
-          <div className="text-2xl font-black text-gray-800 mb-2">任务完成！</div>
-          <div className="text-lg text-gray-500 mb-1 max-w-[260px] mx-auto truncate">{quest.name}</div>
+          <div className="text-2xl font-black text-gray-800 mb-2">{t("celeb.questComplete")}</div>
+          <div className="text-lg text-gray-500 mb-1 max-w-[260px] mx-auto truncate"><MathText text={quest.name} /></div>
           <div className="text-amber-500 font-black text-xl mb-6 animate-pop">+{XP_CONFIG.questBonus} XP</div>
           <button
             onClick={onClose}
             className="bg-gradient-to-r from-emerald-400 to-green-500 text-white font-bold px-8 py-3 rounded-xl hover:shadow-lg hover:scale-105 active:scale-95 transition-all"
           >
-            太棒了！
+            {t("celeb.awesome")}
           </button>
         </div>
       </div>

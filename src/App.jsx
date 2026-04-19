@@ -2,24 +2,32 @@ import { useState, useCallback } from "react";
 import { useGameState } from "./hooks/useGameState";
 import { useAI } from "./hooks/useAI";
 import { useTheme } from "./hooks/useTheme";
+import { useLocalStorage } from "./hooks/useLocalStorage";
+import { useLanguage } from "./hooks/useLanguage";
 import Header from "./components/Header";
 import QuestBoard from "./components/QuestBoard";
 import QuestDetail from "./components/QuestDetail";
 import AddQuestModal from "./components/AddQuestModal";
 import AIDecomposeModal from "./components/AIDecomposeModal";
+import FileImportModal from "./components/FileImportModal";
 import SettingsPanel from "./components/SettingsPanel";
 import AnimatedBackground from "./components/AnimatedBackground";
+import OnboardingGuide from "./components/OnboardingGuide";
 import { XpPopup, LevelUpOverlay, QuestCompleteOverlay } from "./components/Celebrations";
 
 export default function App() {
   const game = useGameState();
   const ai = useAI();
   const themeCtx = useTheme();
+  const { t, lang, toggleLang } = useLanguage();
+
+  const [onboardingDone, setOnboardingDone] = useLocalStorage("qt_onboarding_done", false);
 
   const [activeQuestId, setActiveQuestId] = useState(null);
   const [view, setView] = useState("board"); // "board" | "detail"
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
+  const [showFileModal, setShowFileModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   // Celebration states
@@ -79,10 +87,18 @@ export default function App() {
 
   const { theme } = themeCtx;
 
+  // Show onboarding on first visit (only on board view with no quests)
+  const showOnboarding = !onboardingDone && view === "board" && game.quests.length === 0;
+
   return (
     <div className="min-h-screen relative">
       {/* Dynamic themed background */}
       <AnimatedBackground theme={theme} />
+
+      {/* Onboarding Guide overlay */}
+      {showOnboarding && (
+        <OnboardingGuide onComplete={() => setOnboardingDone(true)} />
+      )}
 
       {/* Celebrations */}
       <XpPopup {...xpPopup} />
@@ -92,6 +108,7 @@ export default function App() {
       {/* Modals */}
       {showAddModal && <AddQuestModal onAdd={handleAddQuest} onClose={() => setShowAddModal(false)} />}
       {showAIModal && <AIDecomposeModal onAdd={handleAddQuest} onClose={() => setShowAIModal(false)} ai={ai} />}
+      {showFileModal && <FileImportModal onAdd={handleAddQuest} onClose={() => setShowFileModal(false)} ai={ai} theme={theme} />}
       {showSettings && (
         <SettingsPanel
           ai={ai}
@@ -114,7 +131,7 @@ export default function App() {
       />
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto px-4 py-6 relative">
+      <main className="max-w-6xl mx-auto px-6 py-6 relative">
         {/* Navigation + Actions */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
@@ -124,28 +141,37 @@ export default function App() {
                 className="text-sm font-semibold flex items-center gap-1 mr-2 hover:-translate-x-0.5 transition-all"
                 style={{ color: theme.accent }}
               >
-                ← 返回
+                {t("app.back")}
               </button>
             )}
-            <h1 className="text-2xl font-black text-gray-800">
-              {view === "board" ? "任务面板" : activeQuest?.name}
+            <h1 className="text-3xl font-black text-gray-800">
+              {view === "board" ? t("app.title") : activeQuest?.name}
             </h1>
           </div>
           <div className="flex gap-2">
             <button
+              data-guide="ai-btn"
               onClick={() => setShowAIModal(true)}
               className="relative text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
               style={{ background: theme.btnGrad, boxShadow: `0 4px 14px ${theme.accentGlow}` }}
             >
-              <span className="relative z-10">🤖 AI 拆解</span>
+              <span className="relative z-10">{t("app.aiDecompose")}</span>
               <div className="absolute inset-0 xp-bar-shimmer opacity-20" />
             </button>
             <button
+              onClick={() => setShowFileModal(true)}
+              className="text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
+              style={{ background: theme.btnGrad }}
+            >
+              {t("file.title")}
+            </button>
+            <button
+              data-guide="manual-btn"
               onClick={() => setShowAddModal(true)}
               className="text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
               style={{ background: theme.btnGrad2 }}
             >
-              ✍️ 手动
+              {t("app.manual")}
             </button>
           </div>
         </div>
@@ -157,9 +183,12 @@ export default function App() {
               quests={game.quests}
               activeQuestId={activeQuestId}
               onSelectQuest={handleSelectQuest}
+              onDeleteQuest={handleDeleteQuest}
+              onAddQuest={handleAddQuest}
               nextStep={nextStep}
               activeQuest={activeQuest}
               theme={theme}
+              ai={ai}
             />
           )}
 
@@ -175,8 +204,28 @@ export default function App() {
         </div>
       </main>
 
+      {/* Floating language switcher — bottom left */}
+      <button
+        onClick={toggleLang}
+        className="fixed bottom-6 left-6 z-20 w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-sm font-bold transition-all duration-300 hover:scale-110 active:scale-90 hover:shadow-xl bg-white/90 backdrop-blur-sm border border-white/50 text-gray-600"
+        title={lang === "en" ? "切换到中文" : "Switch to English"}
+      >
+        {lang === "en" ? "中" : "EN"}
+      </button>
+
+      {/* Floating theme switcher — bottom right */}
+      <button
+        data-guide="theme-btn"
+        onClick={themeCtx.cycleTheme}
+        className="fixed bottom-6 right-6 z-20 w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-xl transition-all duration-300 hover:scale-110 active:scale-90 hover:shadow-xl glow-pulse"
+        style={{ background: theme.btnGrad }}
+        title={`Theme: ${theme.name} — Click to switch`}
+      >
+        {theme.emoji}
+      </button>
+
       <footer className="text-center py-8 text-xs text-gray-300 relative">
-        Quest Tracker — ADHD-Friendly Gamified System ⚡
+        {t("app.footer")}
       </footer>
     </div>
   );
