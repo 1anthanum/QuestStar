@@ -103,9 +103,24 @@ export default function StepItem({ step, onToggle, index, total }) {
             )}
           </div>
 
-          {/* Tags row: difficulty + anchor info */}
+          {/* Tags row: difficulty + anchor info + deadline */}
           {!step.done && (
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              {step.deadline && (() => {
+                const today = new Date(new Date().toISOString().split("T")[0]);
+                const target = new Date(step.deadline);
+                const days = Math.round((target - today) / (1000 * 60 * 60 * 24));
+                const formatted = target.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                const isOverdue = days < 0;
+                const isToday = days === 0;
+                return (
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                    isOverdue ? "bg-red-100 text-red-600 animate-pulse" : isToday ? "bg-amber-100 text-amber-600" : "bg-blue-50 text-blue-500"
+                  }`}>
+                    📅 {isOverdue ? `${t("timeline.overdue")}` : isToday ? t("timeline.today") : formatted}
+                  </span>
+                );
+              })()}
               {diff && (
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${diff.bg} ${diff.color}`}>
                   {t("diff." + step.difficulty)} +{diff.xp}XP

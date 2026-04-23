@@ -46,8 +46,11 @@ export function useGameState() {
           setStreak(newStreak);
           setLastActiveDate(getTodayStr());
 
-          // 计算 XP
-          earnedXp = getStepXp(step, newStreak);
+          // Quest type 用于 XP 倍率
+          const questType = quest.questType || "daily";
+
+          // 计算 XP（含 type 倍率）
+          earnedXp = getStepXp(step, newStreak, questType);
 
           // 每日首胜
           const today = getTodayStr();
@@ -89,10 +92,13 @@ export function useGameState() {
       const newQuest = {
         ...quest,
         id: quest.id || generateId(),
+        questType: quest.questType || "daily",
+        deadline: quest.deadline || null,
         steps: quest.steps.map((s) => ({
           ...s,
           id: s.id || generateId(),
           done: false,
+          deadline: s.deadline || null,
           // 锚定学习法字段（AI 拆解时提供，手动创建时为空）
           layer: s.layer || "",
           anchorStep: s.anchorStep || "",
@@ -102,6 +108,23 @@ export function useGameState() {
       };
       setQuests((prev) => [newQuest, ...prev]);
       return newQuest;
+    },
+    [setQuests]
+  );
+
+  // ── 更新任务（deadline 等字段）──
+  const updateQuest = useCallback(
+    (questId, updates) => {
+      setQuests((prev) =>
+        prev.map((q) => {
+          if (q.id !== questId) return q;
+          const updated = { ...q };
+          if ("deadline" in updates) updated.deadline = updates.deadline;
+          if ("steps" in updates) updated.steps = updates.steps;
+          if ("name" in updates) updated.name = updates.name;
+          return updated;
+        })
+      );
     },
     [setQuests]
   );
@@ -154,6 +177,7 @@ export function useGameState() {
     completedSteps,
     toggleStep,
     addQuest,
+    updateQuest,
     deleteQuest,
     exportData,
     importData,

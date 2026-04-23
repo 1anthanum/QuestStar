@@ -42,7 +42,7 @@ const MILESTONES = [
   { count: 50, icon: "🏛️", label: "Hall of Fame" },
 ];
 
-export default function RecentTasks({ quests, onSelectQuest, onDeleteQuest, theme }) {
+export default function RecentTasks({ quests, onSelectQuest, onDeleteQuest, theme, hideHeader = false }) {
   const [expanded, setExpanded] = useState(false);
   const { t, lang } = useLanguage();
 
@@ -74,30 +74,32 @@ export default function RecentTasks({ quests, onSelectQuest, onDeleteQuest, them
   const accentGlow = theme?.accentGlow || "rgba(99,102,241,0.3)";
 
   return (
-    <div className="mt-8">
-      {/* Section Header */}
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-lg font-bold text-gray-700 flex items-center gap-2">
-          {t("recent.title")}
-          {totalFinished > 0 && (
-            <span
-              className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
-              style={{ background: `${accent}18`, color: accent }}
-            >
-              {t("recent.conquered", { n: totalFinished, s: totalFinished !== 1 ? "s" : "" })}
-            </span>
-          )}
-        </h2>
-        {reachedMilestones.length > 0 && (
-          <div className="flex items-center gap-1">
-            {reachedMilestones.slice(-3).map((m) => (
-              <span key={m.count} className="text-sm" title={t("milestone." + m.count)}>
-                {m.icon}
+    <div className={hideHeader ? "" : "mt-8"}>
+      {/* Section Header (hidden when wrapped by CollapsibleSection) */}
+      {!hideHeader && (
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-gray-700 flex items-center gap-2">
+            {t("recent.title")}
+            {totalFinished > 0 && (
+              <span
+                className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
+                style={{ background: `${accent}18`, color: accent }}
+              >
+                {t("recent.conquered", { n: totalFinished, s: totalFinished !== 1 ? "s" : "" })}
               </span>
-            ))}
-          </div>
-        )}
-      </div>
+            )}
+          </h2>
+          {reachedMilestones.length > 0 && (
+            <div className="flex items-center gap-1">
+              {reachedMilestones.slice(-3).map((m) => (
+                <span key={m.count} className="text-sm" title={t("milestone." + m.count)}>
+                  {m.icon}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Progress toward next milestone */}
       {nextMilestone && totalFinished > 0 && (

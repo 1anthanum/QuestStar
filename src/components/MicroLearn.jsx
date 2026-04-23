@@ -73,7 +73,7 @@ function shuffle(arr) {
   return copy;
 }
 
-export default function MicroLearn({ onStartQuest, theme, ai }) {
+export default function MicroLearn({ onStartQuest, theme, ai, hideHeader = false }) {
   // ── i18n ──
   const { t, lang } = useLanguage();
   const td = (domain) => {
@@ -262,7 +262,7 @@ export default function MicroLearn({ onStartQuest, theme, ai }) {
   const accent = theme?.accent || "#6366f1";
 
   return (
-    <div className="mt-10 animate-fade-in relative">
+    <div className={`${hideHeader ? "" : "mt-10"} animate-fade-in relative`}>
       {/* ── XP Floater popup ── */}
       {xpFloater && (
         <div
@@ -274,14 +274,33 @@ export default function MicroLearn({ onStartQuest, theme, ai }) {
         </div>
       )}
 
-      {/* ── Section header ── */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2.5">
-          <span className="text-xl">⚡</span>
-          <h3 className="text-lg font-black text-gray-700">{t("micro.title")}</h3>
+      {/* ── Section header (hidden when wrapped by CollapsibleSection) ── */}
+      {!hideHeader && (
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl">⚡</span>
+            <h3 className="text-lg font-black text-gray-700">{t("micro.title")}</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            {totalCount > 0 && (
+              <span className="text-[11px] font-semibold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
+                {t("micro.explored", { seen: seenCount, total: totalCount })}
+              </span>
+            )}
+            <button
+              onClick={handleShuffle}
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:scale-105 active:scale-95"
+              style={{ color: accent, background: theme?.accentLight || "#eef2ff" }}
+            >
+              {t("micro.shuffle")}
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Progress pill */}
+      )}
+
+      {/* ── Compact controls (shown when header is hidden / in collapsible mode) ── */}
+      {hideHeader && (
+        <div className="flex items-center justify-end gap-2 mb-2">
           {totalCount > 0 && (
             <span className="text-[11px] font-semibold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
               {t("micro.explored", { seen: seenCount, total: totalCount })}
@@ -295,7 +314,7 @@ export default function MicroLearn({ onStartQuest, theme, ai }) {
             {t("micro.shuffle")}
           </button>
         </div>
-      </div>
+      )}
 
       {/* ── Scholar Level Bar ── */}
       <div className="mb-4 px-1">

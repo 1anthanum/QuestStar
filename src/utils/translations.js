@@ -150,6 +150,24 @@ const translations = {
     "card.steps": "{done}/{total} steps",
     "card.deleteConfirm": "Delete \"{name}\"?",
 
+    // ── Collapsible Section Titles ──
+    "section.quests": "My Quests",
+    "section.tree": "Knowledge Tree",
+    "section.timeline": "Achievement Chain",
+    "section.microlearn": "3-Minute Bites",
+
+    // ── Skill Tree ──
+    "tree.title": "Knowledge Tree",
+    "tree.subtitle": "{explored}/{total} topics explored",
+    "tree.tapToExpand": "Tap to explore full tree →",
+    "tree.nodes": "{n}/{total} nodes unlocked",
+    "tree.explored": "explored",
+    "tree.unlocked": "Unlocked",
+    "tree.next": "Next",
+    "tree.locked": "Locked",
+    "tree.mastered": "Mastered",
+    "tree.toClose": "to close",
+
     // ── QuestBoard ──
     "board.nextAction": "Next Action",
     "board.from": "From:",
@@ -272,6 +290,124 @@ const translations = {
     "file.create": "Create Quest ⚡",
     "file.changeFile": "Change File",
     "file.error": "Error: {msg}",
+
+    // ── Skill Tree Bridges ──
+    "tree.bridges": "Knowledge Bridges",
+
+    // ── Section: Actions ──
+    "section.actions": "Daily Actions",
+
+    // ── Challenge Mode ──
+    "challenge.title": "Challenge Mode",
+    "challenge.dueCount": "{n} challenges due",
+    "challenge.allClear": "No challenges due — well done!",
+    "challenge.mastered": "All clear",
+    "challenge.progress": "Question {n} of {total}",
+    "challenge.sessionDone": "Session complete",
+    "challenge.accuracy": "Accuracy",
+    "challenge.hint": "Show Hint",
+    "challenge.correct": "Correct!",
+    "challenge.incorrect": "Not quite — review the card to strengthen this concept",
+    "challenge.submit": "Submit",
+    "challenge.next": "Next →",
+    "challenge.finish": "See Results",
+    "challenge.allDone": "Session Complete!",
+    "challenge.comeBack": "Challenges will reappear based on spaced repetition. Come back tomorrow!",
+    "challenge.totalCorrect": "Correct",
+    "challenge.close": "Done",
+
+    // ── Daily Reflection ──
+    "reflect.title": "Daily Reflection",
+    "reflect.subtitle": "3 quick questions to close your day",
+    "reflect.prompt": "Tap to reflect on today",
+    "reflect.done": "Today's reflection saved",
+    "reflect.streak": "{n} days journaled",
+    "reflect.today": "Today",
+    "reflect.history": "History",
+    "reflect.save": "Save Reflection",
+    "reflect.update": "Update",
+    "reflect.noEntry": "No entry for this day",
+
+    // ── Study Roadmap ──
+    "section.roadmap": "Career Prep Roadmap",
+    "roadmap.cardTitle": "Study Roadmap",
+    "roadmap.cardDone": "completed",
+    "roadmap.title": "Career Prep Roadmap",
+    "roadmap.subtitle": "6-tier priority system — from must-know to agentic skills",
+    "roadmap.topics": "topics",
+    "roadmap.addNote": "Add notes...",
+    "roadmap.cancel": "Cancel",
+    "roadmap.save": "Save",
+    "roadmap.close": "Close",
+
+    // ── Quick QA ──
+    "qa.correct": "correct",
+    "qa.perfect": "Perfect score! You've mastered this topic.",
+    "qa.keepGoing": "Review the explanations and try again later!",
+    "qa.next": "Next →",
+    "qa.finish": "See Results",
+    "qa.noKey": "⚠️ Configure API Key in Settings to use Quick QA",
+    "qa.hint": "💡 Click 📖 for AI knowledge briefs · Click QA for quizzes",
+
+    // ── Timeline ──
+    "timeline.title": "Timeline",
+    "timeline.done": "Done",
+    "timeline.overdue": "Overdue",
+    "timeline.today": "Today",
+    "timeline.tomorrow": "Tomorrow",
+    "timeline.inDays": "In {n} days",
+    "timeline.overdueSection": "Overdue",
+    "timeline.todaySection": "Due Today",
+    "timeline.weekSection": "This Week",
+    "timeline.futureSection": "Upcoming",
+    "timeline.totalItems": "{n} deadlines",
+    "timeline.activeItems": "{n} active",
+    "timeline.overdueItems": "{n} overdue",
+    "timeline.filterAll": "All",
+    "timeline.filterActive": "Active",
+    "timeline.filterOverdue": "Overdue",
+    "timeline.empty": "No deadlines set",
+    "timeline.emptyHint": "Add deadlines when creating quests to see them here",
+
+    // ── AddQuest Deadline ──
+    "addQuest.deadline": "Deadline",
+    "addQuest.optional": "optional",
+    "addQuest.showStepDates": "Set step deadlines",
+    "addQuest.hideStepDates": "Hide step deadlines",
+    "addQuest.typeLabel": "Task Type",
+
+    // ── Quest Types ──
+    "questType.daily": "Daily",
+    "questType.bonus": "Bonus",
+    "questType.challenge": "Challenge",
+
+    // ── Reward System ──
+    "reward.title": "Rewards",
+    "reward.balance": "Wallet Balance",
+    "reward.streak": "Streak",
+    "reward.days": " days",
+    "reward.todaySteps": "Today",
+    "reward.tabWallet": "Wallet",
+    "reward.tabMilestones": "Milestones",
+    "reward.tabLog": "History",
+    "reward.streakShield": "Streak Shield",
+    "reward.shieldDesc": "Save your streak once per week",
+    "reward.useShield": "Use Shield",
+    "reward.shieldUsed": "Used This Week",
+    "reward.redeem": "Redeem Reward",
+    "reward.spend": "Redeemed",
+    "reward.spendReason": "What did you get?",
+    "reward.confirmSpend": "Confirm Spend",
+    "reward.rules": "How It Works",
+    "reward.ruleDailyClear": "Complete all daily tasks → +${n}",
+    "reward.ruleStepBonus": "Complete {n}+ steps in a day → +${amt}",
+    "reward.ruleSurprise": "Each step has {pct}% chance of surprise bonus",
+    "reward.ruleShield": "1 streak shield per week (auto-saves if you miss 1 day)",
+    "reward.dayStreak": "Day Streak",
+    "reward.claimed": "Claimed",
+    "reward.claim": "Claim!",
+    "reward.noLog": "No transactions yet",
+    "reward.surprise": "Surprise!",
 
     // ── AI Models ──
     "model.sonnet.label": "Claude Sonnet 4.6",
@@ -427,6 +563,24 @@ const translations = {
     "card.steps": "{done}/{total} 步",
     "card.deleteConfirm": "删除「{name}」？",
 
+    // ── Collapsible Section Titles ──
+    "section.quests": "我的任务",
+    "section.tree": "知识树",
+    "section.timeline": "成就链",
+    "section.microlearn": "3 分钟知识卡",
+
+    // ── Skill Tree ──
+    "tree.title": "知识树",
+    "tree.subtitle": "已探索 {explored}/{total} 个主题",
+    "tree.tapToExpand": "点击展开完整知识树 →",
+    "tree.nodes": "已解锁 {n}/{total} 个节点",
+    "tree.explored": "已探索",
+    "tree.unlocked": "已解锁",
+    "tree.next": "下一个",
+    "tree.locked": "未解锁",
+    "tree.mastered": "精通",
+    "tree.toClose": "关闭",
+
     // ── QuestBoard ──
     "board.nextAction": "下一步行动",
     "board.from": "来自：",
@@ -549,6 +703,124 @@ const translations = {
     "file.create": "创建任务 ⚡",
     "file.changeFile": "更换文件",
     "file.error": "错误：{msg}",
+
+    // ── Skill Tree Bridges ──
+    "tree.bridges": "知识桥梁",
+
+    // ── Section: Actions ──
+    "section.actions": "每日行动",
+
+    // ── Challenge Mode ──
+    "challenge.title": "挑战模式",
+    "challenge.dueCount": "{n} 个挑战待完成",
+    "challenge.allClear": "没有待完成的挑战——干得漂亮！",
+    "challenge.mastered": "全部通过",
+    "challenge.progress": "第 {n}/{total} 题",
+    "challenge.sessionDone": "本次完成",
+    "challenge.accuracy": "正确率",
+    "challenge.hint": "显示提示",
+    "challenge.correct": "回答正确！",
+    "challenge.incorrect": "还差一点——回顾知识卡来巩固这个概念",
+    "challenge.submit": "提交",
+    "challenge.next": "下一题 →",
+    "challenge.finish": "查看结果",
+    "challenge.allDone": "挑战完成！",
+    "challenge.comeBack": "挑战会根据间隔重复自动回来。明天见！",
+    "challenge.totalCorrect": "答对",
+    "challenge.close": "完成",
+
+    // ── Daily Reflection ──
+    "reflect.title": "每日复盘",
+    "reflect.subtitle": "3 个小问题，结束今天的一天",
+    "reflect.prompt": "点击开始今天的复盘",
+    "reflect.done": "今天的复盘已保存",
+    "reflect.streak": "已记录 {n} 天",
+    "reflect.today": "今天",
+    "reflect.history": "历史",
+    "reflect.save": "保存复盘",
+    "reflect.update": "更新",
+    "reflect.noEntry": "当天没有记录",
+
+    // ── Study Roadmap ──
+    "section.roadmap": "职业备战路线图",
+    "roadmap.cardTitle": "学习路线图",
+    "roadmap.cardDone": "已完成",
+    "roadmap.title": "职业备战路线图",
+    "roadmap.subtitle": "6 层优先级体系 — 从必考到 Agent Skills",
+    "roadmap.topics": "个知识点",
+    "roadmap.addNote": "添加笔记...",
+    "roadmap.cancel": "取消",
+    "roadmap.save": "保存",
+    "roadmap.close": "关闭",
+
+    // ── Quick QA ──
+    "qa.correct": "答对",
+    "qa.perfect": "满分！你已掌握这个知识点。",
+    "qa.keepGoing": "回顾解释，下次再战！",
+    "qa.next": "下一题 →",
+    "qa.finish": "查看结果",
+    "qa.noKey": "⚠️ 请在设置中配置 API Key 以使用快速测验",
+    "qa.hint": "💡 点击 📖 获取 AI 知识讲解 · 点击 QA 做测验",
+
+    // ── Timeline ──
+    "timeline.title": "时间线",
+    "timeline.done": "已完成",
+    "timeline.overdue": "已逾期",
+    "timeline.today": "今天",
+    "timeline.tomorrow": "明天",
+    "timeline.inDays": "{n} 天后",
+    "timeline.overdueSection": "已逾期",
+    "timeline.todaySection": "今天到期",
+    "timeline.weekSection": "本周",
+    "timeline.futureSection": "未来",
+    "timeline.totalItems": "{n} 个截止日期",
+    "timeline.activeItems": "{n} 个进行中",
+    "timeline.overdueItems": "{n} 个已逾期",
+    "timeline.filterAll": "全部",
+    "timeline.filterActive": "进行中",
+    "timeline.filterOverdue": "已逾期",
+    "timeline.empty": "暂无截止日期",
+    "timeline.emptyHint": "创建任务时添加截止日期即可在此查看",
+
+    // ── AddQuest Deadline ──
+    "addQuest.deadline": "截止日期",
+    "addQuest.optional": "可选",
+    "addQuest.showStepDates": "设置步骤截止日期",
+    "addQuest.hideStepDates": "隐藏步骤截止日期",
+    "addQuest.typeLabel": "任务类型",
+
+    // ── Quest Types ──
+    "questType.daily": "日常",
+    "questType.bonus": "额外",
+    "questType.challenge": "挑战",
+
+    // ── Reward System ──
+    "reward.title": "奖励中心",
+    "reward.balance": "钱包余额",
+    "reward.streak": "连续",
+    "reward.days": "天",
+    "reward.todaySteps": "今日步数",
+    "reward.tabWallet": "钱包",
+    "reward.tabMilestones": "里程碑",
+    "reward.tabLog": "记录",
+    "reward.streakShield": "连续保护盾",
+    "reward.shieldDesc": "每周可豁免一天不断连",
+    "reward.useShield": "使用保护盾",
+    "reward.shieldUsed": "本周已使用",
+    "reward.redeem": "兑换奖励",
+    "reward.spend": "已兑换",
+    "reward.spendReason": "买了什么？",
+    "reward.confirmSpend": "确认花费",
+    "reward.rules": "规则说明",
+    "reward.ruleDailyClear": "每日任务全部完成 → +${n}",
+    "reward.ruleStepBonus": "单日完成 {n} 步以上 → +${amt}",
+    "reward.ruleSurprise": "每完成一步有 {pct}% 概率获得惊喜奖金",
+    "reward.ruleShield": "每周1次保护盾（断连1天自动触发）",
+    "reward.dayStreak": "天连续",
+    "reward.claimed": "已领取",
+    "reward.claim": "领取！",
+    "reward.noLog": "暂无记录",
+    "reward.surprise": "惊喜！",
 
     // ── AI Models ──
     "model.sonnet.label": "Claude Sonnet 4.6",

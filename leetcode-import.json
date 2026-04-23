@@ -1,0 +1,202 @@
+{
+  "quests": [
+    {
+      "id": "lc-week1",
+      "name": "Week 1: Array + HashMap",
+      "category": "code",
+      "deadline": "2026-04-29",
+      "createdAt": 1745366400000,
+      "steps": [
+        { "id": "lc-w1-01", "text": "⭐ 1. Two Sum (Easy) — HashMap查找配对", "done": false, "difficulty": "easy", "deadline": "2026-04-24", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w1-02", "text": "⭐ 217. Contains Duplicate (Easy) — HashSet去重", "done": false, "difficulty": "easy", "deadline": "2026-04-24", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w1-03", "text": "⭐ 238. Product of Array Except Self (Medium) — 前缀积思想", "done": false, "difficulty": "medium", "deadline": "2026-04-24", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w1-04", "text": "🔥 53. Maximum Subarray (Medium) — Kadane算法", "done": false, "difficulty": "medium", "deadline": "2026-04-24", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w1-05", "text": "⭐ 49. Group Anagrams (Medium) — HashMap分组", "done": false, "difficulty": "medium", "deadline": "2026-04-26", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w1-06", "text": "⭐ 242. Valid Anagram (Easy) — 字符计数", "done": false, "difficulty": "easy", "deadline": "2026-04-26", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w1-07", "text": "🔥 3. Longest Substring Without Repeating Characters (Medium) — 滑动窗口模板", "done": false, "difficulty": "medium", "deadline": "2026-04-26", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w1-08", "text": "🔥 424. Longest Repeating Character Replacement (Medium) — 滑动窗口变体", "done": false, "difficulty": "medium", "deadline": "2026-04-26", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w1-09", "text": "⭐ 15. 3Sum (Medium) — 双指针经典", "done": false, "difficulty": "medium", "deadline": "2026-04-29", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w1-10", "text": "⭐ 11. Container With Most Water (Medium) — 双指针贪心", "done": false, "difficulty": "medium", "deadline": "2026-04-29", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w1-11", "text": "🔥 42. Trapping Rain Water (Hard) — 双指针/单调栈", "done": false, "difficulty": "hard", "deadline": "2026-04-29", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w1-12", "text": "⭐ 121. Best Time to Buy and Sell Stock (Easy) — 一次遍历", "done": false, "difficulty": "easy", "deadline": "2026-04-29", "layer": "", "anchorStep": "", "anchorNote": "" }
+      ]
+    },
+    {
+      "id": "lc-week2",
+      "name": "Week 2: String + 二分查找",
+      "category": "code",
+      "deadline": "2026-05-06",
+      "createdAt": 1745366400001,
+      "steps": [
+        { "id": "lc-w2-01", "text": "⭐ 125. Valid Palindrome (Easy) — 双指针", "done": false, "difficulty": "easy", "deadline": "2026-04-30", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w2-02", "text": "🔥 5. Longest Palindromic Substring (Medium) — 中心扩展", "done": false, "difficulty": "medium", "deadline": "2026-04-30", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w2-03", "text": "⭐ 20. Valid Parentheses (Easy) — 栈的应用", "done": false, "difficulty": "easy", "deadline": "2026-05-01", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w2-04", "text": "🔥 76. Minimum Window Substring (Hard) — 滑动窗口终极版", "done": false, "difficulty": "hard", "deadline": "2026-05-01", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w2-05", "text": "⭐ 704. Binary Search (Easy) — 模板", "done": false, "difficulty": "easy", "deadline": "2026-05-02", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w2-06", "text": "⭐ 33. Search in Rotated Sorted Array (Medium) — 变体二分", "done": false, "difficulty": "medium", "deadline": "2026-05-02", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w2-07", "text": "🔥 153. Find Minimum in Rotated Sorted Array (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-03", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w2-08", "text": "🔥 875. Koko Eating Bananas (Medium) — 二分答案", "done": false, "difficulty": "medium", "deadline": "2026-05-03", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w2-09", "text": "⭐ 4. Median of Two Sorted Arrays (Hard) — 大厂爱考", "done": false, "difficulty": "hard", "deadline": "2026-05-04", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w2-10", "text": "📝 复习 Week 1-2 错题，重做一遍", "done": false, "difficulty": "medium", "deadline": "2026-05-06", "layer": "", "anchorStep": "", "anchorNote": "" }
+      ]
+    },
+    {
+      "id": "lc-week3",
+      "name": "Week 3: Linked List + Stack",
+      "category": "code",
+      "deadline": "2026-05-13",
+      "createdAt": 1745366400002,
+      "steps": [
+        { "id": "lc-w3-01", "text": "⭐ 206. Reverse Linked List (Easy) — 必须能闭着眼写", "done": false, "difficulty": "easy", "deadline": "2026-05-07", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w3-02", "text": "⭐ 21. Merge Two Sorted Lists (Easy)", "done": false, "difficulty": "easy", "deadline": "2026-05-07", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w3-03", "text": "⭐ 141. Linked List Cycle (Easy) — 快慢指针", "done": false, "difficulty": "easy", "deadline": "2026-05-08", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w3-04", "text": "🔥 143. Reorder List (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-08", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w3-05", "text": "🔥 19. Remove Nth Node From End (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-09", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w3-06", "text": "⚠️ 23. Merge k Sorted Lists (Hard) — Heap应用", "done": false, "difficulty": "hard", "deadline": "2026-05-09", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w3-07", "text": "⭐ 155. Min Stack (Medium) — 设计题", "done": false, "difficulty": "medium", "deadline": "2026-05-10", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w3-08", "text": "🔥 150. Evaluate Reverse Polish Notation (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-11", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w3-09", "text": "🔥 739. Daily Temperatures (Medium) — 单调栈模板", "done": false, "difficulty": "medium", "deadline": "2026-05-12", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w3-10", "text": "⭐ 84. Largest Rectangle in Histogram (Hard) — 单调栈经典", "done": false, "difficulty": "hard", "deadline": "2026-05-13", "layer": "", "anchorStep": "", "anchorNote": "" }
+      ]
+    },
+    {
+      "id": "lc-week4",
+      "name": "Week 4: Tree（最高频考点）",
+      "category": "code",
+      "deadline": "2026-05-20",
+      "createdAt": 1745366400003,
+      "steps": [
+        { "id": "lc-w4-01", "text": "⭐ 226. Invert Binary Tree (Easy) — 递归基础", "done": false, "difficulty": "easy", "deadline": "2026-05-14", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w4-02", "text": "⭐ 104. Maximum Depth of Binary Tree (Easy)", "done": false, "difficulty": "easy", "deadline": "2026-05-14", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w4-03", "text": "⭐ 100. Same Tree (Easy)", "done": false, "difficulty": "easy", "deadline": "2026-05-14", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w4-04", "text": "⭐ 572. Subtree of Another Tree (Easy)", "done": false, "difficulty": "easy", "deadline": "2026-05-15", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w4-05", "text": "🔥 102. Binary Tree Level Order Traversal (Medium) — BFS模板", "done": false, "difficulty": "medium", "deadline": "2026-05-15", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w4-06", "text": "🔥 199. Binary Tree Right Side View (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-16", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w4-07", "text": "⭐ 235. LCA of a BST (Medium) — 常考", "done": false, "difficulty": "medium", "deadline": "2026-05-17", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w4-08", "text": "⭐ 98. Validate BST (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-17", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w4-09", "text": "🔥 230. Kth Smallest Element in a BST (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-18", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w4-10", "text": "🔥 105. Construct Binary Tree from Preorder and Inorder (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-19", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w4-11", "text": "⚠️ 124. Binary Tree Maximum Path Sum (Hard)", "done": false, "difficulty": "hard", "deadline": "2026-05-20", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w4-12", "text": "🔥 297. Serialize and Deserialize Binary Tree (Hard)", "done": false, "difficulty": "hard", "deadline": "2026-05-20", "layer": "", "anchorStep": "", "anchorNote": "" }
+      ]
+    },
+    {
+      "id": "lc-week5",
+      "name": "Week 5: Graph",
+      "category": "code",
+      "deadline": "2026-05-27",
+      "createdAt": 1745366400004,
+      "steps": [
+        { "id": "lc-w5-01", "text": "⭐ 200. Number of Islands (Medium) — BFS/DFS模板", "done": false, "difficulty": "medium", "deadline": "2026-05-21", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w5-02", "text": "⭐ 133. Clone Graph (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-21", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w5-03", "text": "🔥 695. Max Area of Island (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-22", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w5-04", "text": "🔥 417. Pacific Atlantic Water Flow (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-23", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w5-05", "text": "⭐ 207. Course Schedule (Medium) — 拓扑排序", "done": false, "difficulty": "medium", "deadline": "2026-05-24", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w5-06", "text": "⭐ 210. Course Schedule II (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-24", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w5-07", "text": "🔥 261. Graph Valid Tree (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-25", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w5-08", "text": "🔥 323. Number of Connected Components (Medium) — Union-Find", "done": false, "difficulty": "medium", "deadline": "2026-05-26", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w5-09", "text": "⚠️ 269. Alien Dictionary (Hard) — 拓扑排序变体", "done": false, "difficulty": "hard", "deadline": "2026-05-27", "layer": "", "anchorStep": "", "anchorNote": "" }
+      ]
+    },
+    {
+      "id": "lc-week6",
+      "name": "Week 6: 动态规划 DP",
+      "category": "code",
+      "deadline": "2026-06-03",
+      "createdAt": 1745366400005,
+      "steps": [
+        { "id": "lc-w6-01", "text": "⭐ 70. Climbing Stairs (Easy) — DP入门", "done": false, "difficulty": "easy", "deadline": "2026-05-28", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w6-02", "text": "⭐ 198. House Robber (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-28", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w6-03", "text": "⭐ 322. Coin Change (Medium) — 背包问题", "done": false, "difficulty": "medium", "deadline": "2026-05-29", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w6-04", "text": "🔥 139. Word Break (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-29", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w6-05", "text": "🔥 300. Longest Increasing Subsequence (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-30", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w6-06", "text": "⭐ 62. Unique Paths (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-05-31", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w6-07", "text": "🔥 1143. Longest Common Subsequence (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-01", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w6-08", "text": "🔥 416. Partition Equal Subset Sum (Medium) — 0/1背包", "done": false, "difficulty": "medium", "deadline": "2026-06-01", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w6-09", "text": "⚠️ 72. Edit Distance (Medium) — 经典中的经典", "done": false, "difficulty": "hard", "deadline": "2026-06-02", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w6-10", "text": "⚠️ 10. Regular Expression Matching (Hard)", "done": false, "difficulty": "hard", "deadline": "2026-06-03", "layer": "", "anchorStep": "", "anchorNote": "" }
+      ]
+    },
+    {
+      "id": "lc-week7",
+      "name": "Week 7: Heap + Greedy + Backtracking",
+      "category": "code",
+      "deadline": "2026-06-10",
+      "createdAt": 1745366400006,
+      "steps": [
+        { "id": "lc-w7-01", "text": "⭐ 215. Kth Largest Element (Medium) — 快选/堆", "done": false, "difficulty": "medium", "deadline": "2026-06-04", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w7-02", "text": "🔥 347. Top K Frequent Elements (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-04", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w7-03", "text": "🔥 295. Find Median from Data Stream (Hard)", "done": false, "difficulty": "hard", "deadline": "2026-06-04", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w7-04", "text": "⭐ 55. Jump Game (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-05", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w7-05", "text": "🔥 45. Jump Game II (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-05", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w7-06", "text": "🔥 134. Gas Station (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-06", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w7-07", "text": "🔥 763. Partition Labels (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-06", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w7-08", "text": "⭐ 78. Subsets (Medium) — 回溯模板", "done": false, "difficulty": "medium", "deadline": "2026-06-07", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w7-09", "text": "⭐ 46. Permutations (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-08", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w7-10", "text": "⭐ 39. Combination Sum (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-08", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w7-11", "text": "🔥 79. Word Search (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-09", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w7-12", "text": "⚠️ 51. N-Queens (Hard)", "done": false, "difficulty": "hard", "deadline": "2026-06-10", "layer": "", "anchorStep": "", "anchorNote": "" }
+      ]
+    },
+    {
+      "id": "lc-week8",
+      "name": "Week 8: Trie + Interval + 设计题",
+      "category": "code",
+      "deadline": "2026-06-17",
+      "createdAt": 1745366400007,
+      "steps": [
+        { "id": "lc-w8-01", "text": "⭐ 208. Implement Trie (Medium) — 必须会实现", "done": false, "difficulty": "medium", "deadline": "2026-06-11", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w8-02", "text": "🔥 211. Design Add and Search Words (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-11", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w8-03", "text": "🔥 212. Word Search II (Hard)", "done": false, "difficulty": "hard", "deadline": "2026-06-12", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w8-04", "text": "⭐ 56. Merge Intervals (Medium) — 经典高频", "done": false, "difficulty": "medium", "deadline": "2026-06-13", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w8-05", "text": "🔥 57. Insert Interval (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-13", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w8-06", "text": "🔥 435. Non-overlapping Intervals (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-14", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w8-07", "text": "🔥 252/253. Meeting Rooms I & II (Easy/Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-14", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w8-08", "text": "⭐ 146. LRU Cache (Medium) — 极高频！必须熟练", "done": false, "difficulty": "hard", "deadline": "2026-06-15", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w8-09", "text": "🔥 380. Insert Delete GetRandom O(1) (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-16", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w8-10", "text": "⚠️ 355. Design Twitter (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-16", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w8-11", "text": "🔥 981. Time Based Key-Value Store (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-17", "layer": "", "anchorStep": "", "anchorNote": "" }
+      ]
+    },
+    {
+      "id": "lc-week9",
+      "name": "Week 9-10: Bit + Math + 总复习",
+      "category": "code",
+      "deadline": "2026-07-01",
+      "createdAt": 1745366400008,
+      "steps": [
+        { "id": "lc-w9-01", "text": "⭐ 191. Number of 1 Bits (Easy)", "done": false, "difficulty": "easy", "deadline": "2026-06-18", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w9-02", "text": "⭐ 338. Counting Bits (Easy)", "done": false, "difficulty": "easy", "deadline": "2026-06-18", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w9-03", "text": "🔥 371. Sum of Two Integers (Medium) — 不用+号做加法", "done": false, "difficulty": "medium", "deadline": "2026-06-19", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w9-04", "text": "⭐ 48. Rotate Image (Medium) — 矩阵操作", "done": false, "difficulty": "medium", "deadline": "2026-06-20", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w9-05", "text": "⭐ 54. Spiral Matrix (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-20", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w9-06", "text": "🔥 73. Set Matrix Zeroes (Medium)", "done": false, "difficulty": "medium", "deadline": "2026-06-21", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-w9-07", "text": "📝 复习所有 ⭐ 题 — 确保25分钟内写出", "done": false, "difficulty": "medium", "deadline": "2026-07-01", "layer": "", "anchorStep": "", "anchorNote": "" }
+      ]
+    },
+    {
+      "id": "lc-sprint",
+      "name": "🎯 面试冲刺：15题核心",
+      "category": "code",
+      "deadline": "2026-07-04",
+      "createdAt": 1745366400009,
+      "steps": [
+        { "id": "lc-sp-01", "text": "1. Two Sum — HashMap", "done": false, "difficulty": "easy", "deadline": "2026-07-02", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-sp-02", "text": "3. Longest Substring Without Repeating — 滑动窗口", "done": false, "difficulty": "medium", "deadline": "2026-07-02", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-sp-03", "text": "15. 3Sum — 双指针", "done": false, "difficulty": "medium", "deadline": "2026-07-02", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-sp-04", "text": "20. Valid Parentheses — 栈", "done": false, "difficulty": "easy", "deadline": "2026-07-02", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-sp-05", "text": "21. Merge Two Sorted Lists — 链表", "done": false, "difficulty": "easy", "deadline": "2026-07-02", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-sp-06", "text": "33. Search in Rotated Sorted Array — 二分", "done": false, "difficulty": "medium", "deadline": "2026-07-03", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-sp-07", "text": "53. Maximum Subarray — Kadane", "done": false, "difficulty": "medium", "deadline": "2026-07-03", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-sp-08", "text": "56. Merge Intervals — 排序+贪心", "done": false, "difficulty": "medium", "deadline": "2026-07-03", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-sp-09", "text": "70. Climbing Stairs — DP", "done": false, "difficulty": "easy", "deadline": "2026-07-03", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-sp-10", "text": "102. Level Order Traversal — BFS", "done": false, "difficulty": "medium", "deadline": "2026-07-03", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-sp-11", "text": "146. LRU Cache — 设计", "done": false, "difficulty": "hard", "deadline": "2026-07-04", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-sp-12", "text": "200. Number of Islands — DFS/BFS", "done": false, "difficulty": "medium", "deadline": "2026-07-04", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-sp-13", "text": "206. Reverse Linked List — 链表反转", "done": false, "difficulty": "easy", "deadline": "2026-07-04", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-sp-14", "text": "207. Course Schedule — 拓扑排序", "done": false, "difficulty": "medium", "deadline": "2026-07-04", "layer": "", "anchorStep": "", "anchorNote": "" },
+        { "id": "lc-sp-15", "text": "322. Coin Change — DP", "done": false, "difficulty": "medium", "deadline": "2026-07-04", "layer": "", "anchorStep": "", "anchorNote": "" }
+      ]
+    }
+  ]
+}

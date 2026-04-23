@@ -265,6 +265,179 @@ Return a JSON array of bite objects.`;
 }
 
 // ═══════════════════════════════════════════
+// Knowledge Brief — Roadmap Subtopic Explainer
+// ═══════════════════════════════════════════
+
+const KNOWLEDGE_PROMPT = `You are a concise technical educator. Given a subtopic and its parent topic, write a brief knowledge card that helps someone quickly understand the concept.
+
+Rules:
+- Write 3-5 sentences covering: what it is, why it matters, and one key insight
+- Be practical and concrete — include one real-world example or analogy
+- Use LaTeX ($...$) for any math/science formulas
+- For programming topics, include ONE very short code snippet (max 3 lines) if relevant
+- Mention 1-2 recommended resources (official docs, well-known tutorials) at the end
+- Keep total length under 150 words
+
+Return strictly in this JSON format:
+{
+  "brief": "The knowledge explanation text",
+  "keyInsight": "One sentence 'aha moment'",
+  "resources": ["Resource 1 name — URL or description", "Resource 2"]
+}`;
+
+/**
+ * Generate a knowledge brief for a roadmap subtopic
+ * @param {string} subtopicLabel - The subtopic name
+ * @param {string} topicTitle - Parent topic name for context
+ * @param {string} apiKey - Claude API Key
+ * @param {string} model - Model ID
+ * @param {string} lang - "en" or "zh"
+ * @returns {Promise<Object>} { brief, keyInsight, resources }
+ */
+export async function generateKnowledge(subtopicLabel, topicTitle, apiKey, model = DEFAULT_AI_MODEL, lang = "en") {
+  const resolvedKey = getApiKey(apiKey);
+  if (!resolvedKey) {
+    throw new Error("API Key not found. Set VITE_CLAUDE_API_KEY in your .env file, or enter it manually in Settings.");
+  }
+
+  const langPart = lang === "zh"
+    ? `\n\nIMPORTANT: Write ALL content (brief, keyInsight, resources) in Chinese (中文). Keep JSON field names in English. Resource names can stay in English if they are well-known.`
+    : "";
+
+  const userMessage = `Write a knowledge brief for the subtopic "${subtopicLabel}" under the topic "${topicTitle}".${langPart}\n\nReturn a JSON object.`;
+
+  const apiUrl = import.meta.env.DEV
+    ? "/api/claude/v1/messages"
+    : "https://api.anthropic.com/v1/messages";
+
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": resolvedKey,
+      "anthropic-version": "2023-06-01",
+      ...(import.meta.env.DEV ? {} : { "anthropic-dangerous-direct-browser-access": "true" }),
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 800,
+      system: KNOWLEDGE_PROMPT,
+      messages: [{ role: "user", content: userMessage }],
+    }),
+  });
+
+  if (!response.ok) {
+    const errBody = await response.text();
+    if (response.status === 401) throw new Error("Invalid API Key — please check your Settings");
+    if (response.status === 429) throw new Error("Too many requests — please try again later");
+    throw new Error(`API request failed (${response.status}): ${errBody}`);
+  }
+
+  const data = await response.json();
+  const text = data.content?.[0]?.text || "";
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("Unexpected AI response format — please try again");
+
+  const result = JSON.parse(jsonMatch[0]);
+
+  return {
+    brief: String(result.brief || "").trim(),
+    keyInsight: String(result.keyInsight || "").trim(),
+    resources: Array.isArray(result.resources) ? result.resources.map((r) => String(r).trim()) : [],
+  };
+}
+
+// ═══════════════════════════════════════════
+// Quick QA — Roadmap Subtopic Quiz Generator
+// ═══════════════════════════════════════════
+
+const QUICK_QA_PROMPT = `You are a technical interviewer and educator. Given a specific subtopic, generate a concise quiz to test understanding.
+
+Rules:
+- Generate 3 questions of increasing difficulty (easy → medium → hard)
+- Each question has 4 options with exactly 1 correct answer
+- Include a brief explanation for the correct answer
+- Questions should test genuine understanding, not trivia
+- Wrong options should be plausible misconceptions (not obviously wrong)
+- Use LaTeX ($...$) for any math/science formulas
+
+Return strictly in this JSON format:
+[
+  {
+    "q": "Question text",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "answer": 0,
+    "explanation": "Brief explanation of why this is correct"
+  }
+]`;
+
+/**
+ * Generate quick QA questions for a roadmap subtopic
+ * @param {string} subtopicLabel - The subtopic name
+ * @param {string} topicTitle - Parent topic name for context
+ * @param {string} apiKey - Claude API Key
+ * @param {string} model - Model ID
+ * @param {string} lang - "en" or "zh"
+ * @returns {Promise<Array>} Array of QA objects
+ */
+export async function generateQuickQA(subtopicLabel, topicTitle, apiKey, model = DEFAULT_AI_MODEL, lang = "en") {
+  const resolvedKey = getApiKey(apiKey);
+  if (!resolvedKey) {
+    throw new Error("API Key not found. Set VITE_CLAUDE_API_KEY in your .env file, or enter it manually in Settings.");
+  }
+
+  const langPart = lang === "zh"
+    ? `\n\nIMPORTANT: Write ALL question text, options, and explanations in Chinese (中文). Keep JSON field names in English.`
+    : "";
+
+  const userMessage = `Generate a 3-question quiz for the subtopic "${subtopicLabel}" under the topic "${topicTitle}".${langPart}\n\nReturn a JSON array.`;
+
+  const apiUrl = import.meta.env.DEV
+    ? "/api/claude/v1/messages"
+    : "https://api.anthropic.com/v1/messages";
+
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": resolvedKey,
+      "anthropic-version": "2023-06-01",
+      ...(import.meta.env.DEV ? {} : { "anthropic-dangerous-direct-browser-access": "true" }),
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 1500,
+      system: QUICK_QA_PROMPT,
+      messages: [{ role: "user", content: userMessage }],
+    }),
+  });
+
+  if (!response.ok) {
+    const errBody = await response.text();
+    if (response.status === 401) throw new Error("Invalid API Key — please check your Settings");
+    if (response.status === 429) throw new Error("Too many requests — please try again later");
+    throw new Error(`API request failed (${response.status}): ${errBody}`);
+  }
+
+  const data = await response.json();
+  const text = data.content?.[0]?.text || "";
+
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) throw new Error("Unexpected AI response format — please try again");
+
+  const questions = JSON.parse(jsonMatch[0]);
+  if (!Array.isArray(questions) || questions.length === 0) throw new Error("AI returned empty results — please try again");
+
+  return questions.map((q) => ({
+    q: String(q.q || "").trim(),
+    options: Array.isArray(q.options) ? q.options.map((o) => String(o).trim()) : [],
+    answer: typeof q.answer === "number" ? q.answer : 0,
+    explanation: String(q.explanation || "").trim(),
+  }));
+}
+
+// ═══════════════════════════════════════════
 // File Summarize & Decompose
 // ═══════════════════════════════════════════
 

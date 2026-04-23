@@ -1,4 +1,4 @@
-import { LEVELS, XP_CONFIG } from "./constants";
+import { LEVELS, XP_CONFIG, REWARD_CONFIG } from "./constants";
 
 // ── 等级计算 ──
 export function getLevel(xp) {
@@ -20,17 +20,18 @@ export function getLevel(xp) {
   };
 }
 
-// ── 步骤 XP 计算 ──
-export function getStepXp(step, streak = 0) {
+// ── 步骤 XP 计算（含 quest type 倍率）──
+export function getStepXp(step, streak = 0, questType = "daily") {
   const baseXp = step.difficulty
     ? XP_CONFIG.difficulty[step.difficulty] || XP_CONFIG.defaultStepXp
     : XP_CONFIG.defaultStepXp;
   const streakBonus = Math.min(streak * XP_CONFIG.streakBonusPerDay, XP_CONFIG.streakBonusMax);
-  return Math.round(baseXp * (1 + streakBonus));
+  const typeMultiplier = XP_CONFIG.typeMultiplier[questType] || 1.0;
+  return Math.round(baseXp * (1 + streakBonus) * typeMultiplier);
 }
 
-// ── Streak 判定 ──
-export function calculateStreak(lastActiveDate, currentStreak) {
+// ── Streak 判定（含 Streak Shield 和软惩罚）──
+export function calculateStreak(lastActiveDate, currentStreak, shieldAvailable = false, useShieldFn = null) {
   if (!lastActiveDate) return 1;
 
   const last = new Date(lastActiveDate);
@@ -44,7 +45,16 @@ export function calculateStreak(lastActiveDate, currentStreak) {
 
   if (diffDays === 0) return currentStreak; // 同一天，不变
   if (diffDays === 1) return currentStreak + 1; // 连续
-  return 1; // 断了，重新开始
+
+  // 断连：尝试使用 Shield（仅断 1 天时自动触发）
+  if (diffDays === 2 && shieldAvailable && useShieldFn) {
+    const used = useShieldFn();
+    if (used) return currentStreak + 1; // Shield 保护，继续连续
+  }
+
+  // 软惩罚：streak -N 而非归零
+  const penalty = REWARD_CONFIG.streakPenaltyOnBreak || 2;
+  return Math.max(0, currentStreak - penalty);
 }
 
 // ── 今天的日期字符串 ──

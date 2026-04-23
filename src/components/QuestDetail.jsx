@@ -23,8 +23,22 @@ function groupByLayer(steps) {
   return groups;
 }
 
+function deadlineBadge(dateStr, isDone, t, lang) {
+  if (!dateStr) return null;
+  const today = new Date(new Date().toISOString().split("T")[0]);
+  const target = new Date(dateStr);
+  const days = Math.round((target - today) / (1000 * 60 * 60 * 24));
+  const formatted = target.toLocaleDateString(lang === "zh" ? "zh-CN" : "en-US", { month: "short", day: "numeric" });
+
+  if (isDone) return <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600 font-semibold ml-2">✓ {formatted}</span>;
+  if (days < 0) return <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-semibold ml-2 animate-pulse">🔴 {t("timeline.overdue")} · {formatted}</span>;
+  if (days === 0) return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-600 font-semibold ml-2">🟡 {t("timeline.today")}</span>;
+  if (days === 1) return <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 font-semibold ml-2">📅 {t("timeline.tomorrow")}</span>;
+  return <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 ml-2">📅 {formatted}</span>;
+}
+
 export default function QuestDetail({ quest, streak, onToggleStep, onDelete, theme }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const cat = CATEGORIES[quest.category] || CATEGORIES.work;
   const done = quest.steps.filter((s) => s.done).length;
   const total = quest.steps.length;
@@ -46,6 +60,7 @@ export default function QuestDetail({ quest, streak, onToggleStep, onDelete, the
         <div className="relative">
           <div className="flex items-center justify-between mb-4">
             <span className={`text-sm font-semibold px-3 py-1 rounded-full ${cat.badge}`}>{t("cat." + quest.category)}</span>
+            {quest.deadline && deadlineBadge(quest.deadline, isComplete, t, lang)}
             <button
               onClick={() => { if (window.confirm(t("detail.deleteConfirm"))) onDelete(quest.id); }}
               className="text-xs text-gray-400 hover:text-red-500 transition-all"
