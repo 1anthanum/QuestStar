@@ -409,6 +409,21 @@ const translations = {
     "reward.noLog": "No transactions yet",
     "reward.surprise": "Surprise!",
 
+    // ── Knowledge Lore ──
+    "lore.title": "Knowledge Lore",
+    "lore.collected": "Fragments Collected",
+    "lore.booksComplete": "Books Complete",
+    "lore.fragments": "fragments",
+    "lore.locked": "Not yet discovered",
+    "lore.complete": "Complete!",
+    "lore.pathUnlocked": "Knowledge Path Unlocked!",
+    "lore.gotIt": "Got it!",
+    "lore.backToBooks": "Back to Books",
+    "lore.hint": "Complete tasks to discover knowledge fragments. Each step has a chance to drop a new fragment!",
+    "lore.newFragment": "New Fragment Discovered!",
+    "lore.bookComplete": "{name} — All fragments collected!",
+    "lore.collect": "Collect!",
+
     // ── AI Models ──
     "model.sonnet.label": "Claude Sonnet 4.6",
     "model.sonnet.desc": "Balanced speed & quality",
@@ -821,6 +836,21 @@ const translations = {
     "reward.claim": "领取！",
     "reward.noLog": "暂无记录",
     "reward.surprise": "惊喜！",
+
+    // ── Knowledge Lore ──
+    "lore.title": "知识图鉴",
+    "lore.collected": "已收集碎片",
+    "lore.booksComplete": "已完成图鉴",
+    "lore.fragments": "碎片",
+    "lore.locked": "尚未发现",
+    "lore.complete": "已集齐！",
+    "lore.pathUnlocked": "知识路径已解锁！",
+    "lore.gotIt": "收下了！",
+    "lore.backToBooks": "返回图鉴",
+    "lore.hint": "完成任务步骤有概率掉落知识碎片，集齐一套可解锁完整知识路径！",
+    "lore.newFragment": "发现新碎片！",
+    "lore.bookComplete": "{name}——已集齐所有碎片！",
+    "lore.collect": "收下！",
 
     // ── AI Models ──
     "model.sonnet.label": "Claude Sonnet 4.6",

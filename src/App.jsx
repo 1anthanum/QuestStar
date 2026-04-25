@@ -19,9 +19,11 @@ import Timeline from "./components/Timeline";
 import AnimatedBackground from "./components/AnimatedBackground";
 import OnboardingGuide from "./components/OnboardingGuide";
 import RewardPanel from "./components/RewardPanel";
+import LorePanel, { LoreDropOverlay } from "./components/LorePanel";
 import { XpPopup, LevelUpOverlay, QuestCompleteOverlay } from "./components/Celebrations";
 import { useDeadlineReminder } from "./hooks/useDeadlineReminder";
 import { useRewardSystem } from "./hooks/useRewardSystem";
+import { useKnowledgeLore } from "./hooks/useKnowledgeLore";
 
 export default function App() {
   const game = useGameState();
@@ -29,6 +31,7 @@ export default function App() {
   const themeCtx = useTheme();
   const { t, lang, toggleLang } = useLanguage();
   const rewards = useRewardSystem(game.streak);
+  const lore = useKnowledgeLore();
 
   const [onboardingDone, setOnboardingDone] = useLocalStorage("qt_onboarding_done", false);
 
@@ -44,6 +47,8 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
   const [showRewardPanel, setShowRewardPanel] = useState(false);
+  const [showLorePanel, setShowLorePanel] = useState(false);
+  const [loreDrop, setLoreDrop] = useState(null);
   const [surprisePopup, setSurprisePopup] = useState(null);
 
   // Deadline reminder system
@@ -81,6 +86,13 @@ export default function App() {
         rewards.checkDailyStepBonus();
         // Check daily all-clear ($10)
         rewards.checkDailyAllClear(game.quests);
+
+        // Lore fragment drop
+        const quest = game.quests.find((q) => q.id === questId);
+        const drop = lore.tryDrop(quest?.questType || "daily");
+        if (drop) {
+          setTimeout(() => setLoreDrop(drop), 1200);
+        }
       }
       if (result.didLevelUp) {
         setTimeout(() => setLevelUpOverlay(result.didLevelUp), 400);
@@ -89,7 +101,7 @@ export default function App() {
         setTimeout(() => setQuestCompleteOverlay(result.questJustCompleted), 800);
       }
     },
-    [game, rewards, showXpGain]
+    [game, rewards, lore, showXpGain]
   );
 
   const handleAddQuest = useCallback(
@@ -164,6 +176,25 @@ export default function App() {
           theme={theme}
         />
       )}
+      {/* Lore drop overlay */}
+      {loreDrop && (
+        <LoreDropOverlay
+          fragment={loreDrop.fragment}
+          book={loreDrop.book}
+          bookJustCompleted={loreDrop.bookJustCompleted}
+          onClose={() => { setLoreDrop(null); lore.clearRecentDrop(); }}
+        />
+      )}
+      {showLorePanel && (
+        <LorePanel
+          bookStats={lore.getBookStats()}
+          hasFragment={lore.hasFragment}
+          totalFragments={lore.totalFragments}
+          collectedCount={lore.collectedCount}
+          onClose={() => setShowLorePanel(false)}
+          theme={theme}
+        />
+      )}
       {showRewardPanel && (
         <RewardPanel
           wallet={rewards.wallet}
@@ -220,6 +251,14 @@ export default function App() {
             </h1>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => setShowLorePanel(true)}
+              className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
+              style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)" }}
+              title={t("lore.title")}
+            >
+              📖 <span className="font-mono">{lore.collectedCount}/{lore.totalFragments}</span>
+            </button>
             <button
               onClick={() => setShowRewardPanel(true)}
               className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
