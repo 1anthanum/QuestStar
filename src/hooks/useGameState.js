@@ -30,7 +30,15 @@ export function useGameState() {
           if (q.id !== questId) return q;
           return {
             ...q,
-            steps: q.steps.map((s) => (s.id === stepId ? { ...s, done: !s.done } : s)),
+            steps: q.steps.map((s) => {
+              if (s.id !== stepId) return s;
+              const newDone = !s.done;
+              return {
+                ...s,
+                done: newDone,
+                completedAt: newDone ? Date.now() : undefined,
+              };
+            }),
           };
         });
 

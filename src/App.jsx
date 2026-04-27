@@ -20,10 +20,14 @@ import AnimatedBackground from "./components/AnimatedBackground";
 import OnboardingGuide from "./components/OnboardingGuide";
 import RewardPanel from "./components/RewardPanel";
 import LorePanel, { LoreDropOverlay } from "./components/LorePanel";
+import BlossomPanel from "./components/BlossomPanel";
+import StepCompleteGuide from "./components/StepCompleteGuide";
 import { XpPopup, LevelUpOverlay, QuestCompleteOverlay } from "./components/Celebrations";
+import { getNextRecommendations } from "./utils/guidanceEngine";
 import { useDeadlineReminder } from "./hooks/useDeadlineReminder";
 import { useRewardSystem } from "./hooks/useRewardSystem";
 import { useKnowledgeLore } from "./hooks/useKnowledgeLore";
+import useBlossomMode from "./hooks/useBlossomMode";
 
 export default function App() {
   const game = useGameState();
@@ -32,6 +36,7 @@ export default function App() {
   const { t, lang, toggleLang } = useLanguage();
   const rewards = useRewardSystem(game.streak);
   const lore = useKnowledgeLore();
+  const blossom = useBlossomMode();
 
   const [onboardingDone, setOnboardingDone] = useLocalStorage("qt_onboarding_done", false);
 
@@ -48,8 +53,10 @@ export default function App() {
   const [showTimeline, setShowTimeline] = useState(false);
   const [showRewardPanel, setShowRewardPanel] = useState(false);
   const [showLorePanel, setShowLorePanel] = useState(false);
+  const [showBlossomPanel, setShowBlossomPanel] = useState(false);
   const [loreDrop, setLoreDrop] = useState(null);
   const [surprisePopup, setSurprisePopup] = useState(null);
+  const [stepGuide, setStepGuide] = useState(null);
 
   // Deadline reminder system
   useDeadlineReminder(game.quests);
@@ -93,6 +100,23 @@ export default function App() {
         if (drop) {
           setTimeout(() => setLoreDrop(drop), 1200);
         }
+
+        // Step completion guide — show after animations settle
+        if (quest) {
+          const step = quest.steps.find((s) => s.id === stepId);
+          setTimeout(() => {
+            const { recommendations, todayProgress, allClear } = getNextRecommendations(
+              step, quest, game.quests, blossom.todayRecommendations
+            );
+            setStepGuide({
+              completedStepText: step?.text || "",
+              questName: quest.name,
+              recommendations,
+              todayProgress,
+              allClear,
+            });
+          }, 1800);
+        }
       }
       if (result.didLevelUp) {
         setTimeout(() => setLevelUpOverlay(result.didLevelUp), 400);
@@ -101,7 +125,7 @@ export default function App() {
         setTimeout(() => setQuestCompleteOverlay(result.questJustCompleted), 800);
       }
     },
-    [game, rewards, lore, showXpGain]
+    [game, rewards, lore, blossom, showXpGain]
   );
 
   const handleAddQuest = useCallback(
@@ -159,6 +183,25 @@ export default function App() {
       <LevelUpOverlay level={levelUpOverlay} onClose={() => setLevelUpOverlay(null)} />
       <QuestCompleteOverlay quest={questCompleteOverlay} onClose={() => setQuestCompleteOverlay(null)} />
 
+      {/* Step completion guide */}
+      {stepGuide && (
+        <StepCompleteGuide
+          guideData={stepGuide}
+          onNavigate={(rec) => {
+            setStepGuide(null);
+            if (rec.questId) {
+              setActiveQuestId(rec.questId);
+              setView("detail");
+            }
+          }}
+          onOpenBlossom={() => {
+            setStepGuide(null);
+            setShowBlossomPanel(true);
+          }}
+          onDismiss={() => setStepGuide(null)}
+        />
+      )}
+
       {/* Modals */}
       {showAddModal && <AddQuestModal onAdd={handleAddQuest} onClose={() => setShowAddModal(false)} />}
       {showAIModal && <AIDecomposeModal onAdd={handleAddQuest} onClose={() => setShowAIModal(false)} ai={ai} />}
@@ -193,6 +236,19 @@ export default function App() {
           collectedCount={lore.collectedCount}
           onClose={() => setShowLorePanel(false)}
           theme={theme}
+        />
+      )}
+      {showBlossomPanel && (
+        <BlossomPanel
+          todayRecommendations={blossom.todayRecommendations}
+          allNodesWithStatus={blossom.allNodesWithStatus}
+          domainStats={blossom.domainStats}
+          stats={blossom.stats}
+          onPlant={blossom.plantSeed}
+          onAdvance={blossom.advanceNode}
+          onChooseFate={blossom.chooseFate}
+          onWake={blossom.wakeNode}
+          onClose={() => setShowBlossomPanel(false)}
         />
       )}
       {showRewardPanel && (
@@ -251,6 +307,14 @@ export default function App() {
             </h1>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => setShowBlossomPanel(true)}
+              className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
+              style={{ background: "linear-gradient(135deg, #ec4899, #f472b6)" }}
+              title={t("blossom.title")}
+            >
+              🌸 <span className="font-mono">{blossom.stats.planted}/{blossom.stats.total}</span>
+            </button>
             <button
               onClick={() => setShowLorePanel(true)}
               className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"

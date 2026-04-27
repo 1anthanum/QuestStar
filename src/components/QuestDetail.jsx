@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { CATEGORIES, XP_CONFIG, ANCHOR_LAYERS } from "../utils/constants";
 import { useLanguage } from "../hooks/useLanguage";
+import { predictCompletion, formatPrediction } from "../utils/timePredictor";
 import ProgressRing from "./ProgressRing";
 import StepItem from "./StepItem";
 import MathText from "./MathText";
@@ -50,6 +51,12 @@ export default function QuestDetail({ quest, streak, onToggleStep, onDelete, the
   const hasLayerInfo = quest.steps.some((s) => s.layer);
   const layerGroups = useMemo(() => hasLayerInfo ? groupByLayer(quest.steps) : null, [quest.steps, hasLayerInfo]);
 
+  // Time prediction
+  const prediction = useMemo(() => {
+    if (isComplete) return null;
+    return formatPrediction(predictCompletion(quest), lang);
+  }, [quest, isComplete, lang]);
+
   let runningIndex = 0;
 
   return (
@@ -89,6 +96,18 @@ export default function QuestDetail({ quest, streak, onToggleStep, onDelete, the
                 <div className="mt-2 text-sm">
                   <span className="text-gray-400">{t("detail.next")}</span>
                   <MathText text={next.text} className={`font-semibold ${cat.text}`} />
+                </div>
+              )}
+              {/* Time prediction */}
+              {prediction && prediction.text && (
+                <div className={`mt-2 flex items-center gap-1.5 text-xs ${prediction.color}`}>
+                  <span>{prediction.icon}</span>
+                  <span className="font-medium">{prediction.text}</span>
+                  {prediction.velocity > 0 && (
+                    <span className="text-gray-400 ml-1">
+                      ({prediction.velocity} {t("predict.stepsPerDay")})
+                    </span>
+                  )}
                 </div>
               )}
             </div>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLanguage } from "../hooks/useLanguage";
 import { CATEGORIES } from "../utils/constants";
+import { predictCompletion, formatPrediction } from "../utils/timePredictor";
 
 function getTodayStr() {
   return new Date().toISOString().split("T")[0];
@@ -73,6 +74,15 @@ export default function Timeline({ quests, onSelectQuest, onToggleStep, onClose,
   const [filter, setFilter] = useState("all"); // "all" | "active" | "overdue"
 
   const items = useMemo(() => collectDeadlineItems(quests), [quests]);
+
+  // Predictions for each quest
+  const predictions = useMemo(() => {
+    const map = {};
+    for (const q of quests) {
+      map[q.id] = formatPrediction(predictCompletion(q), lang);
+    }
+    return map;
+  }, [quests, lang]);
 
   const sections = useMemo(() => {
     const today = getTodayStr();
@@ -240,6 +250,13 @@ export default function Timeline({ quests, onSelectQuest, onToggleStep, onClose,
                                   )}
                                   <span className="ml-auto flex-shrink-0">{formatDate(item.deadline, lang)}</span>
                                 </div>
+                                {/* Prediction for quest items */}
+                                {item.type === "quest" && !item.done && predictions[item.questId] && predictions[item.questId].text && (
+                                  <div className={`flex items-center gap-1 text-[10px] mt-0.5 ${predictions[item.questId].color}`}>
+                                    <span>{predictions[item.questId].icon}</span>
+                                    <span>{predictions[item.questId].shortText || predictions[item.questId].text}</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           );
