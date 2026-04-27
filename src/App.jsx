@@ -21,6 +21,8 @@ import OnboardingGuide from "./components/OnboardingGuide";
 import RewardPanel from "./components/RewardPanel";
 import LorePanel, { LoreDropOverlay } from "./components/LorePanel";
 import BlossomPanel from "./components/BlossomPanel";
+import BackpackPanel from "./components/BackpackPanel";
+import HyperfocusMode from "./components/HyperfocusMode";
 import StepCompleteGuide from "./components/StepCompleteGuide";
 import { XpPopup, LevelUpOverlay, QuestCompleteOverlay } from "./components/Celebrations";
 import { getNextRecommendations } from "./utils/guidanceEngine";
@@ -57,6 +59,8 @@ export default function App() {
   const [loreDrop, setLoreDrop] = useState(null);
   const [surprisePopup, setSurprisePopup] = useState(null);
   const [stepGuide, setStepGuide] = useState(null);
+  const [showBackpackPanel, setShowBackpackPanel] = useState(false);
+  const [hyperfocusQuest, setHyperfocusQuest] = useState(null);
 
   // Deadline reminder system
   useDeadlineReminder(game.quests);
@@ -267,6 +271,25 @@ export default function App() {
           theme={theme}
         />
       )}
+      {showBackpackPanel && (
+        <BackpackPanel
+          allNodesWithStatus={blossom.allNodesWithStatus}
+          bookStats={lore.getBookStats()}
+          hasFragment={lore.hasFragment}
+          wallet={rewards.wallet}
+          claimedMilestones={rewards.claimedMilestones}
+          streak={game.streak}
+          onClose={() => setShowBackpackPanel(false)}
+          theme={theme}
+        />
+      )}
+      {hyperfocusQuest && (
+        <HyperfocusMode
+          quest={hyperfocusQuest}
+          onToggleStep={handleToggleStep}
+          onClose={() => setHyperfocusQuest(null)}
+        />
+      )}
       {showSettings && (
         <SettingsPanel
           ai={ai}
@@ -307,6 +330,14 @@ export default function App() {
             </h1>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => setShowBackpackPanel(true)}
+              className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
+              style={{ background: "linear-gradient(135deg, #7c3aed, #6366f1)" }}
+              title={t("backpack.title")}
+            >
+              🎒
+            </button>
             <button
               onClick={() => setShowBlossomPanel(true)}
               className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
@@ -397,6 +428,7 @@ export default function App() {
               streak={game.streak}
               onToggleStep={handleToggleStep}
               onDelete={handleDeleteQuest}
+              onFocus={(quest) => setHyperfocusQuest(quest)}
               theme={theme}
             />
           )}

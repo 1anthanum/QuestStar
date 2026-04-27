@@ -38,7 +38,7 @@ function deadlineBadge(dateStr, isDone, t, lang) {
   return <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 ml-2">📅 {formatted}</span>;
 }
 
-export default function QuestDetail({ quest, streak, onToggleStep, onDelete, theme }) {
+export default function QuestDetail({ quest, streak, onToggleStep, onDelete, onFocus, theme }) {
   const { t, lang } = useLanguage();
   const cat = CATEGORIES[quest.category] || CATEGORIES.work;
   const done = quest.steps.filter((s) => s.done).length;
@@ -68,12 +68,22 @@ export default function QuestDetail({ quest, streak, onToggleStep, onDelete, the
           <div className="flex items-center justify-between mb-4">
             <span className={`text-sm font-semibold px-3 py-1 rounded-full ${cat.badge}`}>{t("cat." + quest.category)}</span>
             {quest.deadline && deadlineBadge(quest.deadline, isComplete, t, lang)}
-            <button
-              onClick={() => { if (window.confirm(t("detail.deleteConfirm"))) onDelete(quest.id); }}
-              className="text-xs text-gray-400 hover:text-red-500 transition-all"
-            >
-              {t("detail.deleteQuest")}
-            </button>
+            <div className="flex items-center gap-2">
+              {!isComplete && (
+                <button
+                  onClick={() => onFocus?.(quest)}
+                  className="text-xs font-bold px-3 py-1 rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-all"
+                >
+                  ⚡ {t("hyperfocus.focusBtn")}
+                </button>
+              )}
+              <button
+                onClick={() => { if (window.confirm(t("detail.deleteConfirm"))) onDelete(quest.id); }}
+                className="text-xs text-gray-400 hover:text-red-500 transition-all"
+              >
+                {t("detail.deleteQuest")}
+              </button>
+            </div>
           </div>
           <div className="flex items-center gap-5">
             <ProgressRing progress={progress} size={80} stroke={6} id={`detail-ring-${quest.id}`}>
