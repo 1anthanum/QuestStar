@@ -1,4 +1,5 @@
 import { DEFAULT_AI_MODEL } from "./constants";
+import { getClaudeEndpoint, getClaudeHeaders, hasProxy } from "./claudeClient";
 
 const SYSTEM_PROMPT = `You are a task decomposition expert based on the "Anchored Learning Method," specializing in helping people with ADHD break down learning/work goals into cognitively friendly step-by-step paths.
 
@@ -44,9 +45,12 @@ You must return strictly in the following JSON format with no other text:
 ]`;
 
 /**
- * Get API Key: .env takes priority, then localStorage manual input
+ * Get API Key: proxy takes top priority (sentinel), then .env, then manual.
+ * When proxy is active, the worker injects the real key, so we return
+ * a sentinel that satisfies "key present" checks without leaking anything.
  */
 export function getApiKey(manualKey = "") {
+  if (hasProxy()) return "PROXY";
   return import.meta.env.VITE_CLAUDE_API_KEY || manualKey;
 }
 
@@ -54,6 +58,7 @@ export function getApiKey(manualKey = "") {
  * Check API Key source
  */
 export function getApiKeySource(manualKey = "") {
+  if (hasProxy()) return "proxy";
   if (import.meta.env.VITE_CLAUDE_API_KEY) return "env";
   if (manualKey) return "manual";
   return "none";
@@ -92,18 +97,9 @@ export async function decomposeTask(goal, category, apiKey, model = DEFAULT_AI_M
   const userMessage = `Using the Anchored Learning Method, help me decompose the following ${categoryLabels[category] || ""} goal:\n\n"${goal}"${anchorPart}${langPart}\n\nPlease return a JSON array of steps.`;
 
   // Dev uses Vite proxy; production calls directly (needs CORS header)
-  const apiUrl = import.meta.env.DEV
-    ? "/api/claude/v1/messages"
-    : "https://api.anthropic.com/v1/messages";
-
-  const response = await fetch(apiUrl, {
+  const response = await fetch(getClaudeEndpoint(), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": resolvedKey,
-      "anthropic-version": "2023-06-01",
-      ...(import.meta.env.DEV ? {} : { "anthropic-dangerous-direct-browser-access": "true" }),
-    },
+    headers: getClaudeHeaders(resolvedKey),
     body: JSON.stringify({
       model,
       max_tokens: 2048,
@@ -213,18 +209,9 @@ Each bite should cover a different surprising concept.${avoidList}
 
 Return a JSON array of bite objects.`;
 
-  const apiUrl = import.meta.env.DEV
-    ? "/api/claude/v1/messages"
-    : "https://api.anthropic.com/v1/messages";
-
-  const response = await fetch(apiUrl, {
+  const response = await fetch(getClaudeEndpoint(), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": resolvedKey,
-      "anthropic-version": "2023-06-01",
-      ...(import.meta.env.DEV ? {} : { "anthropic-dangerous-direct-browser-access": "true" }),
-    },
+    headers: getClaudeHeaders(resolvedKey),
     body: JSON.stringify({
       model,
       max_tokens: 4096,
@@ -306,18 +293,9 @@ export async function generateKnowledge(subtopicLabel, topicTitle, apiKey, model
 
   const userMessage = `Write a knowledge brief for the subtopic "${subtopicLabel}" under the topic "${topicTitle}".${langPart}\n\nReturn a JSON object.`;
 
-  const apiUrl = import.meta.env.DEV
-    ? "/api/claude/v1/messages"
-    : "https://api.anthropic.com/v1/messages";
-
-  const response = await fetch(apiUrl, {
+  const response = await fetch(getClaudeEndpoint(), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": resolvedKey,
-      "anthropic-version": "2023-06-01",
-      ...(import.meta.env.DEV ? {} : { "anthropic-dangerous-direct-browser-access": "true" }),
-    },
+    headers: getClaudeHeaders(resolvedKey),
     body: JSON.stringify({
       model,
       max_tokens: 800,
@@ -393,18 +371,9 @@ export async function generateQuickQA(subtopicLabel, topicTitle, apiKey, model =
 
   const userMessage = `Generate a 3-question quiz for the subtopic "${subtopicLabel}" under the topic "${topicTitle}".${langPart}\n\nReturn a JSON array.`;
 
-  const apiUrl = import.meta.env.DEV
-    ? "/api/claude/v1/messages"
-    : "https://api.anthropic.com/v1/messages";
-
-  const response = await fetch(apiUrl, {
+  const response = await fetch(getClaudeEndpoint(), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": resolvedKey,
-      "anthropic-version": "2023-06-01",
-      ...(import.meta.env.DEV ? {} : { "anthropic-dangerous-direct-browser-access": "true" }),
-    },
+    headers: getClaudeHeaders(resolvedKey),
     body: JSON.stringify({
       model,
       max_tokens: 1500,
@@ -495,18 +464,9 @@ Please summarize this document and extract actionable steps.${langPart}
 
 Return a JSON object.`;
 
-  const apiUrl = import.meta.env.DEV
-    ? "/api/claude/v1/messages"
-    : "https://api.anthropic.com/v1/messages";
-
-  const response = await fetch(apiUrl, {
+  const response = await fetch(getClaudeEndpoint(), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": resolvedKey,
-      "anthropic-version": "2023-06-01",
-      ...(import.meta.env.DEV ? {} : { "anthropic-dangerous-direct-browser-access": "true" }),
-    },
+    headers: getClaudeHeaders(resolvedKey),
     body: JSON.stringify({
       model,
       max_tokens: 2048,
