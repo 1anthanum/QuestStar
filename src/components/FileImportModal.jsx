@@ -68,8 +68,9 @@ export default function FileImportModal({ onAdd, onClose, ai, theme }) {
       const result = await summarizeFile(
         truncated,
         file.name,
-        ai.manualApiKey,
+        ai.aiProvider,
         ai.aiModel,
+        ai.resolvedKey,
         lang
       );
       setSummary(result.summary);

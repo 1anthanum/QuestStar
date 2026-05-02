@@ -1,5 +1,8 @@
-import { DEFAULT_AI_MODEL } from "./constants";
-import { getClaudeEndpoint, getClaudeHeaders, hasProxy } from "./claudeClient";
+import { callAI } from "./aiProviders";
+
+// ═══════════════════════════════════════════
+// System Prompts (unchanged)
+// ═══════════════════════════════════════════
 
 const SYSTEM_PROMPT = `You are a task decomposition expert based on the "Anchored Learning Method," specializing in helping people with ADHD break down learning/work goals into cognitively friendly step-by-step paths.
 
@@ -44,113 +47,6 @@ You must return strictly in the following JSON format with no other text:
   {"text": "Step description", "difficulty": "medium", "layer": "mid", "anchorStep": "infer", "anchorNote": "Anchoring explanation"}
 ]`;
 
-/**
- * Get API Key: proxy takes top priority (sentinel), then .env, then manual.
- * When proxy is active, the worker injects the real key, so we return
- * a sentinel that satisfies "key present" checks without leaking anything.
- */
-export function getApiKey(manualKey = "") {
-  if (hasProxy()) return "PROXY";
-  return import.meta.env.VITE_CLAUDE_API_KEY || manualKey;
-}
-
-/**
- * Check API Key source
- */
-export function getApiKeySource(manualKey = "") {
-  if (hasProxy()) return "proxy";
-  if (import.meta.env.VITE_CLAUDE_API_KEY) return "env";
-  if (manualKey) return "manual";
-  return "none";
-}
-
-/**
- * Call Claude API to decompose a task
- * @param {string} goal - User's input goal
- * @param {string} category - Task category
- * @param {string} apiKey - Claude API Key (manual input; .env is merged automatically)
- * @param {string} model - Model ID
- * @param {string} knownDomain - User's familiar domain (for anchored analogies)
- * @returns {Promise<Array>} Array of steps
- */
-export async function decomposeTask(goal, category, apiKey, model = DEFAULT_AI_MODEL, knownDomain = "", lang = "en") {
-  const resolvedKey = getApiKey(apiKey);
-  if (!resolvedKey) {
-    throw new Error("API Key not found. Set VITE_CLAUDE_API_KEY in your .env file, or enter it manually in Settings.");
-  }
-
-  const categoryLabels = {
-    learning: "learning",
-    work: "work",
-    habit: "daily habit",
-    code: "programming/tech",
-  };
-
-  const anchorPart = knownDomain.trim()
-    ? `\n\nMy familiar domain is "${knownDomain.trim()}". Please use concepts from this domain as anchor points for analogies when decomposing the new knowledge.`
-    : `\n\nPlease choose a commonly understood everyday concept as an anchor point for analogies.`;
-
-  const langPart = lang === "zh"
-    ? `\n\nIMPORTANT: Write ALL step text and anchorNote content in Chinese (中文). Use natural, casual Chinese — avoid textbook tone. Keep JSON field names in English.`
-    : "";
-
-  const userMessage = `Using the Anchored Learning Method, help me decompose the following ${categoryLabels[category] || ""} goal:\n\n"${goal}"${anchorPart}${langPart}\n\nPlease return a JSON array of steps.`;
-
-  // Dev uses Vite proxy; production calls directly (needs CORS header)
-  const response = await fetch(getClaudeEndpoint(), {
-    method: "POST",
-    headers: getClaudeHeaders(resolvedKey),
-    body: JSON.stringify({
-      model,
-      max_tokens: 2048,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userMessage }],
-    }),
-  });
-
-  if (!response.ok) {
-    const errBody = await response.text();
-    if (response.status === 401) {
-      throw new Error("Invalid API Key — please check your Settings");
-    }
-    if (response.status === 429) {
-      throw new Error("Too many requests — please try again later");
-    }
-    throw new Error(`API request failed (${response.status}): ${errBody}`);
-  }
-
-  const data = await response.json();
-  const text = data.content?.[0]?.text || "";
-
-  // Extract JSON array from response text
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) {
-    throw new Error("Unexpected AI response format — please try again");
-  }
-
-  const steps = JSON.parse(jsonMatch[0]);
-
-  // Validate format
-  if (!Array.isArray(steps) || steps.length === 0) {
-    throw new Error("AI returned an empty step list — please try again");
-  }
-
-  const validLayers = ["base", "mid", "top"];
-  const validAnchorSteps = ["anchor", "decompose", "infer", "master", "review"];
-
-  return steps.map((s) => ({
-    text: String(s.text || "").trim(),
-    difficulty: ["easy", "medium", "hard"].includes(s.difficulty) ? s.difficulty : "medium",
-    layer: validLayers.includes(s.layer) ? s.layer : "mid",
-    anchorStep: validAnchorSteps.includes(s.anchorStep) ? s.anchorStep : "decompose",
-    anchorNote: String(s.anchorNote || "").trim(),
-  }));
-}
-
-// ═══════════════════════════════════════════
-// Micro-Learn Bite Generator
-// ═══════════════════════════════════════════
-
 function getMicroLearnPrompt(lang) {
   const langInstruction = lang === "zh"
     ? "\n- IMPORTANT: Write ALL content (title, hook, steps) in Chinese (中文). Use casual, vivid Chinese — no textbook tone. Domain names should stay in English for consistency."
@@ -184,77 +80,6 @@ You must return strictly in the following JSON format with no other text:
 ]`;
 }
 
-/**
- * Generate new micro-learn bites via Claude API
- * @param {string[]} domains - Domains to generate for
- * @param {string[]} existingTitles - Titles already seen (to avoid repeats)
- * @param {number} count - Number of bites to generate
- * @param {string} apiKey - Claude API Key
- * @param {string} model - Model ID
- * @returns {Promise<Array>} Array of micro-learn bite objects
- */
-export async function generateMicroLearns(domains, existingTitles, count, apiKey, model = DEFAULT_AI_MODEL, lang = "en") {
-  const resolvedKey = getApiKey(apiKey);
-  if (!resolvedKey) {
-    throw new Error("API Key not found. Set VITE_CLAUDE_API_KEY in your .env file, or enter it manually in Settings.");
-  }
-
-  const avoidList = existingTitles.length > 0
-    ? `\n\nDo NOT repeat these topics (already seen):\n${existingTitles.map(t => `- ${t}`).join("\n")}`
-    : "";
-
-  const userMessage = `Generate ${count} fascinating micro-learn bites across these domains: ${domains.join(", ")}.
-
-Each bite should cover a different surprising concept.${avoidList}
-
-Return a JSON array of bite objects.`;
-
-  const response = await fetch(getClaudeEndpoint(), {
-    method: "POST",
-    headers: getClaudeHeaders(resolvedKey),
-    body: JSON.stringify({
-      model,
-      max_tokens: 4096,
-      system: getMicroLearnPrompt(lang),
-      messages: [{ role: "user", content: userMessage }],
-    }),
-  });
-
-  if (!response.ok) {
-    const errBody = await response.text();
-    if (response.status === 401) throw new Error("Invalid API Key — please check your Settings");
-    if (response.status === 429) throw new Error("Too many requests — please try again later");
-    throw new Error(`API request failed (${response.status}): ${errBody}`);
-  }
-
-  const data = await response.json();
-  const text = data.content?.[0]?.text || "";
-
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) throw new Error("Unexpected AI response format — please try again");
-
-  const bites = JSON.parse(jsonMatch[0]);
-  if (!Array.isArray(bites) || bites.length === 0) throw new Error("AI returned empty results — please try again");
-
-  return bites.map((b, i) => ({
-    id: b.id || `ml-ai-${Date.now()}-${i}`,
-    emoji: b.emoji || "🧠",
-    domain: String(b.domain || domains[0] || "General").trim(),
-    title: String(b.title || "").trim(),
-    hook: String(b.hook || "").trim(),
-    category: "learning",
-    isAI: true,
-    steps: Array.isArray(b.steps) ? b.steps.map((s) => ({
-      text: String(s.text || "").trim(),
-      difficulty: ["easy", "medium", "hard"].includes(s.difficulty) ? s.difficulty : "easy",
-    })) : [],
-  }));
-}
-
-// ═══════════════════════════════════════════
-// Knowledge Brief — Roadmap Subtopic Explainer
-// ═══════════════════════════════════════════
-
 const KNOWLEDGE_PROMPT = `You are a concise technical educator. Given a subtopic and its parent topic, write a brief knowledge card that helps someone quickly understand the concept.
 
 Rules:
@@ -271,64 +96,6 @@ Return strictly in this JSON format:
   "keyInsight": "One sentence 'aha moment'",
   "resources": ["Resource 1 name — URL or description", "Resource 2"]
 }`;
-
-/**
- * Generate a knowledge brief for a roadmap subtopic
- * @param {string} subtopicLabel - The subtopic name
- * @param {string} topicTitle - Parent topic name for context
- * @param {string} apiKey - Claude API Key
- * @param {string} model - Model ID
- * @param {string} lang - "en" or "zh"
- * @returns {Promise<Object>} { brief, keyInsight, resources }
- */
-export async function generateKnowledge(subtopicLabel, topicTitle, apiKey, model = DEFAULT_AI_MODEL, lang = "en") {
-  const resolvedKey = getApiKey(apiKey);
-  if (!resolvedKey) {
-    throw new Error("API Key not found. Set VITE_CLAUDE_API_KEY in your .env file, or enter it manually in Settings.");
-  }
-
-  const langPart = lang === "zh"
-    ? `\n\nIMPORTANT: Write ALL content (brief, keyInsight, resources) in Chinese (中文). Keep JSON field names in English. Resource names can stay in English if they are well-known.`
-    : "";
-
-  const userMessage = `Write a knowledge brief for the subtopic "${subtopicLabel}" under the topic "${topicTitle}".${langPart}\n\nReturn a JSON object.`;
-
-  const response = await fetch(getClaudeEndpoint(), {
-    method: "POST",
-    headers: getClaudeHeaders(resolvedKey),
-    body: JSON.stringify({
-      model,
-      max_tokens: 800,
-      system: KNOWLEDGE_PROMPT,
-      messages: [{ role: "user", content: userMessage }],
-    }),
-  });
-
-  if (!response.ok) {
-    const errBody = await response.text();
-    if (response.status === 401) throw new Error("Invalid API Key — please check your Settings");
-    if (response.status === 429) throw new Error("Too many requests — please try again later");
-    throw new Error(`API request failed (${response.status}): ${errBody}`);
-  }
-
-  const data = await response.json();
-  const text = data.content?.[0]?.text || "";
-
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("Unexpected AI response format — please try again");
-
-  const result = JSON.parse(jsonMatch[0]);
-
-  return {
-    brief: String(result.brief || "").trim(),
-    keyInsight: String(result.keyInsight || "").trim(),
-    resources: Array.isArray(result.resources) ? result.resources.map((r) => String(r).trim()) : [],
-  };
-}
-
-// ═══════════════════════════════════════════
-// Quick QA — Roadmap Subtopic Quiz Generator
-// ═══════════════════════════════════════════
 
 const QUICK_QA_PROMPT = `You are a technical interviewer and educator. Given a specific subtopic, generate a concise quiz to test understanding.
 
@@ -349,66 +116,6 @@ Return strictly in this JSON format:
     "explanation": "Brief explanation of why this is correct"
   }
 ]`;
-
-/**
- * Generate quick QA questions for a roadmap subtopic
- * @param {string} subtopicLabel - The subtopic name
- * @param {string} topicTitle - Parent topic name for context
- * @param {string} apiKey - Claude API Key
- * @param {string} model - Model ID
- * @param {string} lang - "en" or "zh"
- * @returns {Promise<Array>} Array of QA objects
- */
-export async function generateQuickQA(subtopicLabel, topicTitle, apiKey, model = DEFAULT_AI_MODEL, lang = "en") {
-  const resolvedKey = getApiKey(apiKey);
-  if (!resolvedKey) {
-    throw new Error("API Key not found. Set VITE_CLAUDE_API_KEY in your .env file, or enter it manually in Settings.");
-  }
-
-  const langPart = lang === "zh"
-    ? `\n\nIMPORTANT: Write ALL question text, options, and explanations in Chinese (中文). Keep JSON field names in English.`
-    : "";
-
-  const userMessage = `Generate a 3-question quiz for the subtopic "${subtopicLabel}" under the topic "${topicTitle}".${langPart}\n\nReturn a JSON array.`;
-
-  const response = await fetch(getClaudeEndpoint(), {
-    method: "POST",
-    headers: getClaudeHeaders(resolvedKey),
-    body: JSON.stringify({
-      model,
-      max_tokens: 1500,
-      system: QUICK_QA_PROMPT,
-      messages: [{ role: "user", content: userMessage }],
-    }),
-  });
-
-  if (!response.ok) {
-    const errBody = await response.text();
-    if (response.status === 401) throw new Error("Invalid API Key — please check your Settings");
-    if (response.status === 429) throw new Error("Too many requests — please try again later");
-    throw new Error(`API request failed (${response.status}): ${errBody}`);
-  }
-
-  const data = await response.json();
-  const text = data.content?.[0]?.text || "";
-
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) throw new Error("Unexpected AI response format — please try again");
-
-  const questions = JSON.parse(jsonMatch[0]);
-  if (!Array.isArray(questions) || questions.length === 0) throw new Error("AI returned empty results — please try again");
-
-  return questions.map((q) => ({
-    q: String(q.q || "").trim(),
-    options: Array.isArray(q.options) ? q.options.map((o) => String(o).trim()) : [],
-    answer: typeof q.answer === "number" ? q.answer : 0,
-    explanation: String(q.explanation || "").trim(),
-  }));
-}
-
-// ═══════════════════════════════════════════
-// File Summarize & Decompose
-// ═══════════════════════════════════════════
 
 const FILE_SUMMARIZE_PROMPT = `You are a task extraction expert. Given the text content of a document, you must:
 1. Summarize the document in 2-3 sentences (the "summary")
@@ -435,60 +142,169 @@ Return strictly in this JSON format:
   ]
 }`;
 
-/**
- * Summarize a file's text and decompose into steps.
- * @param {string} fileText - Extracted text from the file
- * @param {string} fileName - Original file name
- * @param {string} apiKey
- * @param {string} model
- * @param {string} lang
- * @returns {Promise<{summary, questName, category, steps}>}
- */
-export async function summarizeFile(fileText, fileName, apiKey, model = DEFAULT_AI_MODEL, lang = "en") {
-  const resolvedKey = getApiKey(apiKey);
-  if (!resolvedKey) {
-    throw new Error("API Key not found. Set VITE_CLAUDE_API_KEY in your .env file, or enter it manually in Settings.");
-  }
+// ═══════════════════════════════════════════
+// Shared Helpers
+// ═══════════════════════════════════════════
 
+function extractJsonArray(text) {
+  const match = text.match(/\[[\s\S]*\]/);
+  if (!match) throw new Error("Unexpected AI response format — please try again");
+  const arr = JSON.parse(match[0]);
+  if (!Array.isArray(arr) || arr.length === 0) throw new Error("AI returned empty results — please try again");
+  return arr;
+}
+
+function extractJsonObject(text) {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("Unexpected AI response format — please try again");
+  return JSON.parse(match[0]);
+}
+
+// ═══════════════════════════════════════════
+// API Functions (all delegate to callAI)
+// ═══════════════════════════════════════════
+
+/**
+ * Decompose a goal into steps using the Anchored Learning Method.
+ */
+export async function decomposeTask(goal, category, provider, model, apiKey, knownDomain = "", lang = "en") {
+  const categoryLabels = { learning: "learning", work: "work", habit: "daily habit", code: "programming/tech" };
+
+  const anchorPart = knownDomain.trim()
+    ? `\n\nMy familiar domain is "${knownDomain.trim()}". Please use concepts from this domain as anchor points for analogies when decomposing the new knowledge.`
+    : `\n\nPlease choose a commonly understood everyday concept as an anchor point for analogies.`;
+
+  const langPart = lang === "zh"
+    ? `\n\nIMPORTANT: Write ALL step text and anchorNote content in Chinese (中文). Use natural, casual Chinese — avoid textbook tone. Keep JSON field names in English.`
+    : "";
+
+  const userMessage = `Using the Anchored Learning Method, help me decompose the following ${categoryLabels[category] || ""} goal:\n\n"${goal}"${anchorPart}${langPart}\n\nPlease return a JSON array of steps.`;
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: userMessage }],
+    maxTokens: 2048,
+  });
+
+  const steps = extractJsonArray(text);
+  const validLayers = ["base", "mid", "top"];
+  const validAnchorSteps = ["anchor", "decompose", "infer", "master", "review"];
+
+  return steps.map((s) => ({
+    text: String(s.text || "").trim(),
+    difficulty: ["easy", "medium", "hard"].includes(s.difficulty) ? s.difficulty : "medium",
+    layer: validLayers.includes(s.layer) ? s.layer : "mid",
+    anchorStep: validAnchorSteps.includes(s.anchorStep) ? s.anchorStep : "decompose",
+    anchorNote: String(s.anchorNote || "").trim(),
+  }));
+}
+
+/**
+ * Generate micro-learn bite-sized learning cards.
+ */
+export async function generateMicroLearns(domains, existingTitles, count, provider, model, apiKey, lang = "en") {
+  const avoidList = existingTitles.length > 0
+    ? `\n\nDo NOT repeat these topics (already seen):\n${existingTitles.map((t) => `- ${t}`).join("\n")}`
+    : "";
+
+  const userMessage = `Generate ${count} fascinating micro-learn bites across these domains: ${domains.join(", ")}.\n\nEach bite should cover a different surprising concept.${avoidList}\n\nReturn a JSON array of bite objects.`;
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt: getMicroLearnPrompt(lang),
+    messages: [{ role: "user", content: userMessage }],
+    maxTokens: 4096,
+  });
+
+  const bites = extractJsonArray(text);
+
+  return bites.map((b, i) => ({
+    id: b.id || `ml-ai-${Date.now()}-${i}`,
+    emoji: b.emoji || "🧠",
+    domain: String(b.domain || domains[0] || "General").trim(),
+    title: String(b.title || "").trim(),
+    hook: String(b.hook || "").trim(),
+    category: "learning",
+    isAI: true,
+    steps: Array.isArray(b.steps) ? b.steps.map((s) => ({
+      text: String(s.text || "").trim(),
+      difficulty: ["easy", "medium", "hard"].includes(s.difficulty) ? s.difficulty : "easy",
+    })) : [],
+  }));
+}
+
+/**
+ * Generate a knowledge brief for a roadmap subtopic.
+ */
+export async function generateKnowledge(subtopicLabel, topicTitle, provider, model, apiKey, lang = "en") {
+  const langPart = lang === "zh"
+    ? `\n\nIMPORTANT: Write ALL content (brief, keyInsight, resources) in Chinese (中文). Keep JSON field names in English. Resource names can stay in English if they are well-known.`
+    : "";
+
+  const userMessage = `Write a knowledge brief for the subtopic "${subtopicLabel}" under the topic "${topicTitle}".${langPart}\n\nReturn a JSON object.`;
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt: KNOWLEDGE_PROMPT,
+    messages: [{ role: "user", content: userMessage }],
+    maxTokens: 800,
+  });
+
+  const result = extractJsonObject(text);
+
+  return {
+    brief: String(result.brief || "").trim(),
+    keyInsight: String(result.keyInsight || "").trim(),
+    resources: Array.isArray(result.resources) ? result.resources.map((r) => String(r).trim()) : [],
+  };
+}
+
+/**
+ * Generate quick QA questions for a roadmap subtopic.
+ */
+export async function generateQuickQA(subtopicLabel, topicTitle, provider, model, apiKey, lang = "en") {
+  const langPart = lang === "zh"
+    ? `\n\nIMPORTANT: Write ALL question text, options, and explanations in Chinese (中文). Keep JSON field names in English.`
+    : "";
+
+  const userMessage = `Generate a 3-question quiz for the subtopic "${subtopicLabel}" under the topic "${topicTitle}".${langPart}\n\nReturn a JSON array.`;
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt: QUICK_QA_PROMPT,
+    messages: [{ role: "user", content: userMessage }],
+    maxTokens: 1500,
+  });
+
+  const questions = extractJsonArray(text);
+
+  return questions.map((q) => ({
+    q: String(q.q || "").trim(),
+    options: Array.isArray(q.options) ? q.options.map((o) => String(o).trim()) : [],
+    answer: typeof q.answer === "number" ? q.answer : 0,
+    explanation: String(q.explanation || "").trim(),
+  }));
+}
+
+/**
+ * Summarize a file and extract actionable steps.
+ */
+export async function summarizeFile(fileText, fileName, provider, model, apiKey, lang = "en") {
   const langPart = lang === "zh"
     ? `\n\nIMPORTANT: Write the summary, questName, and ALL step text in Chinese (中文). Keep JSON field names in English.`
     : "";
 
-  const userMessage = `Here is the content of a document named "${fileName}":
+  const userMessage = `Here is the content of a document named "${fileName}":\n\n---\n${fileText}\n---\n\nPlease summarize this document and extract actionable steps.${langPart}\n\nReturn a JSON object.`;
 
----
-${fileText}
----
-
-Please summarize this document and extract actionable steps.${langPart}
-
-Return a JSON object.`;
-
-  const response = await fetch(getClaudeEndpoint(), {
-    method: "POST",
-    headers: getClaudeHeaders(resolvedKey),
-    body: JSON.stringify({
-      model,
-      max_tokens: 2048,
-      system: FILE_SUMMARIZE_PROMPT,
-      messages: [{ role: "user", content: userMessage }],
-    }),
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt: FILE_SUMMARIZE_PROMPT,
+    messages: [{ role: "user", content: userMessage }],
+    maxTokens: 2048,
   });
 
-  if (!response.ok) {
-    const errBody = await response.text();
-    if (response.status === 401) throw new Error("Invalid API Key — please check your Settings");
-    if (response.status === 429) throw new Error("Too many requests — please try again later");
-    throw new Error(`API request failed (${response.status}): ${errBody}`);
-  }
-
-  const data = await response.json();
-  const text = data.content?.[0]?.text || "";
-
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("Unexpected AI response format — please try again");
-
-  const result = JSON.parse(jsonMatch[0]);
+  const result = extractJsonObject(text);
 
   return {
     summary: String(result.summary || "").trim(),

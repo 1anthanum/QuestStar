@@ -237,7 +237,7 @@ export default function MicroLearn({ onStartQuest, theme, ai, hideHeader = false
       const existingTitles = allBites.map((b) => l(b, "title"));
       const newBites = await generateMicroLearns(
         domains, existingTitles, 4,
-        ai.manualApiKey, ai.aiModel, lang
+        ai.aiProvider, ai.aiModel, ai.resolvedKey, lang
       );
       setAiGenerated((prev) => [...prev, ...newBites]);
       setSeed((s) => s + 1);

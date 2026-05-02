@@ -4,9 +4,9 @@
 
 **Quest Tracker** is a gamified task management system designed for ADHD self-management. It combines RPG mechanics (XP, levels, streaks) with progressive learning theory (Anchored Learning Method + Blossom Mode knowledge mastery). The user communicates primarily in Chinese; all UI supports EN/ZH bilingual.
 
-- **Stack**: Vite 6 + React 18 + Tailwind CSS 3 + Claude API (optional)
-- **Deployment**: Vercel at `quest-star.vercel.app` (also supports GitHub Pages via `npm run deploy`)
-- **No backend**: All state persists in `localStorage`. The only external API is Anthropic Claude (for AI decomposition, optional).
+- **Stack**: Vite 6 + React 18 + Tailwind CSS 3 + Multi-AI provider (Claude / GLM / DeepSeek / Qwen)
+- **Deployment**: Vercel at `quest-star.vercel.app`, also supports Cloudflare Pages + GitHub Pages
+- **No backend**: All state persists in `localStorage`. AI calls go direct from browser to provider APIs.
 - **No state management library**: Pure React hooks + `useLocalStorage` custom hook.
 
 ---
@@ -110,7 +110,8 @@ src/
     ├── guidanceEngine.js       # Post-step recommendation ranking engine
     ├── timePredictor.js        # Quest velocity + completion estimation
     ├── translations.js         # EN/ZH translation strings
-    ├── aiService.js            # Claude API call + system prompt
+    ├── aiProviders.js          # Multi-provider config + unified callAI() + testConnection()
+    ├── aiService.js            # AI-powered functions (decompose, microlearn, knowledge, QA, summarize)
     └── fileExtractor.js        # File import parsing
 ```
 
@@ -329,18 +330,46 @@ Themes are injected as CSS variables on `:root` by `useTheme`. Components refere
 
 ---
 
-## AI Integration
+## AI Integration — Multi-Provider Architecture
 
-### Model Options
-- `claude-haiku-4-5-20251001` — faster, cheaper (default)
-- `claude-sonnet-4-6` — higher quality
+### Provider Abstraction Layer (`aiProviders.js`)
 
-### API Flow
-1. User enters goal text in AIDecomposeModal
-2. `ai.decompose(goal, category, knownDomain, lang)` calls `aiService.decomposeTask()`
-3. System prompt enforces Anchored Learning Method structure
-4. Returns JSON array of step objects with layer/anchorStep/anchorNote
-5. Steps are created as a new quest via `handleAddQuest`
+| Provider | Format | Default Model | Endpoint |
+|----------|--------|---------------|----------|
+| Claude (Anthropic) | Anthropic proprietary | claude-haiku-4-5-20251001 | api.anthropic.com/v1/messages |
+| 智谱AI (GLM) | OpenAI-compatible | glm-4-plus | open.bigmodel.cn/api/paas/v4/chat/completions |
+| DeepSeek | OpenAI-compatible | deepseek-chat | api.deepseek.com/v1/chat/completions |
+| 通义千问 (Qwen) | OpenAI-compatible | qwen-plus | dashscope.aliyuncs.com/compatible-mode/v1/chat/completions |
+
+**Key differences**: Claude uses `x-api-key` header + `content[0].text` response + `system` top-level field. CN providers use `Authorization: Bearer` + `choices[0].message.content` + system message in messages array.
+
+### Data flow
+- `AI_PROVIDERS` object: per-provider `buildHeaders()`, `buildRequest()`, `parseResponse()`, `getApiUrl()`
+- `callAI({ provider, model, apiKey, systemPrompt, messages, maxTokens })` — unified caller
+- `aiService.js` functions all delegate to `callAI()`, keeping prompt logic separate from transport
+- `useAI()` hook manages per-provider state (key, model) via separate localStorage keys
+
+### AI Functions (aiService.js)
+All accept `(…, provider, model, apiKey, lang)`:
+1. `decomposeTask()` — Anchored Learning Method task breakdown (5-15 steps)
+2. `generateMicroLearns()` — Bite-sized learning cards
+3. `generateKnowledge()` — Knowledge briefs for roadmap subtopics
+4. `generateQuickQA()` — 3-question quizzes
+5. `summarizeFile()` — Document summary + actionable step extraction
+
+### localStorage Keys for AI
+| Key | Purpose |
+|-----|---------|
+| `qt_aiProvider` | Current provider id (claude/glm/deepseek/qwen) |
+| `qt_claude_apiKey` | Claude API key (migrated from old qt_apiKey) |
+| `qt_glm_apiKey` | GLM API key |
+| `qt_deepseek_apiKey` | DeepSeek API key |
+| `qt_qwen_apiKey` | Qwen API key |
+| `qt_claude_model` | Claude selected model |
+| `qt_glm_model` | GLM selected model |
+| `qt_deepseek_model` | DeepSeek selected model |
+| `qt_qwen_model` | Qwen selected model |
+| `qt_knownDomain` | Shared anchor domain across providers |
 
 ### System Prompt (aiService.js)
 Enforces:
@@ -348,6 +377,12 @@ Enforces:
 - Mountain layers: base (input) → mid (process) → top (output)
 - ADHD constraints: ≤30 min per step, action verbs, easy→hard ordering
 - LaTeX math support for technical content
+
+### Adding a new provider
+1. Add entry in `AI_PROVIDERS` (use `makeOpenAIProvider()` if OpenAI-compatible)
+2. Add to `PROVIDER_ORDER` array
+3. Add `qt_{id}_apiKey` / `qt_{id}_model` state in `useAI.js`
+4. Add provider translation keys if desired
 
 ---
 
@@ -362,11 +397,17 @@ Enforces:
 - `npm run deploy` builds and pushes to `gh-pages` branch
 - May need to set `base: "/quest-tracker/"` in `vite.config.js`
 
+### Cloudflare Pages
+- Pure static deployment (same as Vercel — no server functions needed)
+- All AI API calls are direct from browser
+- CN providers (GLM, DeepSeek, Qwen) work without CORS proxy since their APIs allow browser access
+
 ### Known Constraints
 - No backend — all data is in browser localStorage
 - Clearing browser data loses all progress
 - Export/Import (JSON) available via Settings panel as backup
 - CORS proxy in vite.config.js only works in dev; production API calls go direct
+- Claude requires `anthropic-dangerous-direct-browser-access: true` header in production
 
 ---
 

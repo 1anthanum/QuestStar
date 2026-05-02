@@ -114,15 +114,10 @@ export const REWARD_CONFIG = {
 };
 
 // ═══════════════════════════════════════════
-// AI Config
+// AI Config — re-exported from aiProviders.js
 // ═══════════════════════════════════════════
 
-export const AI_MODELS = {
-  "claude-sonnet-4-6": { label: "Claude Sonnet 4.6", description: "Balanced speed & quality" },
-  "claude-haiku-4-5-20251001": { label: "Claude Haiku 4.5", description: "Faster & cheaper" },
-};
-
-export const DEFAULT_AI_MODEL = "claude-haiku-4-5-20251001";
+export { AI_PROVIDERS, DEFAULT_PROVIDER, PROVIDER_ORDER } from "./aiProviders";
 
 // ═══════════════════════════════════════════
 // Anchored Learning Method Config

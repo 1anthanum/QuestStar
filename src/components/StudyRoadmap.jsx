@@ -594,8 +594,9 @@ export default function StudyRoadmap({ onClose, theme, ai }) {
       const questions = await generateQuickQA(
         subtopicLabel,
         topicTitle,
-        ai.manualApiKey,
+        ai.aiProvider,
         ai.aiModel,
+        ai.resolvedKey,
         lang,
       );
       setQaData((prev) => ({ ...prev, [subtopicId]: questions }));
@@ -621,8 +622,9 @@ export default function StudyRoadmap({ onClose, theme, ai }) {
       const knowledge = await generateKnowledge(
         subtopicLabel,
         topicTitle,
-        ai.manualApiKey,
+        ai.aiProvider,
         ai.aiModel,
+        ai.resolvedKey,
         lang,
       );
       setKnowledgeCache((prev) => ({ ...prev, [subtopicId]: knowledge }));
@@ -644,7 +646,7 @@ export default function StudyRoadmap({ onClose, theme, ai }) {
       setKnowledgeLoading(st.id);
       try {
         const knowledge = await generateKnowledge(
-          stLabel, topicLabel, ai.manualApiKey, ai.aiModel, lang,
+          stLabel, topicLabel, ai.aiProvider, ai.aiModel, ai.resolvedKey, lang,
         );
         setKnowledgeCache((prev) => ({ ...prev, [st.id]: knowledge }));
       } catch (err) {

@@ -1,11 +1,13 @@
 import { useState, useRef } from "react";
-import { AI_MODELS, THEMES } from "../utils/constants";
+import { THEMES } from "../utils/constants";
+import { AI_PROVIDERS, PROVIDER_ORDER } from "../utils/aiProviders";
 import { useLanguage } from "../hooks/useLanguage";
 
 export default function SettingsPanel({ ai, themeCtx, onExport, onImport, onReset, onClose }) {
   const { t, lang, setLang } = useLanguage();
   const [showKey, setShowKey] = useState(false);
   const [importStatus, setImportStatus] = useState(null);
+  const [testing, setTesting] = useState(false);
   const fileRef = useRef(null);
 
   const handleExport = () => {
@@ -32,6 +34,17 @@ export default function SettingsPanel({ ai, themeCtx, onExport, onImport, onRese
     e.target.value = "";
   };
 
+  const handleTestConnection = async () => {
+    setTesting(true);
+    await ai.testConnection();
+    setTesting(false);
+  };
+
+  const currentProvider = AI_PROVIDERS[ai.aiProvider];
+  const accent = themeCtx?.theme.accent || "#6366f1";
+  const btnGrad = themeCtx?.theme.btnGrad || "linear-gradient(135deg, #6366f1, #8b5cf6)";
+  const accentLight = themeCtx?.theme.accentLight || "#f5f3ff";
+
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 max-h-[90vh] overflow-y-auto animate-scale-in">
@@ -51,10 +64,7 @@ export default function SettingsPanel({ ai, themeCtx, onExport, onImport, onRese
                     ? "text-white"
                     : "text-gray-500 border-gray-200 hover:border-gray-300 bg-white"
                 }`}
-                style={lang === "en" ? {
-                  borderColor: themeCtx?.theme.accent || "#6366f1",
-                  background: themeCtx?.theme.btnGrad || "linear-gradient(135deg, #6366f1, #8b5cf6)",
-                } : {}}
+                style={lang === "en" ? { borderColor: accent, background: btnGrad } : {}}
               >
                 🇺🇸 English
               </button>
@@ -65,10 +75,7 @@ export default function SettingsPanel({ ai, themeCtx, onExport, onImport, onRese
                     ? "text-white"
                     : "text-gray-500 border-gray-200 hover:border-gray-300 bg-white"
                 }`}
-                style={lang === "zh" ? {
-                  borderColor: themeCtx?.theme.accent || "#6366f1",
-                  background: themeCtx?.theme.btnGrad || "linear-gradient(135deg, #6366f1, #8b5cf6)",
-                } : {}}
+                style={lang === "zh" ? { borderColor: accent, background: btnGrad } : {}}
               >
                 🇨🇳 中文
               </button>
@@ -112,9 +119,38 @@ export default function SettingsPanel({ ai, themeCtx, onExport, onImport, onRese
             </div>
           )}
 
-          {/* API Key */}
+          {/* ── AI Provider Selection ── */}
           <div>
-            <label className="block text-sm font-semibold text-gray-600 mb-1.5">{t("settings.apiKey")}</label>
+            <label className="block text-sm font-semibold text-gray-600 mb-2">{t("settings.aiProvider")}</label>
+            <div className="grid grid-cols-2 gap-2 mb-1.5">
+              {PROVIDER_ORDER.map((pid) => {
+                const prov = AI_PROVIDERS[pid];
+                const isActive = ai.aiProvider === pid;
+                return (
+                  <button
+                    key={pid}
+                    onClick={() => ai.setAiProvider(pid)}
+                    className={`py-2.5 px-3 rounded-xl text-sm font-semibold transition-all border-2 text-left ${
+                      isActive
+                        ? "text-white shadow-md"
+                        : "text-gray-500 border-gray-200 hover:border-gray-300 bg-white"
+                    }`}
+                    style={isActive ? { borderColor: accent, background: btnGrad } : {}}
+                  >
+                    <span className="mr-1.5">{prov.icon}</span>
+                    {prov.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-400">{t("settings.providerHint")}</p>
+          </div>
+
+          {/* ── API Key for current provider ── */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-600 mb-1.5">
+              {currentProvider.icon} {currentProvider.label} — {t("settings.apiKey")}
+            </label>
 
             {ai.keySource === "env" ? (
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
@@ -132,7 +168,7 @@ export default function SettingsPanel({ ai, themeCtx, onExport, onImport, onRese
                     type={showKey ? "text" : "password"}
                     value={ai.manualApiKey}
                     onChange={(e) => ai.setManualApiKey(e.target.value)}
-                    placeholder="sk-ant-..."
+                    placeholder={ai.aiProvider === "claude" ? "sk-ant-..." : "your-api-key..."}
                     className="flex-1 px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-violet-400 focus:outline-none text-sm font-mono"
                   />
                   <button
@@ -147,6 +183,55 @@ export default function SettingsPanel({ ai, themeCtx, onExport, onImport, onRese
                 </p>
               </>
             )}
+
+            {/* Test Connection */}
+            {ai.hasApiKey && (
+              <div className="mt-2 flex items-center gap-3">
+                <button
+                  onClick={handleTestConnection}
+                  disabled={testing}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold transition-all border-2 border-gray-200 hover:border-gray-300 bg-white text-gray-600 hover:text-gray-800 disabled:opacity-50"
+                >
+                  {testing ? t("settings.testing") : t("settings.testBtn")}
+                </button>
+                {ai.testResult && !testing && (
+                  <span className={`text-xs font-semibold ${ai.testResult.success ? "text-emerald-600" : "text-red-500"}`}>
+                    {ai.testResult.success ? t("settings.testSuccess") : `${t("settings.testFail")}: ${ai.testResult.error || ""}`}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Model selection for current provider ── */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-600 mb-1.5">{t("settings.modelLabel")}</label>
+            <div className="space-y-2">
+              {currentProvider.models.map((m) => (
+                <label
+                  key={m.id}
+                  className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2"
+                  style={ai.aiModel === m.id ? {
+                    borderColor: accent,
+                    background: accentLight,
+                  } : {
+                    borderColor: "#f3f4f6",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="model"
+                    checked={ai.aiModel === m.id}
+                    onChange={() => ai.setAiModel(m.id)}
+                    style={{ accentColor: accent }}
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-700">{m.label}</div>
+                    <div className="text-xs text-gray-400">{m.desc}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
           </div>
 
           {/* Known Domain */}
@@ -163,37 +248,6 @@ export default function SettingsPanel({ ai, themeCtx, onExport, onImport, onRese
             <p className="text-xs text-gray-400 mt-1">
               {t("settings.domainHint")}
             </p>
-          </div>
-
-          {/* Model selection */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-600 mb-1.5">{t("settings.modelLabel")}</label>
-            <div className="space-y-2">
-              {Object.entries(AI_MODELS).map(([id, model]) => (
-                <label
-                  key={id}
-                  className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2"
-                  style={ai.aiModel === id ? {
-                    borderColor: themeCtx?.theme.accent || "#8b5cf6",
-                    background: themeCtx?.theme.accentLight || "#f5f3ff",
-                  } : {
-                    borderColor: "#f3f4f6",
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="model"
-                    checked={ai.aiModel === id}
-                    onChange={() => ai.setAiModel(id)}
-                    style={{ accentColor: themeCtx?.theme.accent || "#8b5cf6" }}
-                  />
-                  <div>
-                    <div className="text-sm font-semibold text-gray-700">{t(id === "claude-sonnet-4-6" ? "model.sonnet.label" : "model.haiku.label")}</div>
-                    <div className="text-xs text-gray-400">{t(id === "claude-sonnet-4-6" ? "model.sonnet.desc" : "model.haiku.desc")}</div>
-                  </div>
-                </label>
-              ))}
-            </div>
           </div>
 
           {/* Data management */}
@@ -234,7 +288,7 @@ export default function SettingsPanel({ ai, themeCtx, onExport, onImport, onRese
         <button
           onClick={onClose}
           className="w-full mt-6 py-3 rounded-xl font-semibold transition-all text-white"
-          style={{ background: themeCtx?.theme.btnGrad || "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+          style={{ background: btnGrad }}
         >
           {t("settings.close")}
         </button>
