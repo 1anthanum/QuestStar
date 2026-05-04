@@ -1,0 +1,74 @@
+# Plan: AI Decompose Refinement + Batch Import
+
+## Feature A: AI Decompose 精细化调整
+
+### A1. 生成前 — 深度模式选择器
+AIDecomposeModal 中加一组模式选项：
+- **快速复习** (Quick Review): 3-5 步，聚焦考点
+- **标准学习** (Standard): 5-15 步（当前默认）
+- **深度学习** (Deep Dive): 10-20 步，含推导和复习
+
+UI: 3 个 radio-style 按钮，默认 Standard。
+
+### A2. 生成后 — 反馈 + 重生成
+步骤列表上方操作：
+- **更详细** — AI 展开步骤
+- **更简洁** — AI 精简合并
+- **自定义反馈** — 文本框输入要求，AI 按反馈调整
+- **重新生成** — 从零重新生成
+
+### A3. 实现
+- aiService.js: + refineDecomposition() + depthMode 参数
+- useAI.js: + refine() callback
+- AIDecomposeModal.jsx: + 深度选择器 + 反馈 UI
+- translations.js: ~15 新键
+
+## Feature B: 批量导入知识任务
+
+### B1. 入口
+新建 BatchImportModal，按钮在 QuestBoard action bar。
+
+### B2. 输入
+- 粘贴文本 textarea
+- 文件上传（复用 fileExtractor）
+
+### B3. 解析
+batchParser.js: parseBatchOutline(text)
+- 按行分割，识别层级缩进/编号
+- 顶级条目 = quest，子条目 = steps
+
+### B4. 预览编辑
+- 复选框选择条目
+- 分组标签 tag 输入
+- Category 选择器
+- 全选/取消全选
+
+### B5. 创建方式
+- 直接创建（快速）
+- AI 辅助（逐条 decompose）
+
+### B6. Quest tag 扩展
+- quest 对象 + tag 字段
+- QuestBoard tag 筛选 pill 按钮
+- QuestCard tag badge
+
+## 文件变更
+
+| 文件 | 变更 |
+|------|------|
+| aiService.js | + refineDecomposition() + depthMode |
+| useAI.js | + refine() callback |
+| AIDecomposeModal.jsx | + 深度选择器 + 反馈 UI |
+| BatchImportModal.jsx | 新建 |
+| batchParser.js | 新建 |
+| App.jsx | + BatchImportModal + tag state |
+| useGameState.js | tag 字段 |
+| QuestBoard.jsx | + tag filter |
+| QuestCard.jsx | + tag badge |
+| translations.js | ~25 新键 |
+| CLAUDE.md | 更新 |
+
+## 顺序
+1-4: Feature A (aiService → useAI → Modal → translations)
+5-9: Feature B (parser → Modal → gameState → App/Board/Card)
+10-11: CLAUDE.md + 验证

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useLocalStorage } from "./useLocalStorage";
 import { AI_PROVIDERS, DEFAULT_PROVIDER, testConnection as testProviderConnection } from "../utils/aiProviders";
-import { decomposeTask } from "../utils/aiService";
+import { decomposeTask, refineDecomposition } from "../utils/aiService";
 
 /**
  * Multi-provider AI hook.
@@ -104,12 +104,31 @@ export function useAI() {
 
   // ── Decompose task ──
   const decompose = useCallback(
-    async (goal, category, overrideKnownDomain, lang = "en") => {
+    async (goal, category, overrideKnownDomain, lang = "en", depthMode = "standard") => {
       setLoading(true);
       setError(null);
       try {
         const domain = overrideKnownDomain !== undefined ? overrideKnownDomain : knownDomain;
-        const steps = await decomposeTask(goal, category, aiProvider, aiModel, resolvedKey, domain, lang);
+        const steps = await decomposeTask(goal, category, aiProvider, aiModel, resolvedKey, domain, lang, depthMode);
+        return steps;
+      } catch (err) {
+        setError(err.message);
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [aiProvider, aiModel, resolvedKey, knownDomain]
+  );
+
+  // ── Refine existing decomposition ──
+  const refine = useCallback(
+    async (goal, category, currentSteps, refinementType, feedback, overrideKnownDomain, lang = "en") => {
+      setLoading(true);
+      setError(null);
+      try {
+        const domain = overrideKnownDomain !== undefined ? overrideKnownDomain : knownDomain;
+        const steps = await refineDecomposition(goal, category, currentSteps, refinementType, feedback, aiProvider, aiModel, resolvedKey, domain, lang);
         return steps;
       } catch (err) {
         setError(err.message);
@@ -165,6 +184,7 @@ export function useAI() {
     error,
     setError,
     decompose,
+    refine,
     testConnection: testConnectionFn,
     testResult,
 

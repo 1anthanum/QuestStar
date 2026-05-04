@@ -79,8 +79,9 @@ src/
 │   ├── AnimatedBackground.jsx  # Theme-colored floating orbs
 │   │
 │   ├── AddQuestModal.jsx       # Manual quest creation
-│   ├── AIDecomposeModal.jsx    # AI-powered goal decomposition
+│   ├── AIDecomposeModal.jsx    # AI-powered goal decomposition (depth modes + refine)
 │   ├── FileImportModal.jsx     # Bulk import from files
+│   ├── BatchImportModal.jsx    # Batch import from outlines (paste/upload + tag grouping)
 │   │
 │   ├── BackpackPanel.jsx       # Unified inventory (skills + lore + rewards)
 │   ├── HyperfocusMode.jsx      # Distraction-free timer mode
@@ -111,7 +112,8 @@ src/
     ├── timePredictor.js        # Quest velocity + completion estimation
     ├── translations.js         # EN/ZH translation strings
     ├── aiProviders.js          # Multi-provider config + unified callAI() + testConnection()
-    ├── aiService.js            # AI-powered functions (decompose, microlearn, knowledge, QA, summarize)
+    ├── aiService.js            # AI-powered functions (decompose, refine, microlearn, knowledge, QA, summarize)
+    ├── batchParser.js          # Outline text → quest grouping (parseBatchOutline + groupIntoQuests)
     └── fileExtractor.js        # File import parsing
 ```
 
@@ -169,6 +171,7 @@ All keys are prefixed with `qt_`. This is the single source of truth for persist
   name: string,
   category: "learning" | "work" | "habit" | "code",
   questType: "daily" | "bonus" | "challenge",
+  tag: string,             // grouping tag (from batch import or manual)
   deadline: "YYYY-MM-DD" | null,
   createdAt: Date.now(),
   steps: [Step]
@@ -351,11 +354,12 @@ Themes are injected as CSS variables on `:root` by `useTheme`. Components refere
 
 ### AI Functions (aiService.js)
 All accept `(…, provider, model, apiKey, lang)`:
-1. `decomposeTask()` — Anchored Learning Method task breakdown (5-15 steps)
-2. `generateMicroLearns()` — Bite-sized learning cards
-3. `generateKnowledge()` — Knowledge briefs for roadmap subtopics
-4. `generateQuickQA()` — 3-question quizzes
-5. `summarizeFile()` — Document summary + actionable step extraction
+1. `decomposeTask()` — Anchored Learning Method task breakdown (3-20 steps depending on depthMode)
+2. `refineDecomposition()` — Post-generation refinement (more detail / simplify / custom feedback)
+3. `generateMicroLearns()` — Bite-sized learning cards
+4. `generateKnowledge()` — Knowledge briefs for roadmap subtopics
+5. `generateQuickQA()` — 3-question quizzes
+6. `summarizeFile()` — Document summary + actionable step extraction
 
 ### localStorage Keys for AI
 | Key | Purpose |
@@ -408,6 +412,50 @@ Enforces:
 - Export/Import (JSON) available via Settings panel as backup
 - CORS proxy in vite.config.js only works in dev; production API calls go direct
 - Claude requires `anthropic-dangerous-direct-browser-access: true` header in production
+
+---
+
+## AI Decompose — Depth Modes & Refinement
+
+### Depth Modes (pre-generation)
+Users select a depth mode before AI decomposition:
+- **Quick Review** (`quick`): 3-5 steps, exam-focused, key concepts only
+- **Standard** (`standard`): 5-15 steps, balanced coverage (default)
+- **Deep Dive** (`deep`): 10-20 steps, thorough with derivations and review
+
+The `depthMode` parameter flows: `AIDecomposeModal` → `useAI.decompose()` → `aiService.decomposeTask()` → appended to user message as extra instruction.
+
+### Refinement (post-generation)
+After steps are generated, users can iteratively refine:
+- **More Detail** (`more_detail`): AI expands steps into finer granularity
+- **Simplify** (`simplify`): AI merges/condenses steps
+- **Custom Feedback** (`feedback`): Free-text instruction to AI
+- **Regenerate**: Clears steps and re-runs decompose from scratch
+
+`refineDecomposition()` in `aiService.js` sends current steps + refinement instruction as context.
+
+---
+
+## Batch Import System
+
+### Flow
+1. **Input**: Paste outline text into textarea OR upload a file (uses `fileExtractor.js`)
+2. **Parse**: `batchParser.js` → `parseBatchOutline(text)` identifies hierarchy by indent/numbering → `groupIntoQuests(items)` groups into quest structures
+3. **Preview**: Checkbox list for selective import, shared tag + category inputs
+4. **Create**: Selected quests are batch-created via `addQuest()` with `tag` field
+
+### Tag System
+- Quests have an optional `tag` field (string)
+- `QuestBoard.jsx`: Tag filter pills appear when any quest has a tag
+- `QuestCard.jsx`: Tag badge displayed next to category badge
+- Tags are set during batch import or could be added manually in future
+
+### Supported Outline Formats (batchParser.js)
+- Numbered lists: `1.`, `1.1`, `1.1.1`
+- Bullets: `- item`, `* item`
+- Chinese markers: `第一章`, `（一）`
+- Markdown headers: `# H1`, `## H2`
+- Tab/space indentation for hierarchy
 
 ---
 

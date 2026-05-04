@@ -164,10 +164,24 @@ function extractJsonObject(text) {
 // API Functions (all delegate to callAI)
 // ═══════════════════════════════════════════
 
+// ── Depth mode instructions ──
+const DEPTH_INSTRUCTIONS = {
+  quick: {
+    en: "Generate only 3-5 steps. Focus on key concepts, common exam questions, and critical review points. Skip basics and detailed derivations — assume prior exposure. This is for quick revision before an exam.",
+    zh: "只生成 3-5 个步骤。聚焦关键概念、常见考点和核心复习要点。跳过基础知识和详细推导 — 假设已有基础。这是考前快速复习模式。",
+  },
+  standard: { en: "", zh: "" }, // default, no extra instruction
+  deep: {
+    en: "Generate 10-20 detailed steps. Include thorough explanations, practice exercises, derivation walkthrough, and spaced review checkpoints. This is for comprehensive, deep learning from scratch.",
+    zh: "生成 10-20 个详细步骤。包含详尽解释、练习题、推导过程和间隔复习检查点。这是从零开始的深度学习模式。",
+  },
+};
+
 /**
  * Decompose a goal into steps using the Anchored Learning Method.
+ * @param {string} depthMode - "quick" | "standard" | "deep"
  */
-export async function decomposeTask(goal, category, provider, model, apiKey, knownDomain = "", lang = "en") {
+export async function decomposeTask(goal, category, provider, model, apiKey, knownDomain = "", lang = "en", depthMode = "standard") {
   const categoryLabels = { learning: "learning", work: "work", habit: "daily habit", code: "programming/tech" };
 
   const anchorPart = knownDomain.trim()
@@ -178,15 +192,57 @@ export async function decomposeTask(goal, category, provider, model, apiKey, kno
     ? `\n\nIMPORTANT: Write ALL step text and anchorNote content in Chinese (中文). Use natural, casual Chinese — avoid textbook tone. Keep JSON field names in English.`
     : "";
 
-  const userMessage = `Using the Anchored Learning Method, help me decompose the following ${categoryLabels[category] || ""} goal:\n\n"${goal}"${anchorPart}${langPart}\n\nPlease return a JSON array of steps.`;
+  const depthPart = DEPTH_INSTRUCTIONS[depthMode]?.[lang === "zh" ? "zh" : "en"];
+  const depthInstruction = depthPart ? `\n\n**Depth Mode**: ${depthPart}` : "";
+
+  const userMessage = `Using the Anchored Learning Method, help me decompose the following ${categoryLabels[category] || ""} goal:\n\n"${goal}"${anchorPart}${depthInstruction}${langPart}\n\nPlease return a JSON array of steps.`;
 
   const text = await callAI({
     provider, model, apiKey,
     systemPrompt: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userMessage }],
-    maxTokens: 2048,
+    maxTokens: depthMode === "deep" ? 4096 : 2048,
   });
 
+  return parseStepsArray(text);
+}
+
+/**
+ * Refine existing decomposition based on user feedback.
+ * @param {"more_detail"|"simplify"|"feedback"} refinementType
+ * @param {string} feedback - user's custom feedback text (only for "feedback" type)
+ */
+export async function refineDecomposition(goal, category, currentSteps, refinementType, feedback, provider, model, apiKey, knownDomain = "", lang = "en") {
+  const stepsJson = JSON.stringify(currentSteps.map((s, i) => ({ step: i + 1, text: s.text, difficulty: s.difficulty, layer: s.layer })), null, 2);
+
+  const refinementInstructions = {
+    more_detail: lang === "zh"
+      ? "请将以下步骤拆分得更详细。每个复杂步骤拆成 2-3 个更小的子步骤。增加练习和推导环节。保持锚定学习法结构。"
+      : "Make these steps MORE DETAILED. Split each complex step into 2-3 smaller sub-steps. Add practice exercises and derivation walkthrough. Maintain the Anchored Learning Method structure.",
+    simplify: lang === "zh"
+      ? "请精简以下步骤。合并相似步骤，去掉冗余内容，只保留最核心的要点。目标 3-5 个步骤。"
+      : "SIMPLIFY these steps. Merge similar steps, remove redundancy, keep only the core essentials. Target 3-5 steps total.",
+    feedback: feedback || "",
+  };
+
+  const langPart = lang === "zh"
+    ? "\n\nIMPORTANT: Write ALL step text and anchorNote content in Chinese (中文). Keep JSON field names in English."
+    : "";
+
+  const userMessage = `I have an existing decomposition for the goal: "${goal}"\n\nCurrent steps:\n${stepsJson}\n\n**Refinement request**: ${refinementInstructions[refinementType]}${langPart}\n\nPlease return a REVISED JSON array of steps in the same format.`;
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: userMessage }],
+    maxTokens: 4096,
+  });
+
+  return parseStepsArray(text);
+}
+
+// ── Shared step parser ──
+function parseStepsArray(text) {
   const steps = extractJsonArray(text);
   const validLayers = ["base", "mid", "top"];
   const validAnchorSteps = ["anchor", "decompose", "infer", "master", "review"];

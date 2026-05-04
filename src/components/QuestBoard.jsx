@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import QuestCard from "./QuestCard";
 import PresetPicker from "./PresetPicker";
 import MicroLearn from "./MicroLearn";
@@ -13,9 +14,20 @@ import { useLanguage } from "../hooks/useLanguage";
 export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDeleteQuest, onAddQuest, onOpenSkillTree, onOpenChallenge, onOpenReflection, onOpenRoadmap, nextStep, activeQuest, theme, ai }) {
   const { t } = useLanguage();
   const accent = theme?.accent || "#6366f1";
+  const [activeTag, setActiveTag] = useState(null);
 
-  const questCount = quests.length;
-  const completedCount = quests.filter((q) => q.steps.every((s) => s.done)).length;
+  // ── Collect unique tags ──
+  const allTags = useMemo(() => {
+    const tags = new Set();
+    quests.forEach((q) => { if (q.tag) tags.add(q.tag); });
+    return [...tags].sort();
+  }, [quests]);
+
+  // ── Filter quests by tag ──
+  const filteredQuests = activeTag ? quests.filter((q) => q.tag === activeTag) : quests;
+
+  const questCount = filteredQuests.length;
+  const completedCount = filteredQuests.filter((q) => q.steps.every((s) => s.done)).length;
 
   return (
     <>
@@ -53,13 +65,41 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDel
               className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
               style={{ background: `${accent}15`, color: accent }}
             >
-              {questCount}
+              {questCount}{activeTag ? ` / ${quests.length}` : ""}
             </span>
           }
           accent={accent}
         >
+          {/* ── Tag filter pills ── */}
+          {allTags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              <button
+                onClick={() => setActiveTag(null)}
+                className={`text-[11px] font-semibold px-3 py-1 rounded-full transition-all ${
+                  !activeTag
+                    ? "bg-gray-800 text-white shadow-sm"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                }`}
+              >
+                {t("board.tagAll")}
+              </button>
+              {allTags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                  className={`text-[11px] font-semibold px-3 py-1 rounded-full transition-all ${
+                    activeTag === tag
+                      ? "bg-indigo-500 text-white shadow-sm"
+                      : "bg-indigo-50 text-indigo-500 hover:bg-indigo-100 border border-indigo-100"
+                  }`}
+                >
+                  🏷️ {tag}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 stagger-children pb-2">
-            {quests.map((q) => (
+            {filteredQuests.map((q) => (
               <QuestCard
                 key={q.id}
                 quest={q}

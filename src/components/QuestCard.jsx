@@ -49,9 +49,16 @@ export default function QuestCard({ quest, onClick, onDelete, isActive, theme })
 
       <div className="relative">
         <div className="flex items-start justify-between mb-3">
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${cat.badge}`}>
-            {t("cat." + quest.category)}
-          </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${cat.badge}`}>
+              {t("cat." + quest.category)}
+            </span>
+            {quest.tag && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-500 border border-indigo-100">
+                🏷️ {quest.tag}
+              </span>
+            )}
+          </div>
           {isComplete && <span className="text-lg animate-stamp">🏆</span>}
         </div>
 

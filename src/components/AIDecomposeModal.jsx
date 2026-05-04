@@ -10,16 +10,23 @@ const DIFFICULTY_COLORS = {
   hard: "bg-red-100 text-red-700",
 };
 
-const DIFFICULTY_LABELS = { easy: "easy", medium: "medium", hard: "hard" };
+const DEPTH_MODES = [
+  { id: "quick", icon: "⚡", labelKey: "aiModal.depthQuick", descKey: "aiModal.depthQuickDesc" },
+  { id: "standard", icon: "📋", labelKey: "aiModal.depthStandard", descKey: "aiModal.depthStandardDesc" },
+  { id: "deep", icon: "🔬", labelKey: "aiModal.depthDeep", descKey: "aiModal.depthDeepDesc" },
+];
 
 export default function AIDecomposeModal({ onAdd, onClose, ai }) {
   const { t, lang } = useLanguage();
   const [goal, setGoal] = useState("");
   const [category, setCategory] = useState("learning");
   const [localKnownDomain, setLocalKnownDomain] = useState(ai.knownDomain || "");
+  const [depthMode, setDepthMode] = useState("standard");
   const [steps, setSteps] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
   const [editText, setEditText] = useState("");
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedback, setFeedback] = useState("");
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -31,9 +38,23 @@ export default function AIDecomposeModal({ onAdd, onClose, ai }) {
     if (localKnownDomain.trim() !== ai.knownDomain) {
       ai.setKnownDomain(localKnownDomain.trim());
     }
-    const result = await ai.decompose(goal.trim(), category, localKnownDomain.trim(), lang);
+    const result = await ai.decompose(goal.trim(), category, localKnownDomain.trim(), lang, depthMode);
     if (result) {
       setSteps(result);
+      setShowFeedback(false);
+      setFeedback("");
+    }
+  };
+
+  const handleRefine = async (type) => {
+    if (!steps || steps.length === 0) return;
+    const fb = type === "feedback" ? feedback.trim() : "";
+    if (type === "feedback" && !fb) return;
+    const result = await ai.refine(goal.trim(), category, steps, type, fb, localKnownDomain.trim(), lang);
+    if (result) {
+      setSteps(result);
+      setShowFeedback(false);
+      setFeedback("");
     }
   };
 
@@ -88,7 +109,7 @@ export default function AIDecomposeModal({ onAdd, onClose, ai }) {
           </div>
         )}
 
-        {/* Goal + Known Domain inputs */}
+        {/* Goal + Known Domain + Category inputs */}
         <div className="space-y-4 mb-6">
           <div>
             <label className="block text-sm font-semibold text-gray-600 mb-1.5">{t("aiModal.goalLabel")}</label>
@@ -133,6 +154,29 @@ export default function AIDecomposeModal({ onAdd, onClose, ai }) {
             </div>
           </div>
 
+          {/* ── Depth Mode Selector ── */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-600 mb-1.5">{t("aiModal.depthLabel")}</label>
+            <div className="grid grid-cols-3 gap-2">
+              {DEPTH_MODES.map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => setDepthMode(mode.id)}
+                  className={`px-3 py-2.5 rounded-xl text-xs font-semibold transition-all text-center border-2
+                    ${depthMode === mode.id
+                      ? "border-violet-400 bg-violet-50 text-violet-700 shadow-sm"
+                      : "border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200"}
+                  `}
+                >
+                  <div className="text-base mb-0.5">{mode.icon}</div>
+                  <div>{t(mode.labelKey)}</div>
+                  <div className="text-[10px] font-normal opacity-60 mt-0.5">{t(mode.descKey)}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {!steps && (
             <button
               onClick={handleGenerate}
@@ -170,13 +214,68 @@ export default function AIDecomposeModal({ onAdd, onClose, ai }) {
               <h3 className="text-sm font-bold text-gray-600">
                 {t("aiModal.stepsGenerated", { n: steps.length })}
               </h3>
+            </div>
+
+            {/* ── Refine toolbar ── */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleRefine("more_detail")}
+                disabled={ai.loading}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-40 transition-all"
+              >
+                📝 {t("aiModal.moreDetail")}
+              </button>
+              <button
+                onClick={() => handleRefine("simplify")}
+                disabled={ai.loading}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100 disabled:opacity-40 transition-all"
+              >
+                ✂️ {t("aiModal.simplify")}
+              </button>
+              <button
+                onClick={() => setShowFeedback(!showFeedback)}
+                disabled={ai.loading}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-40 ${
+                  showFeedback ? "bg-violet-100 text-violet-700" : "bg-gray-50 text-gray-500 hover:bg-gray-100"
+                }`}
+              >
+                💬 {t("aiModal.customFeedback")}
+              </button>
               <button
                 onClick={() => { setSteps(null); ai.setError(null); }}
-                className="text-xs text-gray-400 hover:text-gray-600"
+                disabled={ai.loading}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40 transition-all ml-auto"
               >
-                {t("aiModal.regenerate")}
+                🔄 {t("aiModal.regenerate")}
               </button>
             </div>
+
+            {/* ── Custom feedback input ── */}
+            {showFeedback && (
+              <div className="flex gap-2 animate-slide-up">
+                <input
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  placeholder={t("aiModal.feedbackPlaceholder")}
+                  className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-xl focus:border-violet-400 focus:outline-none text-sm"
+                  onKeyDown={(e) => e.key === "Enter" && handleRefine("feedback")}
+                />
+                <button
+                  onClick={() => handleRefine("feedback")}
+                  disabled={!feedback.trim() || ai.loading}
+                  className="px-4 py-2 rounded-xl bg-violet-500 text-white text-sm font-semibold hover:bg-violet-600 disabled:opacity-40 transition-all shrink-0"
+                >
+                  {ai.loading ? "..." : t("aiModal.sendFeedback")}
+                </button>
+              </div>
+            )}
+
+            {/* ── Loading overlay for refine ── */}
+            {ai.loading && steps && (
+              <div className="text-center py-3 text-sm text-violet-500 font-semibold animate-pulse">
+                ◌ {t("aiModal.refining")}
+              </div>
+            )}
 
             <div className="space-y-2 max-h-72 overflow-y-auto">
               {steps.map((step, i) => {

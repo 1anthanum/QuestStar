@@ -10,6 +10,7 @@ import QuestDetail from "./components/QuestDetail";
 import AddQuestModal from "./components/AddQuestModal";
 import AIDecomposeModal from "./components/AIDecomposeModal";
 import FileImportModal from "./components/FileImportModal";
+import BatchImportModal from "./components/BatchImportModal";
 import SkillTree from "./components/SkillTree";
 import ChallengeMode from "./components/ChallengeMode";
 import DailyReflection from "./components/DailyReflection";
@@ -47,6 +48,7 @@ export default function App() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
   const [showFileModal, setShowFileModal] = useState(false);
+  const [showBatchModal, setShowBatchModal] = useState(false);
   const [showSkillTree, setShowSkillTree] = useState(false);
   const [showChallenge, setShowChallenge] = useState(false);
   const [showReflection, setShowReflection] = useState(false);
@@ -210,6 +212,7 @@ export default function App() {
       {showAddModal && <AddQuestModal onAdd={handleAddQuest} onClose={() => setShowAddModal(false)} />}
       {showAIModal && <AIDecomposeModal onAdd={handleAddQuest} onClose={() => setShowAIModal(false)} ai={ai} />}
       {showFileModal && <FileImportModal onAdd={handleAddQuest} onClose={() => setShowFileModal(false)} ai={ai} theme={theme} />}
+      {showBatchModal && <BatchImportModal onAdd={handleAddQuest} onClose={() => setShowBatchModal(false)} theme={theme} />}
       {showSkillTree && <SkillTree onClose={() => setShowSkillTree(false)} theme={theme} />}
       {showChallenge && <ChallengeMode onClose={() => setShowChallenge(false)} theme={theme} />}
       {showReflection && <DailyReflection onClose={() => setShowReflection(false)} theme={theme} />}
@@ -390,6 +393,13 @@ export default function App() {
               style={{ background: theme.btnGrad }}
             >
               {t("file.title")}
+            </button>
+            <button
+              onClick={() => setShowBatchModal(true)}
+              className="text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
+              style={{ background: theme.btnGrad2 }}
+            >
+              {t("batch.btn")}
             </button>
             <button
               data-guide="manual-btn"

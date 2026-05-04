@@ -102,6 +102,7 @@ export function useGameState() {
         id: quest.id || generateId(),
         questType: quest.questType || "daily",
         deadline: quest.deadline || null,
+        tag: quest.tag || "",
         steps: quest.steps.map((s) => ({
           ...s,
           id: s.id || generateId(),
@@ -130,6 +131,7 @@ export function useGameState() {
           if ("deadline" in updates) updated.deadline = updates.deadline;
           if ("steps" in updates) updated.steps = updates.steps;
           if ("name" in updates) updated.name = updates.name;
+          if ("tag" in updates) updated.tag = updates.tag;
           return updated;
         })
       );
