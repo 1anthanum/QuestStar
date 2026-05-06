@@ -4,6 +4,8 @@ import { useAI } from "./hooks/useAI";
 import { useTheme } from "./hooks/useTheme";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useLanguage } from "./hooks/useLanguage";
+import { useAuth } from "./hooks/useAuth";
+import { useCloudSync } from "./hooks/useCloudSync";
 import Header from "./components/Header";
 import QuestBoard from "./components/QuestBoard";
 import QuestDetail from "./components/QuestDetail";
@@ -25,14 +27,19 @@ import BlossomPanel from "./components/BlossomPanel";
 import BackpackPanel from "./components/BackpackPanel";
 import HyperfocusMode from "./components/HyperfocusMode";
 import StepCompleteGuide from "./components/StepCompleteGuide";
+import ModeTabs from "./components/ModeTabs";
+import AuthModal from "./components/AuthModal";
 import { XpPopup, LevelUpOverlay, QuestCompleteOverlay } from "./components/Celebrations";
 import { getNextRecommendations } from "./utils/guidanceEngine";
+import { APP_MODES } from "./utils/constants";
 import { useDeadlineReminder } from "./hooks/useDeadlineReminder";
 import { useRewardSystem } from "./hooks/useRewardSystem";
 import { useKnowledgeLore } from "./hooks/useKnowledgeLore";
 import useBlossomMode from "./hooks/useBlossomMode";
 
 export default function App() {
+  const auth = useAuth();
+  const { syncStatus } = useCloudSync();
   const game = useGameState();
   const ai = useAI();
   const themeCtx = useTheme();
@@ -42,6 +49,13 @@ export default function App() {
   const blossom = useBlossomMode();
 
   const [onboardingDone, setOnboardingDone] = useLocalStorage("qt_onboarding_done", false);
+  const [appMode, setAppMode] = useLocalStorage("qt_app_mode", "study");
+
+  // ── Mode-based quest filtering ──
+  const modePrefix = APP_MODES[appMode]?.tagPrefix || "Stage ";
+  const displayQuests = game.quests.filter(q => !q.tag || q.tag.startsWith(modePrefix));
+  const studyCount = game.quests.filter(q => q.tag?.startsWith("Stage ")).length;
+  const lifeCount = game.quests.filter(q => q.tag?.startsWith("Phase ")).length;
 
   const [activeQuestId, setActiveQuestId] = useState(null);
   const [view, setView] = useState("board"); // "board" | "detail"
@@ -63,6 +77,7 @@ export default function App() {
   const [stepGuide, setStepGuide] = useState(null);
   const [showBackpackPanel, setShowBackpackPanel] = useState(false);
   const [hyperfocusQuest, setHyperfocusQuest] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Deadline reminder system
   useDeadlineReminder(game.quests);
@@ -219,7 +234,7 @@ export default function App() {
       {showRoadmap && <StudyRoadmap onClose={() => setShowRoadmap(false)} theme={theme} ai={ai} />}
       {showTimeline && (
         <Timeline
-          quests={game.quests}
+          quests={displayQuests}
           onSelectQuest={(id) => { setShowTimeline(false); handleSelectQuest(id); }}
           onToggleStep={handleToggleStep}
           onClose={() => setShowTimeline(false)}
@@ -293,6 +308,13 @@ export default function App() {
           onClose={() => setHyperfocusQuest(null)}
         />
       )}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          theme={theme}
+          t={t}
+        />
+      )}
       {showSettings && (
         <SettingsPanel
           ai={ai}
@@ -312,6 +334,9 @@ export default function App() {
         completedSteps={game.completedSteps}
         theme={theme}
         onOpenSettings={() => setShowSettings(true)}
+        auth={auth}
+        syncStatus={syncStatus}
+        onOpenAuth={() => setShowAuthModal(true)}
       />
 
       {/* Content */}
@@ -333,30 +358,35 @@ export default function App() {
             </h1>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => setShowBackpackPanel(true)}
-              className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
-              style={{ background: "linear-gradient(135deg, #7c3aed, #6366f1)" }}
-              title={t("backpack.title")}
-            >
-              🎒
-            </button>
-            <button
-              onClick={() => setShowBlossomPanel(true)}
-              className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
-              style={{ background: "linear-gradient(135deg, #ec4899, #f472b6)" }}
-              title={t("blossom.title")}
-            >
-              🌸 <span className="font-mono">{blossom.stats.planted}/{blossom.stats.total}</span>
-            </button>
-            <button
-              onClick={() => setShowLorePanel(true)}
-              className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
-              style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)" }}
-              title={t("lore.title")}
-            >
-              📖 <span className="font-mono">{lore.collectedCount}/{lore.totalFragments}</span>
-            </button>
+            {/* Study-only buttons: Backpack, Blossom, Lore */}
+            {appMode === "study" && (
+              <>
+                <button
+                  onClick={() => setShowBackpackPanel(true)}
+                  className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
+                  style={{ background: "linear-gradient(135deg, #7c3aed, #6366f1)" }}
+                  title={t("backpack.title")}
+                >
+                  🎒
+                </button>
+                <button
+                  onClick={() => setShowBlossomPanel(true)}
+                  className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
+                  style={{ background: "linear-gradient(135deg, #ec4899, #f472b6)" }}
+                  title={t("blossom.title")}
+                >
+                  🌸 <span className="font-mono">{blossom.stats.planted}/{blossom.stats.total}</span>
+                </button>
+                <button
+                  onClick={() => setShowLorePanel(true)}
+                  className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
+                  style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)" }}
+                  title={t("lore.title")}
+                >
+                  📖 <span className="font-mono">{lore.collectedCount}/{lore.totalFragments}</span>
+                </button>
+              </>
+            )}
             <button
               onClick={() => setShowRewardPanel(true)}
               className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
@@ -412,11 +442,22 @@ export default function App() {
           </div>
         </div>
 
+        {/* Mode Tabs — study / life switcher */}
+        {view === "board" && (
+          <ModeTabs
+            mode={appMode}
+            onChangeMode={setAppMode}
+            theme={theme}
+            studyCount={studyCount}
+            lifeCount={lifeCount}
+          />
+        )}
+
         {/* Views — key forces remount for fade-in */}
-        <div key={view + (activeQuestId || "")} className="animate-fade-in">
+        <div key={view + (activeQuestId || "") + appMode} className="animate-fade-in">
           {view === "board" && (
             <QuestBoard
-              quests={game.quests}
+              quests={displayQuests}
               activeQuestId={activeQuestId}
               onSelectQuest={handleSelectQuest}
               onDeleteQuest={handleDeleteQuest}
@@ -429,6 +470,7 @@ export default function App() {
               activeQuest={activeQuest}
               theme={theme}
               ai={ai}
+              appMode={appMode}
             />
           )}
 

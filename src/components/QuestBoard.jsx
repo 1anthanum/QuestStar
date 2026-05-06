@@ -8,13 +8,17 @@ import { SkillTreeCard } from "./SkillTree";
 import { ChallengeCard } from "./ChallengeMode";
 import { ReflectionCard } from "./DailyReflection";
 import { StudyRoadmapCard } from "./StudyRoadmap";
+import { HabitDashboardCard, TimeBlockCard } from "./LifeHabitDashboard";
 import MathText from "./MathText";
 import { useLanguage } from "../hooks/useLanguage";
 
-export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDeleteQuest, onAddQuest, onOpenSkillTree, onOpenChallenge, onOpenReflection, onOpenRoadmap, nextStep, activeQuest, theme, ai }) {
+export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDeleteQuest, onAddQuest, onOpenSkillTree, onOpenChallenge, onOpenReflection, onOpenRoadmap, nextStep, activeQuest, theme, ai, appMode }) {
   const { t } = useLanguage();
   const accent = theme?.accent || "#6366f1";
   const [activeTag, setActiveTag] = useState(null);
+
+  const isStudy = appMode === "study";
+  const isLife = appMode === "life";
 
   // ── Collect unique tags ──
   const allTags = useMemo(() => {
@@ -48,6 +52,13 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDel
             <div className="text-lg font-bold leading-snug"><MathText text={nextStep.text} /></div>
             <div className="text-xs opacity-60 mt-1.5">{t("board.from")} <MathText text={activeQuest.name} /></div>
           </div>
+        </div>
+      )}
+
+      {/* ── Life Mode: Habit Dashboard ── */}
+      {isLife && quests.length > 0 && (
+        <div className="mb-6">
+          <HabitDashboardCard quests={quests} theme={theme} />
         </div>
       )}
 
@@ -113,43 +124,87 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDel
         </CollapsibleSection>
       )}
 
-      {/* ── Knowledge Tree (skill progress overview) ── */}
-      <CollapsibleSection
-        storageKey="qt_section_tree"
-        defaultOpen={true}
-        title={t("section.tree")}
-        icon="🌳"
-        accent={accent}
-      >
-        <SkillTreeCard onClick={onOpenSkillTree} theme={theme} />
-      </CollapsibleSection>
+      {/* ══════════════════════════════════════ */}
+      {/* ── STUDY MODE SECTIONS ──            */}
+      {/* ══════════════════════════════════════ */}
 
-      {/* ── Challenge Mode + Daily Reflection (side by side) ── */}
-      <CollapsibleSection
-        storageKey="qt_section_actions"
-        defaultOpen={true}
-        title={t("section.actions")}
-        icon="⚡"
-        accent={accent}
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <ChallengeCard onClick={onOpenChallenge} theme={theme} />
+      {/* ── Knowledge Tree (study only) ── */}
+      {isStudy && (
+        <CollapsibleSection
+          storageKey="qt_section_tree"
+          defaultOpen={true}
+          title={t("section.tree")}
+          icon="🌳"
+          accent={accent}
+        >
+          <SkillTreeCard onClick={onOpenSkillTree} theme={theme} />
+        </CollapsibleSection>
+      )}
+
+      {/* ── Challenge Mode + Daily Reflection (study: both; life: reflection only) ── */}
+      {isStudy && (
+        <CollapsibleSection
+          storageKey="qt_section_actions"
+          defaultOpen={true}
+          title={t("section.actions")}
+          icon="⚡"
+          accent={accent}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <ChallengeCard onClick={onOpenChallenge} theme={theme} />
+            <ReflectionCard onClick={onOpenReflection} theme={theme} />
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* ── Study Roadmap (study only) ── */}
+      {isStudy && (
+        <CollapsibleSection
+          storageKey="qt_section_roadmap"
+          defaultOpen={true}
+          title={t("section.roadmap")}
+          icon="🗺️"
+          accent={accent}
+        >
+          <StudyRoadmapCard onClick={onOpenRoadmap} theme={theme} />
+        </CollapsibleSection>
+      )}
+
+      {/* ══════════════════════════════════════ */}
+      {/* ── LIFE MODE SECTIONS ──             */}
+      {/* ══════════════════════════════════════ */}
+
+      {/* ── Time Block Overview (life only) ── */}
+      {isLife && (
+        <CollapsibleSection
+          storageKey="qt_section_timeblocks"
+          defaultOpen={true}
+          title={t("life.sectionTimeBlocks")}
+          icon="⏰"
+          accent={accent}
+        >
+          <TimeBlockCard theme={theme} />
+        </CollapsibleSection>
+      )}
+
+      {/* ── Daily Reflection (life mode — standalone, not paired with Challenge) ── */}
+      {isLife && (
+        <CollapsibleSection
+          storageKey="qt_section_life_reflect"
+          defaultOpen={true}
+          title={t("life.sectionReflect")}
+          icon="📝"
+          accent={accent}
+        >
           <ReflectionCard onClick={onOpenReflection} theme={theme} />
-        </div>
-      </CollapsibleSection>
+        </CollapsibleSection>
+      )}
 
-      {/* ── Study Roadmap (independent career prep) ── */}
-      <CollapsibleSection
-        storageKey="qt_section_roadmap"
-        defaultOpen={true}
-        title={t("section.roadmap")}
-        icon="🗺️"
-        accent={accent}
-      >
-        <StudyRoadmapCard onClick={onOpenRoadmap} theme={theme} />
-      </CollapsibleSection>
+      {/* ══════════════════════════════════════ */}
+      {/* ── SHARED SECTIONS ──                */}
+      {/* ══════════════════════════════════════ */}
 
-      {/* ── Achievement Chain (only when there are quests with steps) ── */}
+      {/* ── Achievement Chain (both modes) ── */}
       {quests.some((q) => q.steps.length > 0) && (
         <CollapsibleSection
           storageKey="qt_section_timeline"
@@ -178,16 +233,18 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDel
         </CollapsibleSection>
       )}
 
-      {/* ── MicroLearn Knowledge Cards ── */}
-      <CollapsibleSection
-        storageKey="qt_section_microlearn"
-        defaultOpen={true}
-        title={t("section.microlearn")}
-        icon="⚡"
-        accent={accent}
-      >
-        <MicroLearn onStartQuest={onAddQuest} theme={theme} ai={ai} hideHeader />
-      </CollapsibleSection>
+      {/* ── MicroLearn Knowledge Cards (study only) ── */}
+      {isStudy && (
+        <CollapsibleSection
+          storageKey="qt_section_microlearn"
+          defaultOpen={true}
+          title={t("section.microlearn")}
+          icon="⚡"
+          accent={accent}
+        >
+          <MicroLearn onStartQuest={onAddQuest} theme={theme} ai={ai} hideHeader />
+        </CollapsibleSection>
+      )}
     </>
   );
 }

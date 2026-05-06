@@ -138,6 +138,15 @@ export const ANCHOR_STEPS = {
 };
 
 // ═══════════════════════════════════════════
+// App Modes (Study vs Life)
+// ═══════════════════════════════════════════
+
+export const APP_MODES = {
+  study: { tagPrefix: "Stage ", icon: "\u{1F4DA}", key: "study" },
+  life:  { tagPrefix: "Phase ", icon: "\u{1F331}", key: "life" },
+};
+
+// ═══════════════════════════════════════════
 // Theme System
 // ═══════════════════════════════════════════
 

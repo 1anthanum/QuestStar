@@ -9,7 +9,7 @@ import { useLanguage } from "../hooks/useLanguage";
  * - 紧凑 stat 胶囊
  * - SVG 齿轮图标
  */
-export default function Header({ levelInfo, xp, streak, completedSteps, theme, onOpenSettings }) {
+export default function Header({ levelInfo, xp, streak, completedSteps, theme, onOpenSettings, auth, syncStatus, onOpenAuth }) {
   const { t } = useLanguage();
   // XP 数字跳动
   const [displayXp, setDisplayXp] = useState(xp);
@@ -137,6 +137,38 @@ export default function Header({ levelInfo, xp, streak, completedSteps, theme, o
                 <span className="text-xs">✅</span>
                 <span className="text-sm font-black text-emerald-500 tabular-nums">{completedSteps}</span>
               </div>
+
+              {/* User avatar / Login button */}
+              {auth?.isAuthenticated ? (
+                <button
+                  onClick={auth.signOut}
+                  className="ml-0.5 w-9 h-9 rounded-xl flex items-center justify-center hover:scale-110 active:scale-90 transition-all duration-300 relative"
+                  style={{ background: accent, color: "white" }}
+                  title={auth.profile?.display_name || t("auth.logout")}
+                >
+                  <span className="text-sm font-bold">
+                    {(auth.profile?.display_name || auth.user?.email || "U")[0].toUpperCase()}
+                  </span>
+                  {/* Sync indicator */}
+                  {syncStatus === "syncing" && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse" />
+                  )}
+                  {syncStatus === "synced" && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={onOpenAuth}
+                  className="ml-0.5 w-9 h-9 rounded-xl bg-gray-100/50 hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:scale-110 active:scale-90 transition-all duration-300"
+                  title={t("auth.login")}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </button>
+              )}
 
               {/* Settings gear */}
               <button

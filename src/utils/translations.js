@@ -16,6 +16,26 @@ const translations = {
     "header.max": "MAX",
     "header.settings": "Settings",
 
+    // ── Auth ──
+    "auth.login": "Log In",
+    "auth.signup": "Sign Up",
+    "auth.logout": "Log Out",
+    "auth.loginBtn": "Log In",
+    "auth.signupBtn": "Create Account",
+    "auth.githubBtn": "Continue with GitHub",
+    "auth.or": "or",
+    "auth.emailPlaceholder": "Email",
+    "auth.passwordPlaceholder": "Password (6+ characters)",
+    "auth.namePlaceholder": "Display name",
+    "auth.noAccount": "Don't have an account?",
+    "auth.hasAccount": "Already have an account?",
+    "auth.signupLink": "Sign up",
+    "auth.loginLink": "Log in",
+    "auth.checkEmail": "Check your email to confirm your account!",
+    "auth.guest": "Guest Mode",
+    "auth.synced": "Synced",
+    "auth.syncing": "Syncing...",
+
     // ── Categories ──
     "cat.learning": "📚 Learning",
     "cat.work": "💼 Work",
@@ -331,6 +351,41 @@ const translations = {
     "batch.cancel": "Cancel",
     "batch.create": "Create {n} Quests ⚡",
 
+    // ── Mode Tabs ──
+    "mode.study": "Study",
+    "mode.life": "Life",
+
+    // ── Life Mode ──
+    "life.dashboard": "Habit Dashboard",
+    "life.statsLine": "{done} / {total} steps completed",
+    "life.completion": "Completion",
+    "life.noPhase": "Untagged",
+    "life.activeWeek": "Active",
+    "life.timeBlocks": "Daily Habits",
+    "life.morning": "Morning",
+    "life.afternoon": "Afternoon",
+    "life.evening": "Evening",
+    "life.timeBlockHint": "Check off each activity as you go — resets every day",
+    "life.sectionTimeBlocks": "Daily Structure",
+    "life.sectionReflect": "Daily Check-In",
+    "life.dailyProgress": "{done}/{total} done today",
+    "life.editBtn": "Edit",
+    "life.editDone": "Done",
+    "life.editTime": "Edit time range",
+    "life.addActivity": "Add activity",
+    "life.addPlaceholder": "New activity name...",
+    "life.resetDefaults": "Reset to defaults",
+    // ── Life Activities (generic defaults for all users) ──
+    "life.act.water": "Drink water",
+    "life.act.exercise": "Exercise",
+    "life.act.breakfast": "Healthy breakfast",
+    "life.act.walk": "Go for a walk",
+    "life.act.focusBlock": "Deep focus block",
+    "life.act.stretch": "Stretch / move",
+    "life.act.dinner": "Dinner",
+    "life.act.windDown": "Screen-off wind down",
+    "life.act.sleepOnTime": "Sleep on time",
+
     // ── Tag Filter ──
     "board.tagAll": "All",
 
@@ -568,6 +623,26 @@ const translations = {
     "header.lv": "Lv.",
     "header.max": "满级",
     "header.settings": "设置",
+
+    // ── Auth ──
+    "auth.login": "登录",
+    "auth.signup": "注册",
+    "auth.logout": "退出登录",
+    "auth.loginBtn": "登录",
+    "auth.signupBtn": "创建账号",
+    "auth.githubBtn": "使用 GitHub 登录",
+    "auth.or": "或",
+    "auth.emailPlaceholder": "邮箱",
+    "auth.passwordPlaceholder": "密码（6位以上）",
+    "auth.namePlaceholder": "显示名称",
+    "auth.noAccount": "还没有账号？",
+    "auth.hasAccount": "已有账号？",
+    "auth.signupLink": "注册",
+    "auth.loginLink": "登录",
+    "auth.checkEmail": "请查收邮件确认账号！",
+    "auth.guest": "访客模式",
+    "auth.synced": "已同步",
+    "auth.syncing": "同步中...",
 
     // ── Categories ──
     "cat.learning": "📚 学习",
@@ -883,6 +958,41 @@ const translations = {
     "batch.backToInput": "返回输入",
     "batch.cancel": "取消",
     "batch.create": "创建 {n} 个任务 ⚡",
+
+    // ── 模式切换 ──
+    "mode.study": "学习",
+    "mode.life": "日常",
+
+    // ── 日常模式 ──
+    "life.dashboard": "习惯仪表盘",
+    "life.statsLine": "已完成 {done} / {total} 步",
+    "life.completion": "完成率",
+    "life.noPhase": "未分类",
+    "life.activeWeek": "当前进行",
+    "life.timeBlocks": "每日习惯",
+    "life.morning": "上午",
+    "life.afternoon": "下午",
+    "life.evening": "晚间",
+    "life.timeBlockHint": "逐项打卡，每天自动重置",
+    "life.sectionTimeBlocks": "日常结构",
+    "life.sectionReflect": "每日打卡",
+    "life.dailyProgress": "今日 {done}/{total} 完成",
+    "life.editBtn": "编辑",
+    "life.editDone": "完成",
+    "life.editTime": "编辑时间段",
+    "life.addActivity": "添加活动",
+    "life.addPlaceholder": "新活动名称...",
+    "life.resetDefaults": "恢复默认",
+    // ── 日常活动（通用默认） ──
+    "life.act.water": "喝水",
+    "life.act.exercise": "运动",
+    "life.act.breakfast": "健康早餐",
+    "life.act.walk": "散步",
+    "life.act.focusBlock": "深度专注时段",
+    "life.act.stretch": "拉伸 / 活动身体",
+    "life.act.dinner": "晚餐",
+    "life.act.windDown": "关屏放松",
+    "life.act.sleepOnTime": "按时入睡",
 
     // ── 标签筛选 ──
     "board.tagAll": "全部",
