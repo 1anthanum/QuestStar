@@ -169,7 +169,7 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDel
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <ChallengeCard onClick={onOpenChallenge} theme={theme} />
-            <ReflectionCard onClick={onOpenReflection} theme={theme} />
+            <ReflectionCard onClick={onOpenReflection} theme={theme} appMode={appMode} />
           </div>
         </CollapsibleSection>
       )}
@@ -213,7 +213,7 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDel
           icon="📝"
           accent={accent}
         >
-          <ReflectionCard onClick={onOpenReflection} theme={theme} />
+          <ReflectionCard onClick={onOpenReflection} theme={theme} appMode={appMode} />
         </CollapsibleSection>
       )}
 

@@ -151,22 +151,94 @@ export function HabitDashboardCard({ quests, theme }) {
   );
 }
 
+// ── Built-in schedule presets (personal, owner only) ──
+// Loaded on first visit or via "Load Presets" button.
+const OWNER_PRESETS = {
+  "过渡周 (11:00起)": [
+    {
+      key: "morning", icon: "🌅", time: "11:00–12:00",
+      activities: [
+        { id: "t_water",     icon: "💧", label: "喝水 300–500ml 温水（起床第一件事）" },
+        { id: "t_sun",       icon: "☀️", label: "见光 10 分钟（窗边或出门，相位前移核心）" },
+        { id: "t_breakfast", icon: "🍳", label: "健康早餐（三文鱼罐头 + 水果 + 鱼油）" },
+        { id: "t_med1",      icon: "💊", label: "第一剂 Adderall（与早餐同服）" },
+      ],
+    },
+    {
+      key: "afternoon", icon: "☀️", time: "12:00–18:00",
+      activities: [
+        { id: "t_walk",    icon: "🚶", label: "散步 30–60 分钟（户外优先）" },
+        { id: "t_focus",   icon: "🎯", label: "深度专注（13:00–16:00 峰值窗口，单段 ≤90min）" },
+        { id: "t_stretch", icon: "🧘", label: "拉伸 / 活动身体（16:00–16:30）" },
+        { id: "t_med2",    icon: "💊", label: "第二剂 Adderall" },
+        { id: "t_cardio",  icon: "🏃", label: "运动（本周 Zone 2 散步即可，不做深蹲）" },
+      ],
+    },
+    {
+      key: "evening", icon: "🌙", time: "18:00–入睡",
+      activities: [
+        { id: "t_dinner", icon: "🍽️", label: "晚餐（18:00 后零兴奋剂：药+咖啡+功能饮料）" },
+        { id: "t_screen", icon: "🔕", label: "关屏放松（23:00 起，项目硬关闭）" },
+        { id: "t_shower", icon: "🛁", label: "淋浴（睡前 60–90 分钟，体温调节入睡触发器）" },
+        { id: "t_mood",   icon: "🧠", label: "情绪打分 1–10（给 5/19 复诊提供 trend）" },
+        { id: "t_sleep",  icon: "😴", label: "按时入睡（渐进：3:00 → 一周内推到 24:00）" },
+      ],
+    },
+  ],
+  "目标版 (8:30起)": [
+    {
+      key: "morning", icon: "🌅", time: "8:30–12:00",
+      activities: [
+        { id: "g_water",     icon: "💧", label: "喝水 + 见光 10 分钟" },
+        { id: "g_sun",       icon: "☀️", label: "☀️ 见光（窗边或出门，不可跳过）" },
+        { id: "g_breakfast", icon: "🍳", label: "早餐" },
+        { id: "g_med1",      icon: "💊", label: "第一剂 Adderall（与早餐同服 9:00）" },
+        { id: "g_stretch",   icon: "🧘", label: "拉伸（10:00–10:30）" },
+        { id: "g_focus1",    icon: "🎯", label: "深度专注上午段（9:30–12:00）" },
+      ],
+    },
+    {
+      key: "afternoon", icon: "☀️", time: "12:00–18:00",
+      activities: [
+        { id: "g_walk",   icon: "🚶", label: "散步（12:00–13:00）" },
+        { id: "g_focus2", icon: "🎯", label: "深度专注下午段（13:30–16:00）" },
+        { id: "g_med2",   icon: "💊", label: "第二剂 Adderall" },
+        { id: "g_cardio", icon: "🏃", label: "运动（16:30–17:30）" },
+      ],
+    },
+    {
+      key: "evening", icon: "🌙", time: "18:30–入睡",
+      activities: [
+        { id: "g_dinner", icon: "🍽️", label: "晚餐（18:30–19:30）" },
+        { id: "g_screen", icon: "🔕", label: "关屏放松（22:00 起）" },
+        { id: "g_shower", icon: "🛁", label: "淋浴（睡前 60–90 分钟）" },
+        { id: "g_mood",   icon: "🧠", label: "情绪打分 1–10" },
+        { id: "g_sleep",  icon: "😴", label: "入睡（24:00）" },
+      ],
+    },
+  ],
+};
+
 /**
  * Interactive Time Block card — daily habit checklist.
  * Each block has activities the user can check off daily.
  * Checks reset each day. Activities are fully customizable.
  *
  * localStorage keys:
- *   qt_time_blocks   — custom block structure (persists permanently)
- *   qt_daily_checks  — { "YYYY-MM-DD": { activityId: true } }
+ *   qt_time_blocks       — custom block structure (persists permanently)
+ *   qt_daily_checks      — { "YYYY-MM-DD": { activityId: true } }
+ *   qt_schedule_presets   — named schedule presets
+ *   qt_active_preset      — currently active preset name
  */
 export function TimeBlockCard({ theme }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const accent = theme?.accent || "#6366f1";
 
   // ── Persistent state ──
   const [customBlocks, setCustomBlocks] = useLocalStorage("qt_time_blocks", null);
   const [dailyChecks, setDailyChecks] = useLocalStorage("qt_daily_checks", {});
+  const [schedulePresets, setSchedulePresets] = useLocalStorage("qt_schedule_presets", null);
+  const [activePreset, setActivePreset] = useLocalStorage("qt_active_preset", null);
 
   // ── UI state ──
   const [editing, setEditing] = useState(false);
@@ -174,6 +246,27 @@ export function TimeBlockCard({ theme }) {
   const [newLabel, setNewLabel] = useState("");
   const [editingTime, setEditingTime] = useState(null); // block key
   const [newTime, setNewTime] = useState("");
+  const [showPresets, setShowPresets] = useState(false);
+
+  // ── Preset switching ──
+  const switchPreset = useCallback((presetName) => {
+    if (!schedulePresets || !schedulePresets[presetName]) return;
+    setCustomBlocks(schedulePresets[presetName]);
+    setActivePreset(presetName);
+    setShowPresets(false);
+  }, [schedulePresets, setCustomBlocks, setActivePreset]);
+
+  const loadOwnerPresets = useCallback(() => {
+    setSchedulePresets(OWNER_PRESETS);
+    const firstKey = Object.keys(OWNER_PRESETS)[0];
+    setCustomBlocks(OWNER_PRESETS[firstKey]);
+    setActivePreset(firstKey);
+  }, [setSchedulePresets, setCustomBlocks, setActivePreset]);
+
+  const presetNames = useMemo(() => {
+    if (!schedulePresets) return [];
+    return Object.keys(schedulePresets);
+  }, [schedulePresets]);
 
   // Resolve blocks: custom or defaults
   const blocks = useMemo(() => {
@@ -283,13 +376,34 @@ export function TimeBlockCard({ theme }) {
         <div className="flex items-center gap-2">
           <span className="text-lg">⏰</span>
           <div>
-            <div className="text-sm font-bold text-gray-700">{t("life.timeBlocks")}</div>
+            <div className="text-sm font-bold text-gray-700 flex items-center gap-1.5">
+              {t("life.timeBlocks")}
+              {/* Preset indicator */}
+              {activePreset && (
+                <button
+                  onClick={() => setShowPresets(!showPresets)}
+                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full transition-all"
+                  style={{ background: `${accent}15`, color: accent }}
+                >
+                  {activePreset} ▾
+                </button>
+              )}
+            </div>
             <div className="text-[10px] text-gray-400">
               {t("life.dailyProgress", { done: doneActs, total: totalActs })}
             </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Preset switch button (when presets exist but no indicator shown) */}
+          {presetNames.length > 1 && !activePreset && (
+            <button
+              onClick={() => setShowPresets(!showPresets)}
+              className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-all"
+            >
+              📋 {lang === "zh" ? "切换" : "Switch"}
+            </button>
+          )}
           {/* Progress ring */}
           <div className="relative w-9 h-9">
             <svg className="w-9 h-9 -rotate-90" viewBox="0 0 36 36">
@@ -320,6 +434,31 @@ export function TimeBlockCard({ theme }) {
           </button>
         </div>
       </div>
+
+      {/* Preset picker dropdown */}
+      {showPresets && presetNames.length > 0 && (
+        <div className="px-4 py-2.5 border-b border-gray-100/80 bg-gray-50/60">
+          <p className="text-[10px] text-gray-400 mb-2 font-semibold">
+            {lang === "zh" ? "选择日程版本" : "Select Schedule"}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {presetNames.map((name) => (
+              <button
+                key={name}
+                onClick={() => switchPreset(name)}
+                className={`text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all ${
+                  activePreset === name
+                    ? "text-white shadow-sm"
+                    : "bg-white text-gray-600 border border-gray-200 hover:border-indigo-300"
+                }`}
+                style={activePreset === name ? { background: accent } : {}}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Time blocks */}
       <div className="px-4 py-3 space-y-3">
@@ -469,7 +608,7 @@ export function TimeBlockCard({ theme }) {
         })}
       </div>
 
-      {/* Footer: reset + hint */}
+      {/* Footer: reset + load presets + hint */}
       <div className="px-5 pb-3 flex items-center justify-between">
         {editing && customBlocks && (
           <button
@@ -477,6 +616,14 @@ export function TimeBlockCard({ theme }) {
             className="text-[10px] text-red-400 hover:text-red-600 transition-colors"
           >
             {t("life.resetDefaults")}
+          </button>
+        )}
+        {editing && !schedulePresets && (
+          <button
+            onClick={loadOwnerPresets}
+            className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-all"
+          >
+            📋 {lang === "zh" ? "加载日程模板（过渡周/目标版）" : "Load Schedule Presets"}
           </button>
         )}
         {!editing && (

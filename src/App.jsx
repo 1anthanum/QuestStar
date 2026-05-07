@@ -252,7 +252,7 @@ export default function App() {
       {showBatchModal && <BatchImportModal onAdd={handleAddQuest} onClose={() => setShowBatchModal(false)} theme={theme} />}
       {showSkillTree && <SkillTree onClose={() => setShowSkillTree(false)} theme={theme} />}
       {showChallenge && <ChallengeMode onClose={() => setShowChallenge(false)} theme={theme} />}
-      {showReflection && <DailyReflection onClose={() => setShowReflection(false)} theme={theme} />}
+      {showReflection && <DailyReflection onClose={() => setShowReflection(false)} theme={theme} appMode={appMode} />}
       {showRoadmap && <StudyRoadmap onClose={() => setShowRoadmap(false)} theme={theme} ai={ai} />}
       {showTimeline && (
         <Timeline

@@ -285,6 +285,8 @@ All keys are prefixed with `qt_`. This is the single source of truth for React s
 | `qt_onboarding_done` | boolean | App.jsx | First-time onboarding completed | user_settings |
 | `qt_time_blocks` | JSON array/null | TimeBlockCard | Custom daily time-block structure | daily_habits |
 | `qt_daily_checks` | JSON object | TimeBlockCard | `{ "YYYY-MM-DD": { actId: true } }` | daily_habits |
+| `qt_schedule_presets` | JSON object/null | TimeBlockCard | Named schedule presets `{ "过渡周": [...], "目标版": [...] }` | extra_state |
+| `qt_active_preset` | string/null | TimeBlockCard | Currently active preset name | extra_state |
 | `qt_aiProvider` | string | useAI | Current provider id | user_settings |
 | `qt_claude_apiKey` | string | useAI | Claude API key | user_settings (ai_keys.claude) |
 | `qt_glm_apiKey` | string | useAI | GLM API key | user_settings (ai_keys.glm) |
@@ -307,7 +309,7 @@ All keys are prefixed with `qt_`. This is the single source of truth for React s
 | `qt_roadmap_progress` | JSON object | StudyRoadmap | Roadmap node progress | extra_state |
 | `qt_roadmap_notes` | JSON object | StudyRoadmap | Roadmap user notes | extra_state |
 | `qt_roadmap_knowledge` | JSON object | StudyRoadmap | Cached AI knowledge | extra_state |
-| `qt_reflections` | JSON object | DailyReflection | Reflection journal entries | extra_state |
+| `qt_reflections` | JSON object | DailyReflection | `{ "YYYY-MM-DD": { okMoment/hardMoment/minWin (life) or learned/stuck/tomorrow (study), mood: 1–10 } }` | extra_state |
 | `qt_cloud_migrated` | string (userId) | migrateToCloud | Migration completion flag | — (local only) |
 | `qt_step_timing` | JSON object | Friction Calibrator | `{ stepId: { startedAt, completedAt } }` | extra_state |
 | `qt_energy_profile` | JSON object | Energy Scheduler | `{ dayOfWeek: { morning, afternoon, evening } }` | extra_state |

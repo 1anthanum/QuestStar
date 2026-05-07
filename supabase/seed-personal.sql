@@ -1,33 +1,40 @@
 -- ============================================================
--- Personal Seed: Your custom daily habits (A1–A4 health layers + supplements)
+-- Personal Seed: Phased daily schedules + 4 new tracking items
 --
--- Run this AFTER you have registered and logged in.
+-- Two schedule presets:
+--   A. 过渡周 (5/8 – 5/13)  — 11:00 起床, 渐进调整
+--   B. 目标版 (5/13 后)     — 8:30 起床, 相位稳定
+--
+-- New tracking items (all present in BOTH schedules):
+--   ☀️ 起床见光 10 分钟
+--   🛁 睡前淋浴
+--   💊 服药打卡（第一剂 / 第二剂分开记录）
+--   🧠 情绪一句话打分 1–10
+--
+-- Run AFTER you have registered and logged in.
 -- Replace YOUR_USER_ID_HERE with your actual Supabase user UUID.
--- Find it in Supabase Dashboard → Authentication → Users
 -- ============================================================
 
--- Get your user ID (run this first to find it):
+-- Get your user ID:
 -- SELECT id, email FROM auth.users WHERE email = 'YOUR_EMAIL@example.com';
 
--- Then replace the UUID below and run:
+-- ── Step 1: Seed active time_blocks (Transition Week) + presets ──
 
 INSERT INTO public.daily_habits (user_id, time_blocks, daily_checks)
 VALUES (
   'YOUR_USER_ID_HERE'::uuid,
+
+  -- Active schedule: 过渡周 (Transition Week, 11:00 wake)
   '[
     {
       "key": "morning",
       "icon": "🌅",
-      "time": "起床–12:00",
+      "time": "11:00–12:00",
       "activities": [
-        {"id": "m_meditate", "icon": "🧘", "label": "冥想 / 呼吸训练 10 min（与 SSRI 协同）"},
-        {"id": "m_brush", "icon": "🪥", "label": "刷牙 + 漱口水"},
-        {"id": "m_flonase", "icon": "💊", "label": "Flonase + 鼻清洗"},
-        {"id": "m_supBrkfst", "icon": "💊", "label": "早餐补剂（Centrum + B + C）"},
-        {"id": "m_supSnack", "icon": "💊", "label": "上午加餐补剂（Creatine 5g + Liquid I.V.）"},
-        {"id": "m_sun", "icon": "☀️", "label": "出门晒太阳 10 分钟"},
-        {"id": "m_veggies", "icon": "🥗", "label": "吃蔬菜 / 沙拉"},
-        {"id": "m_water", "icon": "💧", "label": "喝水"}
+        {"id": "t_water",    "icon": "💧", "label": "喝水 300–500ml 温水（起床第一件事）"},
+        {"id": "t_sun",      "icon": "☀️", "label": "见光 10 分钟（窗边或出门，相位前移核心）"},
+        {"id": "t_breakfast", "icon": "🍳", "label": "健康早餐（三文鱼罐头 + 水果 + 鱼油）"},
+        {"id": "t_med1",     "icon": "💊", "label": "第一剂 Adderall（与早餐同服）"}
       ]
     },
     {
@@ -35,14 +42,11 @@ VALUES (
       "icon": "☀️",
       "time": "12:00–18:00",
       "activities": [
-        {"id": "a_cardio", "icon": "🏃", "label": "⭐ 中低强度有氧（Zone 2 步行/骑行）— 最高优先"},
-        {"id": "a_supLunch", "icon": "💊", "label": "午餐补剂（Omega-3 + 姜黄 + 锌）"},
-        {"id": "a_training", "icon": "🏋️", "label": "力量训练（非有氧日）"},
-        {"id": "a_squat", "icon": "🦵", "label": "深蹲"},
-        {"id": "a_goout", "icon": "🚶", "label": "出门（不要待在家）"},
-        {"id": "a_session", "icon": "💬", "label": "Session Check-in（不强制，想做就做）"},
-        {"id": "a_nobed", "icon": "🚫", "label": "不趴床用电脑"},
-        {"id": "a_veggies2", "icon": "🍎", "label": "水果摄入"}
+        {"id": "t_walk",    "icon": "🚶", "label": "散步 30–60 分钟（户外优先）"},
+        {"id": "t_focus",   "icon": "🎯", "label": "深度专注（13:00–16:00 峰值窗口，单段 ≤90min）"},
+        {"id": "t_stretch", "icon": "🧘", "label": "拉伸 / 活动身体（16:00–16:30）"},
+        {"id": "t_med2",    "icon": "💊", "label": "第二剂 Adderall"},
+        {"id": "t_cardio",  "icon": "🏃", "label": "运动（本周 Zone 2 散步即可，不做深蹲）"}
       ]
     },
     {
@@ -50,13 +54,11 @@ VALUES (
       "icon": "🌙",
       "time": "18:00–入睡",
       "activities": [
-        {"id": "e_floss", "icon": "🦷", "label": "牙线 + 冲牙 + 刷牙"},
-        {"id": "e_hepa", "icon": "🌬️", "label": "关窗 + 开 HEPA"},
-        {"id": "e_supSleep", "icon": "💊", "label": "Magnesium L-Threonate（21:30）"},
-        {"id": "e_writing", "icon": "✍️", "label": "表达性写作（自由书写 10 min）"},
-        {"id": "e_nobed2", "icon": "🚫", "label": "不躺床上用电脑"},
-        {"id": "e_sleepby", "icon": "😴", "label": "00:00–02:00 之间入睡"},
-        {"id": "e_sleepdebt", "icon": "📊", "label": "记录：上床秒睡了吗？（睡眠债代理指标）"}
+        {"id": "t_dinner",  "icon": "🍽️", "label": "晚餐（18:00 后零兴奋剂：药+咖啡+功能饮料）"},
+        {"id": "t_screen",  "icon": "🔕", "label": "关屏放松（23:00 起，项目硬关闭）"},
+        {"id": "t_shower",  "icon": "🛁", "label": "淋浴（睡前 60–90 分钟，体温调节入睡触发器）"},
+        {"id": "t_mood",    "icon": "🧠", "label": "情绪打分 1–10（给 5/19 复诊提供 trend）"},
+        {"id": "t_sleep",   "icon": "😴", "label": "按时入睡（渐进：3:00 → 一周内推到 24:00）"}
       ]
     }
   ]'::jsonb,
@@ -65,3 +67,109 @@ VALUES (
 ON CONFLICT (user_id) DO UPDATE SET
   time_blocks = EXCLUDED.time_blocks,
   updated_at = now();
+
+
+-- ── Step 2: Seed schedule presets into user_settings ──
+-- Stores both versions so the in-app preset switcher can toggle.
+-- The key qt_schedule_presets is read by TimeBlockCard.
+
+-- NOTE: If user_settings doesn't have a schedule_presets column yet,
+-- run this first:
+-- ALTER TABLE public.user_settings ADD COLUMN IF NOT EXISTS schedule_presets JSONB DEFAULT NULL;
+
+-- For now, presets are stored in localStorage (qt_schedule_presets).
+-- To pre-populate via SQL, use extra_state:
+
+INSERT INTO public.extra_state (user_id, schedule_presets)
+VALUES (
+  'YOUR_USER_ID_HERE'::uuid,
+  '{
+    "过渡周 (11:00起)": [
+      {
+        "key": "morning",
+        "icon": "🌅",
+        "time": "11:00–12:00",
+        "activities": [
+          {"id": "t_water",    "icon": "💧", "label": "喝水 300–500ml 温水（起床第一件事）"},
+          {"id": "t_sun",      "icon": "☀️", "label": "见光 10 分钟（窗边或出门，相位前移核心）"},
+          {"id": "t_breakfast", "icon": "🍳", "label": "健康早餐（三文鱼罐头 + 水果 + 鱼油）"},
+          {"id": "t_med1",     "icon": "💊", "label": "第一剂 Adderall（与早餐同服）"}
+        ]
+      },
+      {
+        "key": "afternoon",
+        "icon": "☀️",
+        "time": "12:00–18:00",
+        "activities": [
+          {"id": "t_walk",    "icon": "🚶", "label": "散步 30–60 分钟（户外优先）"},
+          {"id": "t_focus",   "icon": "🎯", "label": "深度专注（13:00–16:00 峰值窗口，单段 ≤90min）"},
+          {"id": "t_stretch", "icon": "🧘", "label": "拉伸 / 活动身体（16:00–16:30）"},
+          {"id": "t_med2",    "icon": "💊", "label": "第二剂 Adderall"},
+          {"id": "t_cardio",  "icon": "🏃", "label": "运动（本周 Zone 2 散步即可，不做深蹲）"}
+        ]
+      },
+      {
+        "key": "evening",
+        "icon": "🌙",
+        "time": "18:00–入睡",
+        "activities": [
+          {"id": "t_dinner",  "icon": "🍽️", "label": "晚餐（18:00 后零兴奋剂：药+咖啡+功能饮料）"},
+          {"id": "t_screen",  "icon": "🔕", "label": "关屏放松（23:00 起，项目硬关闭）"},
+          {"id": "t_shower",  "icon": "🛁", "label": "淋浴（睡前 60–90 分钟，体温调节入睡触发器）"},
+          {"id": "t_mood",    "icon": "🧠", "label": "情绪打分 1–10（给 5/19 复诊提供 trend）"},
+          {"id": "t_sleep",   "icon": "😴", "label": "按时入睡（渐进：3:00 → 一周内推到 24:00）"}
+        ]
+      }
+    ],
+    "目标版 (8:30起)": [
+      {
+        "key": "morning",
+        "icon": "🌅",
+        "time": "8:30–12:00",
+        "activities": [
+          {"id": "g_water",    "icon": "💧", "label": "喝水 + 见光 10 分钟"},
+          {"id": "g_sun",      "icon": "☀️", "label": "☀️ 见光（窗边或出门，不可跳过）"},
+          {"id": "g_breakfast", "icon": "🍳", "label": "早餐"},
+          {"id": "g_med1",     "icon": "💊", "label": "第一剂 Adderall（与早餐同服 9:00）"},
+          {"id": "g_stretch",  "icon": "🧘", "label": "拉伸（10:00–10:30）"},
+          {"id": "g_focus1",   "icon": "🎯", "label": "深度专注上午段（9:30–12:00）"}
+        ]
+      },
+      {
+        "key": "afternoon",
+        "icon": "☀️",
+        "time": "12:00–18:00",
+        "activities": [
+          {"id": "g_walk",    "icon": "🚶", "label": "散步（12:00–13:00）"},
+          {"id": "g_focus2",  "icon": "🎯", "label": "深度专注下午段（13:30–16:00）"},
+          {"id": "g_med2",    "icon": "💊", "label": "第二剂 Adderall"},
+          {"id": "g_cardio",  "icon": "🏃", "label": "运动（16:30–17:30）"}
+        ]
+      },
+      {
+        "key": "evening",
+        "icon": "🌙",
+        "time": "18:30–入睡",
+        "activities": [
+          {"id": "g_dinner",  "icon": "🍽️", "label": "晚餐（18:30–19:30）"},
+          {"id": "g_screen",  "icon": "🔕", "label": "关屏放松（22:00 起）"},
+          {"id": "g_shower",  "icon": "🛁", "label": "淋浴（睡前 60–90 分钟）"},
+          {"id": "g_mood",    "icon": "🧠", "label": "情绪打分 1–10"},
+          {"id": "g_sleep",   "icon": "😴", "label": "入睡（24:00）"}
+        ]
+      }
+    ]
+  }'::jsonb
+)
+ON CONFLICT (user_id) DO UPDATE SET
+  schedule_presets = EXCLUDED.schedule_presets,
+  updated_at = now();
+
+-- ============================================================
+-- IMPORTANT: After 5/13 when phase is stable, switch to 目标版:
+--   1. In the app: tap the preset name badge → select "目标版 (8:30起)"
+--   2. Or manually: UPDATE daily_habits SET time_blocks = (
+--        SELECT schedule_presets->'目标版 (8:30起)'
+--        FROM extra_state WHERE user_id = 'YOUR_USER_ID_HERE'
+--      ) WHERE user_id = 'YOUR_USER_ID_HERE';
+-- ============================================================
