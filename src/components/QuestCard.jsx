@@ -1,14 +1,16 @@
 import { CATEGORIES } from "../utils/constants";
+import { getQuestNarrative } from "../utils/narrativeEngine";
 import MathText from "./MathText";
 import { useLanguage } from "../hooks/useLanguage";
 
 export default function QuestCard({ quest, onClick, onDelete, isActive, theme }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const cat = CATEGORIES[quest.category] || CATEGORIES.work;
   const done = quest.steps.filter((s) => s.done).length;
   const total = quest.steps.length;
   const progress = total > 0 ? done / total : 0;
   const isComplete = done === total && total > 0;
+  const narrative = getQuestNarrative(quest, lang);
 
   const handleDelete = (e) => {
     e.stopPropagation();
@@ -62,11 +64,18 @@ export default function QuestCard({ quest, onClick, onDelete, isActive, theme })
           {isComplete && <span className="text-lg animate-stamp">🏆</span>}
         </div>
 
-        <h3 className={`font-bold text-lg mb-3 leading-snug
+        <h3 className={`font-bold text-lg mb-1.5 leading-snug
           ${isComplete ? "line-through text-gray-400" : "text-gray-800"}`}
         >
           <MathText text={quest.name} />
         </h3>
+
+        {/* RPG narrative fragment */}
+        {total > 0 && (
+          <p className="text-[11px] text-gray-400 italic mb-3 leading-relaxed line-clamp-1">
+            {narrative.icon} {narrative.currentFragment}
+          </p>
+        )}
 
         {/* Progress bar with glow when active */}
         <div className={`relative w-full bg-gray-100 rounded-full h-3 mb-2.5 overflow-hidden

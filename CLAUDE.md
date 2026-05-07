@@ -309,6 +309,14 @@ All keys are prefixed with `qt_`. This is the single source of truth for React s
 | `qt_roadmap_knowledge` | JSON object | StudyRoadmap | Cached AI knowledge | extra_state |
 | `qt_reflections` | JSON object | DailyReflection | Reflection journal entries | extra_state |
 | `qt_cloud_migrated` | string (userId) | migrateToCloud | Migration completion flag | — (local only) |
+| `qt_step_timing` | JSON object | Friction Calibrator | `{ stepId: { startedAt, completedAt } }` | extra_state |
+| `qt_energy_profile` | JSON object | Energy Scheduler | `{ dayOfWeek: { morning, afternoon, evening } }` | extra_state |
+| `qt_completion_timeline` | JSON object | Ghost Race | `{ "YYYY-MM-DD": [{ stepId, completedAt }] }` | extra_state |
+| `qt_quest_narratives` | JSON object | Quest Narrative | `{ questId: { story, fragments[], ending } }` | extra_state |
+| `qt_seasonal_lore` | JSON object | Seasonal Events | `{ "YYYY-MM": fragmentId }` | lore_state |
+| `qt_boss_rush` | JSON object | Boss Rush | `{ active, bossHp, damageDealt, startedAt }` | extra_state |
+| `qt_rescue_splits` | JSON object | Smart Launcher | `{ questId: [microStepIds] }` auto-split tracking | extra_state |
+| `qt_launcher_history` | JSON array | Smart Launcher | Recent launcher picks for dedup | extra_state |
 
 ---
 
@@ -622,19 +630,80 @@ Top-level dual-mode switcher separates quests into two independent tracks:
 - [x] Personal data isolation (seed-personal.sql)
 - [ ] App.jsx decomposition (useModalManager + useStepCompletionChain)
 
-### Phase 2 — UX Enhancement (Short-term)
+### Phase 2 — ADHD Behavioral Engine (High Priority)
+Core ADHD compensation systems — address decision paralysis, procrastination, and working memory.
+
+- [ ] **Smart Launcher** (Anti-Paralysis #1 + Rescue Mode #3, merged)
+  - Single-card "Just This One" interface — system picks 1 optimal step based on deadline urgency + difficulty + energy + history
+  - Doom Timer detection: quest stagnant ≥3 days → auto-split next step into micro-steps (≤5 min)
+  - Rescue Mode visual: stagnant quest cards fade gray, rescue restores color
+  - Hook: `useSmartLauncher.js` — priority scoring engine
+  - Component: `SmartLauncher.jsx` — Tinder-style swipe card UI
+  - Extends existing `guidanceEngine.js` ranking logic
+
+- [ ] **Friction Calibrator** (#10)
+  - Track actual time per step: `startedAt` timestamp on first interaction, `completedAt` on toggle done
+  - Compare actual vs expected (easy<5min, medium<15min, hard<30min)
+  - If easy steps consistently >15min → suggest reclassify or split
+  - New localStorage keys: `qt_step_timing` (JSON object `{ stepId: { startedAt, completedAt } }`)
+  - Weekly friction report: "These 3 steps took 5x longer than expected"
+
+- [ ] **Energy-Aware Scheduling** (#2)
+  - User can mark energy levels per time-of-day (morning/afternoon/evening: high/medium/low)
+  - Post-hoc marking: after Hyperfocus session or study block, tag the time slot's energy level
+  - Auto-infer from completion data: steps completed fast = high energy window
+  - Hard steps recommended during high-energy windows, easy steps during low
+  - New localStorage key: `qt_energy_profile` (JSON `{ dayOfWeek: { morning, afternoon, evening } }`)
+
+### Phase 3 — RPG Narrative Layer (Mid Priority)
+Deep gamification to sustain long-term engagement via novelty and collection mechanics.
+
+- [ ] **Procedural Quest Narrative** (#6)
+  - Auto-generate RPG story frame per quest based on category + difficulty
+  - Category → archetype: learning→"古卷解读", code→"神器锻造", habit→"内功修炼", work→"王国治理"
+  - Step completion advances plot fragments; quest complete unlocks ending
+  - AI-generated (cached in localStorage `qt_quest_narratives`), fallback to template bank
+  - Display: subtle story text below quest name in QuestCard + full narrative in QuestDetail
+
+- [ ] **Seasonal World Events** (#7)
+  - Monthly auto-rotating world theme (spring=觉醒森林, summer=烈焰试炼, autumn=丰收祭典, winter=永夜征途)
+  - Theme-specific limited lore fragments (miss the month = miss the fragment)
+  - Season determined by `new Date().getMonth()` — zero config
+  - Visual: seasonal banner in QuestBoard, seasonal badge on completed quests
+  - New lore book: "季节编年史" with 12 monthly fragments
+
+- [ ] **Boss Rush Mode** (#8)
+  - Aggregates all overdue quests into "Boss" encounters
+  - Boss HP = total remaining steps across overdue quests
+  - Each step completed = damage dealt (XP-weighted: easy=1, medium=2, hard=3)
+  - Boss defeated = 3x XP bonus + limited "Boss Slayer" lore fragment
+  - Trigger: manual activation from action bar, or auto-prompt when overdue count ≥3
+  - Component: `BossRush.jsx` — HP bar + damage animation + boss portrait
+  - Reuses `handleToggleStep` chain for actual step completion
+
+### Phase 4 — Social + Competition (Lower Priority)
+External motivation through self-competition and narrative engagement.
+
+- [ ] **Ghost Race** (#4)
+  - Record daily completion timeline: `{ date: [{ stepId, completedAt }] }`
+  - Display previous week's same-day progress as translucent overlay on today's board
+  - "Ahead by 3 steps" / "Behind by 2 steps" indicator
+  - New localStorage key: `qt_completion_timeline` (JSON, 14-day rolling window)
+  - Visual: ghost progress bar alongside current progress in Header
+
+### Phase 5 — UX Enhancement
 - [ ] Data visualization dashboard (XP curves, habit heatmap, streak history)
 - [ ] PWA support (Service Worker + manifest.json for mobile install)
 - [ ] Notification enhancement (habit reminders, streak warnings, blossom intervals)
 - [ ] iOS / macOS widget integration (owner building natively — needs API endpoint design)
 
-### Phase 3 — Intelligence Layer (Mid-term)
+### Phase 6 — Intelligence Layer
 - [ ] AI-powered personalization: smart task ordering based on completion history
 - [ ] AI weekly summary: automated progress reports
 - [ ] Spaced Repetition formalization: Anki-style review queue from Blossom nodes
 - [ ] Dynamic difficulty adjustment based on completion rates
 
-### Phase 4 — Ecosystem (Long-term)
+### Phase 7 — Ecosystem
 - [ ] Export to Notion/Obsidian (Markdown)
 - [ ] iCal calendar subscription (deadline sync)
 - [ ] Webhook integration (Discord/Slack notifications on quest complete)

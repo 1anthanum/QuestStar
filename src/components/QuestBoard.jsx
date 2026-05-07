@@ -10,10 +10,12 @@ import { ReflectionCard } from "./DailyReflection";
 import { StudyRoadmapCard } from "./StudyRoadmap";
 import { HabitDashboardCard, TimeBlockCard } from "./LifeHabitDashboard";
 import MathText from "./MathText";
+import { getCurrentSeason } from "../utils/narrativeEngine";
 import { useLanguage } from "../hooks/useLanguage";
 
 export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDeleteQuest, onAddQuest, onOpenSkillTree, onOpenChallenge, onOpenReflection, onOpenRoadmap, nextStep, activeQuest, theme, ai, appMode }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const season = useMemo(() => getCurrentSeason(lang), [lang]);
   const accent = theme?.accent || "#6366f1";
   const [activeTag, setActiveTag] = useState(null);
 
@@ -35,6 +37,21 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDel
 
   return (
     <>
+      {/* ── Seasonal World Event Banner ── */}
+      {season && (
+        <div className="mb-4 rounded-2xl p-4 bg-white/70 backdrop-blur border border-white/60 flex items-center gap-3">
+          <span className="text-3xl">{season.icon}</span>
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+              <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: theme?.accent || "#6366f1" }} />
+              {lang === "zh" ? "当前世界事件" : "World Event"}
+            </p>
+            <p className="text-sm font-semibold text-gray-800 truncate">{season.name}</p>
+            <p className="text-[11px] text-gray-400 italic truncate">{season.desc}</p>
+          </div>
+        </div>
+      )}
+
       {/* Quick action: next step — with breathe effect (never collapsed) */}
       {nextStep && activeQuest && (
         <div

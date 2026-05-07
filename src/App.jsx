@@ -28,11 +28,19 @@ import BackpackPanel from "./components/BackpackPanel";
 import HyperfocusMode from "./components/HyperfocusMode";
 import StepCompleteGuide from "./components/StepCompleteGuide";
 import ModeTabs from "./components/ModeTabs";
+import SmartLauncher from "./components/SmartLauncher";
+import EnergyPanel from "./components/EnergyPanel";
+import GhostRaceIndicator from "./components/GhostRaceIndicator";
+import BossRush from "./components/BossRush";
 import AuthModal from "./components/AuthModal";
 import { XpPopup, LevelUpOverlay, QuestCompleteOverlay } from "./components/Celebrations";
 import { getNextRecommendations } from "./utils/guidanceEngine";
 import { APP_MODES } from "./utils/constants";
 import { useDeadlineReminder } from "./hooks/useDeadlineReminder";
+import { useSmartLauncher } from "./hooks/useSmartLauncher";
+import { useFrictionCalibrator } from "./hooks/useFrictionCalibrator";
+import { useEnergyProfile } from "./hooks/useEnergyProfile";
+import { useGhostRace } from "./hooks/useGhostRace";
 import { useRewardSystem } from "./hooks/useRewardSystem";
 import { useKnowledgeLore } from "./hooks/useKnowledgeLore";
 import useBlossomMode from "./hooks/useBlossomMode";
@@ -47,15 +55,24 @@ export default function App() {
   const rewards = useRewardSystem(game.streak);
   const lore = useKnowledgeLore();
   const blossom = useBlossomMode();
+  const friction = useFrictionCalibrator();
+  const ghostRace = useGhostRace();
 
   const [onboardingDone, setOnboardingDone] = useLocalStorage("qt_onboarding_done", false);
   const [appMode, setAppMode] = useLocalStorage("qt_app_mode", "study");
+  const energy = useEnergyProfile();
+  const [showLauncher, setShowLauncher] = useState(false);
+  const [showEnergyPanel, setShowEnergyPanel] = useState(false);
+  const [showBossRush, setShowBossRush] = useState(false);
 
   // ── Mode-based quest filtering ──
   const modePrefix = APP_MODES[appMode]?.tagPrefix || "Stage ";
   const displayQuests = game.quests.filter(q => !q.tag || q.tag.startsWith(modePrefix));
   const studyCount = game.quests.filter(q => q.tag?.startsWith("Stage ")).length;
   const lifeCount = game.quests.filter(q => q.tag?.startsWith("Phase ")).length;
+
+  // Smart Launcher — anti-paralysis + rescue mode (feeds from energy profile)
+  const launcher = useSmartLauncher(displayQuests, energy.profile);
 
   const [activeQuestId, setActiveQuestId] = useState(null);
   const [view, setView] = useState("board"); // "board" | "detail"
@@ -100,6 +117,11 @@ export default function App() {
       const result = game.toggleStep(questId, stepId);
 
       if (result.earnedXp > 0) {
+        // Friction Calibrator: record step completion time
+        friction.completeStep(stepId);
+        // Ghost Race: record completion for timeline
+        ghostRace.recordCompletion(stepId, questId);
+
         showXpGain(result.earnedXp);
 
         // Reward system: random surprise + daily step tracking
@@ -146,7 +168,7 @@ export default function App() {
         setTimeout(() => setQuestCompleteOverlay(result.questJustCompleted), 800);
       }
     },
-    [game, rewards, lore, blossom, showXpGain]
+    [game, rewards, lore, blossom, friction, ghostRace, showXpGain]
   );
 
   const handleAddQuest = useCallback(
@@ -308,11 +330,31 @@ export default function App() {
           onClose={() => setHyperfocusQuest(null)}
         />
       )}
+      {showBossRush && (
+        <BossRush
+          quests={displayQuests}
+          onToggleStep={handleToggleStep}
+          onNavigateQuest={(id) => { setShowBossRush(false); setActiveQuestId(id); setView("detail"); }}
+          onClose={() => setShowBossRush(false)}
+          theme={theme}
+        />
+      )}
       {showAuthModal && (
         <AuthModal
           onClose={() => setShowAuthModal(false)}
           theme={theme}
           t={t}
+        />
+      )}
+      {showEnergyPanel && (
+        <EnergyPanel
+          weekProfile={energy.weekProfile}
+          currentEnergy={energy.currentEnergy}
+          recommendedDifficulty={energy.recommendedDifficulty}
+          onSetEnergy={energy.setEnergy}
+          onMarkCurrent={energy.markCurrentEnergy}
+          onClose={() => setShowEnergyPanel(false)}
+          theme={theme}
         />
       )}
       {showSettings && (
@@ -408,6 +450,45 @@ export default function App() {
             >
               📅
             </button>
+            {/* Energy Profile */}
+            <button
+              onClick={() => setShowEnergyPanel(true)}
+              className="text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm"
+              style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+              title={lang === "zh" ? "能量曲线" : "Energy Profile"}
+            >
+              {energy.currentEnergy.level === "high" ? "⚡" : energy.currentEnergy.level === "low" ? "🌙" : "☀️"}
+            </button>
+            {/* Boss Rush */}
+            <button
+              onClick={() => setShowBossRush(true)}
+              className="text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm"
+              style={{ background: "linear-gradient(135deg, #dc2626, #991b1b)" }}
+              title={lang === "zh" ? "Boss 战" : "Boss Rush"}
+            >
+              ⚔️
+            </button>
+            {/* Smart Launcher — "Just This One" */}
+            <button
+              onClick={() => setShowLauncher((p) => !p)}
+              className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
+              style={{
+                background: showLauncher
+                  ? "linear-gradient(135deg, #10b981, #059669)"
+                  : "linear-gradient(135deg, #f59e0b, #ef4444)",
+                boxShadow: launcher.stagnantQuests.length > 0
+                  ? "0 0 12px rgba(239,68,68,0.4)"
+                  : undefined,
+              }}
+              title={lang === "zh" ? "智能启动器" : "Smart Launcher"}
+            >
+              ⚡
+              {launcher.stagnantQuests.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] flex items-center justify-center animate-pulse text-white">
+                  {launcher.stagnantQuests.length}
+                </span>
+              )}
+            </button>
             <button
               data-guide="ai-btn"
               onClick={() => setShowAIModal(true)}
@@ -453,6 +534,41 @@ export default function App() {
           />
         )}
 
+        {/* Ghost Race indicator */}
+        {view === "board" && ghostRace.raceStatus.status !== "noGhost" && (
+          <div className="mb-4 flex justify-center">
+            <GhostRaceIndicator
+              raceStatus={ghostRace.raceStatus}
+              todayCount={ghostRace.raceStatus.todayCount}
+              ghostCount={ghostRace.raceStatus.ghostCount}
+            />
+          </div>
+        )}
+
+        {/* Smart Launcher — anti-paralysis single-card picker */}
+        {showLauncher && view === "board" && (
+          <div className="mb-6 animate-fade-in">
+            <SmartLauncher
+              topPick={launcher.topPick}
+              alternatives={launcher.alternatives}
+              stagnantQuests={launcher.stagnantQuests}
+              onAccept={(questId, stepId) => {
+                launcher.recordPick(questId, stepId);
+                setShowLauncher(false);
+                setActiveQuestId(questId);
+                setView("detail");
+              }}
+              onSkip={() => {}}
+              onRescue={(questId, stepId, microSteps) => {
+                launcher.saveRescueSplit(questId, stepId, microSteps);
+              }}
+              onToggleStep={handleToggleStep}
+              onClose={() => setShowLauncher(false)}
+              theme={theme}
+            />
+          </div>
+        )}
+
         {/* Views — key forces remount for fade-in */}
         <div key={view + (activeQuestId || "") + appMode} className="animate-fade-in">
           {view === "board" && (
@@ -482,6 +598,8 @@ export default function App() {
               onDelete={handleDeleteQuest}
               onFocus={(quest) => setHyperfocusQuest(quest)}
               theme={theme}
+              onStartStep={friction.startStep}
+              getStepFriction={friction.getQuestFriction}
             />
           )}
         </div>

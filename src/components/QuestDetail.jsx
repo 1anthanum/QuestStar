@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { CATEGORIES, XP_CONFIG, ANCHOR_LAYERS } from "../utils/constants";
 import { useLanguage } from "../hooks/useLanguage";
 import { predictCompletion, formatPrediction } from "../utils/timePredictor";
+import { getQuestNarrative } from "../utils/narrativeEngine";
 import ProgressRing from "./ProgressRing";
 import StepItem from "./StepItem";
 import MathText from "./MathText";
@@ -38,7 +39,7 @@ function deadlineBadge(dateStr, isDone, t, lang) {
   return <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 ml-2">📅 {formatted}</span>;
 }
 
-export default function QuestDetail({ quest, streak, onToggleStep, onDelete, onFocus, theme }) {
+export default function QuestDetail({ quest, streak, onToggleStep, onDelete, onFocus, theme, onStartStep, getStepFriction }) {
   const { t, lang } = useLanguage();
   const cat = CATEGORIES[quest.category] || CATEGORIES.work;
   const done = quest.steps.filter((s) => s.done).length;
@@ -47,6 +48,19 @@ export default function QuestDetail({ quest, streak, onToggleStep, onDelete, onF
   const isComplete = done === total && total > 0;
   const next = quest.steps.find((s) => !s.done);
   const streakBonus = Math.round(Math.min(streak * XP_CONFIG.streakBonusPerDay, XP_CONFIG.streakBonusMax) * 100);
+
+  // Friction Calibrator: auto-start timing for the next incomplete step
+  useEffect(() => {
+    if (next && onStartStep) {
+      onStartStep(next.id);
+    }
+  }, [next?.id, onStartStep]);
+
+  // Friction data for completed steps
+  const frictionData = useMemo(() => {
+    if (!getStepFriction) return [];
+    return getStepFriction(quest);
+  }, [quest, getStepFriction]);
 
   const hasLayerInfo = quest.steps.some((s) => s.layer);
   const layerGroups = useMemo(() => hasLayerInfo ? groupByLayer(quest.steps) : null, [quest.steps, hasLayerInfo]);
@@ -85,6 +99,22 @@ export default function QuestDetail({ quest, streak, onToggleStep, onDelete, onF
               </button>
             </div>
           </div>
+
+          {/* RPG narrative fragment */}
+          {total > 0 && (() => {
+            const narrative = getQuestNarrative(quest, lang);
+            return (
+              <div className="mb-4 px-3 py-2 rounded-xl bg-white/40 border border-white/60">
+                <p className="text-xs font-semibold text-gray-500 mb-0.5">
+                  {narrative.icon} {narrative.archetype}
+                </p>
+                <p className="text-[12px] text-gray-400 italic leading-relaxed">
+                  "{narrative.currentFragment}"
+                </p>
+              </div>
+            );
+          })()}
+
           <div className="flex items-center gap-5">
             <ProgressRing progress={progress} size={80} stroke={6} id={`detail-ring-${quest.id}`}>
               <span className="text-xl font-black text-gray-700">{Math.round(progress * 100)}%</span>
@@ -210,6 +240,38 @@ export default function QuestDetail({ quest, streak, onToggleStep, onDelete, onF
               onToggle={() => onToggleStep(quest.id, step.id)}
             />
           ))}
+        </div>
+      )}
+
+      {/* ── Friction Calibrator summary ── */}
+      {frictionData.length > 0 && frictionData.some((f) => f.flagged) && (
+        <div className="rounded-2xl p-4 border-2 border-amber-100 bg-amber-50/50 animate-fade-in">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">⏱️</span>
+            <span className="text-sm font-bold text-amber-700">
+              {lang === "zh" ? "摩擦力校准" : "Friction Calibrator"}
+            </span>
+          </div>
+          <div className="space-y-1.5">
+            {frictionData.filter((f) => f.flagged).map((f) => (
+              <div key={f.stepId} className="flex items-center gap-2 text-xs">
+                <span className="text-red-500">⚠️</span>
+                <span className="text-gray-600 flex-1 truncate">{f.stepText}</span>
+                <span className="font-mono text-amber-600">
+                  {f.durationMinutes}min
+                </span>
+                <span className="text-gray-400">
+                  ({lang === "zh" ? "预期" : "expected"} {f.expectedMinutes}min)
+                </span>
+                <span className="text-red-500 font-bold">{f.ratio}x</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-amber-500 mt-2">
+            {lang === "zh"
+              ? "💡 这些步骤耗时超过预期，建议重新评估难度或进一步拆分"
+              : "💡 These steps took longer than expected. Consider reclassifying difficulty or splitting further."}
+          </p>
         </div>
       )}
     </div>

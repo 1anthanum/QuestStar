@@ -609,6 +609,16 @@ const translations = {
     "hyperfocus.time": "Time",
     "hyperfocus.finish": "Done",
     "hyperfocus.focusBtn": "Focus",
+
+    // ── Smart Launcher ──
+    "launcher.title": "Smart Launcher",
+    "launcher.allClear": "All clear! Take a well-deserved break.",
+    "launcher.skip": "Skip →",
+    "launcher.complete": "Complete",
+    "launcher.doThis": "Do this one ⚡",
+    "launcher.stagnant": "{count} quests stagnating",
+    "launcher.rescue": "Split into micro-steps",
+    "launcher.rescueApply": "Apply micro-step split",
   },
 
   zh: {
@@ -1217,6 +1227,16 @@ const translations = {
     "hyperfocus.time": "时间",
     "hyperfocus.finish": "完成",
     "hyperfocus.focusBtn": "专注",
+
+    // ── Smart Launcher ──
+    "launcher.title": "智能启动器",
+    "launcher.allClear": "所有任务都完成了！好好休息吧。",
+    "launcher.skip": "换一个 →",
+    "launcher.complete": "完成这步",
+    "launcher.doThis": "就做这个 ⚡",
+    "launcher.stagnant": "{count} 个任务停滞中",
+    "launcher.rescue": "拆分微步骤",
+    "launcher.rescueApply": "应用微步骤拆分",
   },
 };
 
