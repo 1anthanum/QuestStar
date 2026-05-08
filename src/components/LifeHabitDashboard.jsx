@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useLanguage } from "../hooks/useLanguage";
 
@@ -262,6 +262,13 @@ export function TimeBlockCard({ theme }) {
     setCustomBlocks(OWNER_PRESETS[firstKey]);
     setActivePreset(firstKey);
   }, [setSchedulePresets, setCustomBlocks, setActivePreset]);
+
+  // ── Auto-load owner presets on first visit (no custom blocks, no presets) ──
+  useEffect(() => {
+    if (!customBlocks && !schedulePresets) {
+      loadOwnerPresets();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const presetNames = useMemo(() => {
     if (!schedulePresets) return [];

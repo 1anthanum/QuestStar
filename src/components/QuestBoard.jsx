@@ -13,7 +13,7 @@ import MathText from "./MathText";
 import { getCurrentSeason } from "../utils/narrativeEngine";
 import { useLanguage } from "../hooks/useLanguage";
 
-export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDeleteQuest, onAddQuest, onOpenSkillTree, onOpenChallenge, onOpenReflection, onOpenRoadmap, nextStep, activeQuest, theme, ai, appMode }) {
+export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDeleteQuest, onAddQuest, onOpenSkillTree, onOpenChallenge, onOpenReflection, onOpenDailyPlanning, onOpenRoadmap, nextStep, activeQuest, theme, ai, appMode }) {
   const { t, lang } = useLanguage();
   const season = useMemo(() => getCurrentSeason(lang), [lang]);
   const accent = theme?.accent || "#6366f1";
@@ -204,7 +204,7 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDel
         </CollapsibleSection>
       )}
 
-      {/* ── Daily Reflection (life mode — standalone, not paired with Challenge) ── */}
+      {/* ── Daily Planning + Reflection (life mode) ── */}
       {isLife && (
         <CollapsibleSection
           storageKey="qt_section_life_reflect"
@@ -213,7 +213,26 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDel
           icon="📝"
           accent={accent}
         >
-          <ReflectionCard onClick={onOpenReflection} theme={theme} appMode={appMode} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Daily Planning Card */}
+            <div
+              onClick={onOpenDailyPlanning}
+              className="cursor-pointer rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.005] active:scale-[0.995] border bg-gradient-to-br from-indigo-500/[0.08] to-violet-500/[0.04] border-indigo-500/10 hover:from-indigo-500/[0.12]"
+            >
+              <div className="px-5 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📋</span>
+                  <div>
+                    <div className="text-sm font-bold text-gray-700">{t("planning.title")}</div>
+                    <div className="text-[11px] text-gray-400">
+                      {lang === "zh" ? "输入计划，AI 按日期整理" : "Input plans → AI organizes by date"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <ReflectionCard onClick={onOpenReflection} theme={theme} appMode={appMode} />
+          </div>
         </CollapsibleSection>
       )}
 

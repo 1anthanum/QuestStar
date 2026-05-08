@@ -343,6 +343,85 @@ export async function generateQuickQA(subtopicLabel, topicTitle, provider, model
   }));
 }
 
+// ── Daily Planning prompt ──
+const DAILY_PLANNING_PROMPT = `You are a daily planning assistant for someone with ADHD. Given a free-text paragraph describing plans, goals, and priorities, parse them into organized date-based quest groups.
+
+## Rules
+- Extract each distinct task/goal and assign it to a specific date (or "undated" if no date is mentioned)
+- For each task, generate 2-5 ADHD-friendly steps (concrete, action-verb, ≤15 min each)
+- Group tasks by date
+- Assign a direction/category tag: health, work, learning, social, creative, errands, other
+- Today's date context will be provided
+- Infer relative dates: "this week" = this Mon-Sun, "tomorrow" = next day, "Wednesday" = this coming Wednesday
+- If a task spans multiple days, assign to the start date with a note
+
+## Output
+Return strictly in this JSON format:
+{
+  "groups": [
+    {
+      "date": "YYYY-MM-DD",
+      "dateLabel": "Wednesday 5/14",
+      "tasks": [
+        {
+          "name": "Task name",
+          "direction": "work",
+          "steps": [
+            {"text": "Step description", "difficulty": "easy"},
+            {"text": "Step description", "difficulty": "medium"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+Groups should be sorted chronologically. Tasks without a clear date should use "undated" as the date field and a label like "Flexible / No deadline".`;
+
+/**
+ * Parse free-text daily plans into date-organized quest groups.
+ */
+export async function generateDailyPlan(inputText, provider, model, apiKey, lang = "en") {
+  const today = new Date().toISOString().slice(0, 10);
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const todayName = dayNames[new Date().getDay()];
+
+  const langPart = lang === "zh"
+    ? "\n\nIMPORTANT: Write ALL task names, step text, and dateLabel in Chinese (中文). Keep JSON field names and date formats in English. Direction tags stay in English."
+    : "";
+
+  const userMessage = `Today is ${todayName}, ${today}.
+
+Here are my plans:\n\n"${inputText}"${langPart}\n\nPlease organize these into date-based quest groups. Return a JSON object.`;
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt: DAILY_PLANNING_PROMPT,
+    messages: [{ role: "user", content: userMessage }],
+    maxTokens: 3000,
+  });
+
+  const result = extractJsonObject(text);
+
+  if (!result.groups || !Array.isArray(result.groups)) {
+    throw new Error("AI returned invalid format — please try again");
+  }
+
+  return result.groups.map((g) => ({
+    date: String(g.date || "undated"),
+    dateLabel: String(g.dateLabel || g.date || "Flexible"),
+    tasks: Array.isArray(g.tasks) ? g.tasks.map((t) => ({
+      name: String(t.name || "").trim(),
+      direction: ["health", "work", "learning", "social", "creative", "errands", "other"].includes(t.direction)
+        ? t.direction : "other",
+      steps: Array.isArray(t.steps) ? t.steps.map((s) => ({
+        text: String(s.text || "").trim(),
+        difficulty: ["easy", "medium", "hard"].includes(s.difficulty) ? s.difficulty : "easy",
+      })) : [],
+    })) : [],
+  }));
+}
+
 /**
  * Summarize a file and extract actionable steps.
  */

@@ -11,12 +11,22 @@
 --   💊 服药打卡（第一剂 / 第二剂分开记录）
 --   🧠 情绪一句话打分 1–10
 --
--- Run AFTER you have registered and logged in.
--- Replace YOUR_USER_ID_HERE with your actual Supabase user UUID.
+-- Owner: GitHub user @1anthanum
+-- Run AFTER first GitHub OAuth login to Quest Tracker.
+-- Replace YOUR_USER_ID_HERE with your Supabase auth.users UUID.
 -- ============================================================
 
--- Get your user ID:
--- SELECT id, email FROM auth.users WHERE email = 'YOUR_EMAIL@example.com';
+-- ── How to find your user UUID after first GitHub login ──
+-- Option A: Supabase Dashboard → Authentication → Users → find GitHub row → copy UUID
+-- Option B: SQL Editor:
+--   SELECT id, raw_user_meta_data->>'user_name' AS github_user
+--   FROM auth.users
+--   WHERE raw_user_meta_data->>'user_name' = '1anthanum';
+--
+-- NOTE: With the auto-load feature in TimeBlockCard, running this SQL
+-- is optional. The app now auto-loads OWNER_PRESETS on first Life mode
+-- visit (from the hardcoded constant in LifeHabitDashboard.jsx).
+-- This SQL seed is for cloud sync persistence after login.
 
 -- ── Step 1: Seed active time_blocks (Transition Week) + presets ──
 

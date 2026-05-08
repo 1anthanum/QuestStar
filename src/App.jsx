@@ -32,6 +32,7 @@ import SmartLauncher from "./components/SmartLauncher";
 import EnergyPanel from "./components/EnergyPanel";
 import GhostRaceIndicator from "./components/GhostRaceIndicator";
 import BossRush from "./components/BossRush";
+import DailyPlanningModal from "./components/DailyPlanningModal";
 import AuthModal from "./components/AuthModal";
 import { XpPopup, LevelUpOverlay, QuestCompleteOverlay } from "./components/Celebrations";
 import { getNextRecommendations } from "./utils/guidanceEngine";
@@ -95,6 +96,7 @@ export default function App() {
   const [showBackpackPanel, setShowBackpackPanel] = useState(false);
   const [hyperfocusQuest, setHyperfocusQuest] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showDailyPlanning, setShowDailyPlanning] = useState(false);
 
   // Deadline reminder system
   useDeadlineReminder(game.quests);
@@ -253,6 +255,7 @@ export default function App() {
       {showSkillTree && <SkillTree onClose={() => setShowSkillTree(false)} theme={theme} />}
       {showChallenge && <ChallengeMode onClose={() => setShowChallenge(false)} theme={theme} />}
       {showReflection && <DailyReflection onClose={() => setShowReflection(false)} theme={theme} appMode={appMode} />}
+      {showDailyPlanning && <DailyPlanningModal onAdd={handleAddQuest} onClose={() => setShowDailyPlanning(false)} ai={ai} theme={theme} />}
       {showRoadmap && <StudyRoadmap onClose={() => setShowRoadmap(false)} theme={theme} ai={ai} />}
       {showTimeline && (
         <Timeline
@@ -581,6 +584,7 @@ export default function App() {
               onOpenSkillTree={() => setShowSkillTree(true)}
               onOpenChallenge={() => setShowChallenge(true)}
               onOpenReflection={() => setShowReflection(true)}
+              onOpenDailyPlanning={() => setShowDailyPlanning(true)}
               onOpenRoadmap={() => setShowRoadmap(true)}
               nextStep={nextStep}
               activeQuest={activeQuest}

@@ -253,3 +253,67 @@
   50% { transform: scale(1.4); }
   100% { transform: scale(1); }
 }
+
+/* ═══ Campfire — flame flicker ═══ */
+.campfire-flame {
+  animation: campfire-flicker 0.8s ease-in-out infinite alternate;
+  transform-origin: center bottom;
+}
+@keyframes campfire-flicker {
+  0%   { transform: translateX(-50%) scaleX(1) scaleY(1); }
+  25%  { transform: translateX(-50%) scaleX(0.95) scaleY(1.04); }
+  50%  { transform: translateX(-50%) scaleX(1.03) scaleY(0.97); }
+  75%  { transform: translateX(-50%) scaleX(0.97) scaleY(1.02); }
+  100% { transform: translateX(-50%) scaleX(1.01) scaleY(0.98); }
+}
+
+/* ═══ Campfire — spark float ═══ */
+.campfire-spark {
+  animation: campfire-spark-float 1s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes campfire-spark-float {
+  0%   { opacity: 1; transform: translate(0, 0) scale(1); }
+  40%  { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.3); }
+}
+
+/* ═══ Campfire — ground glow pulse ═══ */
+.campfire-glow {
+  animation: campfire-glow-pulse 2s ease-in-out infinite alternate;
+}
+@keyframes campfire-glow-pulse {
+  0%   { opacity: 0.6; transform: translateX(-50%) scale(1); }
+  100% { opacity: 0.9; transform: translateX(-50%) scale(1.08); }
+}
+
+/* ═══ Chat typing dots ═══ */
+.typing-dot {
+  animation: typing-bounce 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing-bounce {
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-4px); }
+}
+
+/* ═══ Generic fade-in (backup for components) ═══ */
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══ Scratch card shimmer ═══ */
+.scratch-shimmer {
+  background-size: 200% 100%;
+  background-image: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%);
+  animation: scratch-shine 2.5s ease-in-out infinite;
+}
+@keyframes scratch-shine {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

@@ -177,8 +177,23 @@ src/
 │
 supabase/
 ├── schema.sql                  # Full DDL: 9 tables + RLS + triggers + indexes
-├── seed-personal.sql           # Owner's personal health activities (A1–A4 + supplements)
+├── seed-personal.sql           # Owner's personal health activities (A1-A4 + supplements)
 └── SETUP.md                    # Chinese deployment guide
+
+ios/                            # QuickTrack native widget project (see ios/CLAUDE.md)
+├── CLAUDE.md                   # Widget project architecture + conventions
+├── OUTLINE.md                  # Finalized decisions + phase plan
+├── API_CONTRACT.md             # Supabase REST + HealthKit query contracts
+└── QuickTrack/                 # Xcode project root
+    ├── QuickTrack/             # Host app target (SwiftUI)
+    │   ├── Models/             # Tracker, TrackerSummary, TrackerRegistry
+    │   ├── DataSources/        # TrackerDataSource protocol, SupabaseAdapter, HealthKitAdapter
+    │   ├── Views/              # SettingsView, TrackerListView, LoginView
+    │   └── Intents/            # LogEventIntent, RefreshSummaryIntent
+    ├── QuickTrackWidget/       # Widget extension target (WidgetKit)
+    │   ├── Widgets/            # Per-tracker widget definitions + TimelineProviders
+    │   └── WidgetViews/        # Small/Medium/Large SwiftUI views
+    └── Shared/                 # App Group shared code (config, cache, models)
 ```
 
 ---
@@ -697,7 +712,7 @@ External motivation through self-competition and narrative engagement.
 - [ ] Data visualization dashboard (XP curves, habit heatmap, streak history)
 - [ ] PWA support (Service Worker + manifest.json for mobile install)
 - [ ] Notification enhancement (habit reminders, streak warnings, blossom intervals)
-- [ ] iOS / macOS widget integration (owner building natively — needs API endpoint design)
+- [x] iOS / macOS widget integration → **QuickTrack** (see `ios/CLAUDE.md`)
 
 ### Phase 6 — Intelligence Layer
 - [ ] AI-powered personalization: smart task ordering based on completion history
@@ -711,23 +726,40 @@ External motivation through self-competition and narrative engagement.
 - [ ] Webhook integration (Discord/Slack notifications on quest complete)
 - [ ] Social layer: opt-in leaderboard, shared challenges
 
-### Widget Integration Points (for iOS/macOS native)
-When building native widgets, these Supabase queries provide widget data:
+### Widget Integration — QuickTrack (ios/)
+
+Native iOS + macOS widget project. Lives in `ios/` subdirectory of this repo. See `ios/CLAUDE.md` for full documentation.
+
+**Status**: Phase 0 complete (architecture + docs), Phase 1 next (Xcode project skeleton)
+
+**Key facts**:
+- Reads directly from existing Supabase tables via PostgREST — zero changes to QuestStar web code
+- 3 trackers: medication (`daily_habits`), QuestStar progress (`game_state` + `quests`), sleep (HealthKit)
+- Swift 6 + SwiftUI + WidgetKit + App Intents
+- Free Apple ID signing (7-day re-sign, no App Store)
+- Uses same Supabase URL/key as web project (stored in App Group UserDefaults)
+
+**Cross-project sync direction**:
+- Widget writes to Supabase → QuestStar web pulls on next page load (existing `useCloudSync` pull-on-login)
+- QuestStar web pushes to Supabase (2s debounce) → widget sees on next TimelineProvider refresh (15-30 min)
+- No real-time sync needed for personal use
+
+**Supabase queries used by widgets**:
 ```sql
--- Today's habit completion
-SELECT daily_checks FROM daily_habits WHERE user_id = ?;
+-- Medication: today's habit checks
+SELECT daily_checks, time_blocks FROM daily_habits WHERE user_id = ?;
 
--- Current XP + streak
-SELECT xp, streak FROM game_state WHERE user_id = ?;
+-- QuestStar: XP + streak
+SELECT xp, streak, last_active_date FROM game_state WHERE user_id = ?;
 
--- Active quests with next incomplete step
-SELECT id, name, steps FROM quests WHERE user_id = ?
-  AND steps @> '[{"done": false}]';
-
--- Today's blossom actions remaining
-SELECT today_log FROM blossom_progress WHERE user_id = ?;
+-- QuestStar: active quests with next step
+SELECT id, name, steps, deadline FROM quests WHERE user_id = ?;
 ```
-Widgets should use Supabase REST API directly with the user's session token.
+
+**Related docs**:
+- `ios/CLAUDE.md` — full architecture, conventions, and file structure
+- `ios/OUTLINE.md` — finalized decisions and phase plan
+- `ios/API_CONTRACT.md` — Supabase REST + HealthKit query contracts
 
 ---
 
@@ -756,3 +788,5 @@ Widgets should use Supabase REST API directly with the user's session token.
 11. **Supabase key formats** — Supabase recently changed from `eyJhbGci...` (legacy anon) to `sb_publishable_*` format. If `@supabase/supabase-js` doesn't recognize the new format, use the legacy key from the "Legacy anon, service_role API keys" tab.
 
 12. **Quest data shape mismatch** — localStorage uses `questType` (camelCase) but Supabase uses `quest_type` (snake_case). The `pushToCloud` and `pullFromCloud` functions handle this mapping. Any new quest fields must be mapped in both directions.
+
+13. **Widget ↔ Web sync gap** — QuickTrack iOS widget reads/writes Supabase directly. Web `useCloudSync` only pulls on login, so widget-written data (e.g., medication check-off) won't appear in web until next refresh. This is acceptable for personal use but documented in `ios/CLAUDE.md` for future improvement.

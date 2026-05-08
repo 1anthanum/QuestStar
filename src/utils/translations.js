@@ -426,6 +426,20 @@ const translations = {
     "reflect.update": "Update",
     "reflect.noEntry": "No entry for this day",
 
+    // ── Daily Planning ──
+    "planning.title": "Daily Planning",
+    "planning.subtitle": "Describe what you want to do — AI organizes by date",
+    "planning.placeholder": "Tell me your plans — what, when, priorities...\n\nExample: This week I want to finish the report by Wednesday, start exercising Tuesday and Thursday mornings, and prep for Friday's meeting.",
+    "planning.generate": "🤖 Organize with AI",
+    "planning.generating": "Thinking...",
+    "planning.regenerate": "🔄 Regenerate",
+    "planning.createQuests": "✓ Create {n} quests",
+    "planning.noResults": "No plans parsed — try describing more specifically.",
+    "planning.dateGroup": "📅 {date}",
+    "planning.error": "AI parsing failed — please try again.",
+    "planning.created": "{n} quests created!",
+    "planning.directions": "Directions",
+
     // ── Study Roadmap ──
     "section.roadmap": "Career Prep Roadmap",
     "roadmap.cardTitle": "Study Roadmap",
@@ -1043,6 +1057,20 @@ const translations = {
     "reflect.save": "保存复盘",
     "reflect.update": "更新",
     "reflect.noEntry": "当天没有记录",
+
+    // ── 每日规划 ──
+    "planning.title": "每日规划",
+    "planning.subtitle": "描述你想做什么——AI 按日期整理",
+    "planning.placeholder": "说说你的计划——做什么、什么时候、优先级...\n\n例如：这周三之前写完报告，周二和周四早上运动，周五准备开会。",
+    "planning.generate": "🤖 AI 整理",
+    "planning.generating": "思考中...",
+    "planning.regenerate": "🔄 重新生成",
+    "planning.createQuests": "✓ 创建 {n} 个任务",
+    "planning.noResults": "没有解析出计划——试试更具体的描述。",
+    "planning.dateGroup": "📅 {date}",
+    "planning.error": "AI 解析失败——请重试。",
+    "planning.created": "已创建 {n} 个任务！",
+    "planning.directions": "方向",
 
     // ── Study Roadmap ──
     "section.roadmap": "职业备战路线图",
