@@ -149,6 +149,7 @@ export default function BackpackPanel({
   streak,
   onClose,
   theme,
+  onOpenBlossom,
 }) {
   const { t, lang } = useLanguage();
   const [tab, setTab] = useState("skills"); // "skills" | "lore" | "vouchers"
@@ -275,7 +276,7 @@ export default function BackpackPanel({
           {/* Skills Tab */}
           {tab === "skills" && (
             skillChips.length === 0 ? (
-              <EmptyState icon="🔧" text={t("backpack.emptySkills")} hint={t("backpack.emptySkillsHint")} />
+              <EmptyState type="skills" icon="🔧" text={t("backpack.emptySkills")} hint={t("backpack.emptySkillsHint")} onCta={onOpenBlossom} ctaLabel={t("backpack.exploreBlossomBtn")} />
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 {skillChips.map((node) => (
@@ -293,7 +294,7 @@ export default function BackpackPanel({
           {/* Lore Tab */}
           {tab === "lore" && (
             loreCards.length === 0 ? (
-              <EmptyState icon="📜" text={t("backpack.emptyLore")} hint={t("backpack.emptyLoreHint")} />
+              <EmptyState type="lore" icon="📜" text={t("backpack.emptyLore")} hint={t("backpack.emptyLoreHint")} />
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 {loreCards.map((card) => (
@@ -337,12 +338,34 @@ export default function BackpackPanel({
   );
 }
 
-function EmptyState({ icon, text, hint }) {
+function EmptyState({ icon, text, hint, type, onCta, ctaLabel }) {
   return (
-    <div className="text-center py-12">
-      <div className="text-4xl mb-3">{icon}</div>
+    <div className={`text-center py-12 rounded-2xl ${type === "skills" ? "bg-gradient-to-br from-indigo-50/40 to-purple-50/30" : type === "lore" ? "bg-gradient-to-br from-amber-50/40 to-orange-50/30" : ""}`}>
+      {type === "skills" ? (
+        <div className="mb-4 flex justify-center">
+          <div className="sleeping-character relative">
+            <span className="text-5xl">🧘</span>
+            <div className="zzz-floats">
+              <span className="zzz">z</span>
+              <span className="zzz">z</span>
+              <span className="zzz">z</span>
+            </div>
+          </div>
+        </div>
+      ) : type === "lore" ? (
+        <div className="mb-4 flex justify-center">
+          <span className="text-5xl treasure-float">🗺️</span>
+        </div>
+      ) : (
+        <div className="text-4xl mb-3">{icon}</div>
+      )}
       <div className="text-sm text-gray-500 font-medium">{text}</div>
-      {hint && <div className="text-xs text-gray-400 mt-1">{hint}</div>}
+      {hint && <div className="text-xs text-gray-400 mt-1.5">{hint}</div>}
+      {onCta && ctaLabel && (
+        <button onClick={onCta} className="mt-4 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold rounded-xl transition-all hover:scale-105 active:scale-95 shadow-md shadow-indigo-200/50">
+          {ctaLabel}
+        </button>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useGameState } from "./hooks/useGameState";
 import { useAI } from "./hooks/useAI";
 import { useTheme } from "./hooks/useTheme";
@@ -33,6 +33,11 @@ import EnergyPanel from "./components/EnergyPanel";
 import GhostRaceIndicator from "./components/GhostRaceIndicator";
 import BossRush from "./components/BossRush";
 import DailyPlanningModal from "./components/DailyPlanningModal";
+import CalendarPanel from "./components/CalendarPanel";
+import FlyingXP from "./components/FlyingXP";
+import AccountabilityPact from "./components/AccountabilityPact";
+import ParallelTracks from "./components/ParallelTracks";
+import EnergyDashboard from "./components/EnergyDashboard";
 import AuthModal from "./components/AuthModal";
 import { XpPopup, LevelUpOverlay, QuestCompleteOverlay } from "./components/Celebrations";
 import { getNextRecommendations } from "./utils/guidanceEngine";
@@ -45,10 +50,12 @@ import { useGhostRace } from "./hooks/useGhostRace";
 import { useRewardSystem } from "./hooks/useRewardSystem";
 import { useKnowledgeLore } from "./hooks/useKnowledgeLore";
 import useBlossomMode from "./hooks/useBlossomMode";
+import useAccountabilityPact from "./hooks/useAccountabilityPact";
+import useParallelTracks from "./hooks/useParallelTracks";
 
 export default function App() {
   const auth = useAuth();
-  const { syncStatus } = useCloudSync();
+  const { syncStatus, forcePull } = useCloudSync();
   const game = useGameState();
   const ai = useAI();
   const themeCtx = useTheme();
@@ -62,9 +69,14 @@ export default function App() {
   const [onboardingDone, setOnboardingDone] = useLocalStorage("qt_onboarding_done", false);
   const [appMode, setAppMode] = useLocalStorage("qt_app_mode", "study");
   const energy = useEnergyProfile();
+  const pact = useAccountabilityPact(rewards.wallet, rewards.addToWallet, rewards.spendFromWallet);
+
   const [showLauncher, setShowLauncher] = useState(false);
   const [showEnergyPanel, setShowEnergyPanel] = useState(false);
   const [showBossRush, setShowBossRush] = useState(false);
+  const [showPactPanel, setShowPactPanel] = useState(false);
+  const [showParallelTracks, setShowParallelTracks] = useState(false);
+  const [showEnergyDashboard, setShowEnergyDashboard] = useState(false);
 
   // ── Mode-based quest filtering ──
   const modePrefix = APP_MODES[appMode]?.tagPrefix || "Stage ";
@@ -74,6 +86,7 @@ export default function App() {
 
   // Smart Launcher — anti-paralysis + rescue mode (feeds from energy profile)
   const launcher = useSmartLauncher(displayQuests, energy.profile);
+  const parallelTracks = useParallelTracks(displayQuests);
 
   const [activeQuestId, setActiveQuestId] = useState(null);
   const [view, setView] = useState("board"); // "board" | "detail"
@@ -97,9 +110,14 @@ export default function App() {
   const [hyperfocusQuest, setHyperfocusQuest] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDailyPlanning, setShowDailyPlanning] = useState(false);
+  const [showCalendarPanel, setShowCalendarPanel] = useState(false);
+  const [flyingXp, setFlyingXp] = useState(null);
 
   // Deadline reminder system
   useDeadlineReminder(game.quests);
+
+  // Enforce pact deadline on app load
+  useEffect(() => { pact.enforcePactDeadline(); }, []);
 
   // Celebration states
   const [xpPopup, setXpPopup] = useState({ visible: false, amount: 0 });
@@ -112,6 +130,17 @@ export default function App() {
   const showXpGain = useCallback((amount) => {
     setXpPopup({ visible: true, amount });
     setTimeout(() => setXpPopup({ visible: false, amount: 0 }), 1500);
+    // Trigger XP bar absorption pulse
+    const bar = document.querySelector("[data-xp-bar]");
+    if (bar) { bar.classList.add("xp-absorb"); setTimeout(() => bar.classList.remove("xp-absorb"), 600); }
+  }, []);
+
+  const handleStepBurst = useCallback(({ x, y, amount }) => {
+    const bar = document.querySelector("[data-xp-bar]");
+    if (bar && amount > 0) {
+      const rect = bar.getBoundingClientRect();
+      setFlyingXp({ fromX: x, fromY: y, toX: rect.left + rect.width / 2, toY: rect.top + rect.height / 2, amount });
+    }
   }, []);
 
   const handleToggleStep = useCallback(
@@ -123,8 +152,15 @@ export default function App() {
         friction.completeStep(stepId);
         // Ghost Race: record completion for timeline
         ghostRace.recordCompletion(stepId, questId);
+        // Accountability Pact: record step + check win
+        pact.recordStepCompletion();
+        const pactResult = pact.checkPactWin();
+        if (pactResult) {
+          setTimeout(() => setSurprisePopup(pactResult.totalReturn), 1400);
+        }
 
-        showXpGain(result.earnedXp);
+        // Delay XP popup to sync with FlyingXP arc animation (1s)
+        setTimeout(() => showXpGain(result.earnedXp), 1000);
 
         // Reward system: random surprise + daily step tracking
         const { surpriseAmount } = rewards.onStepComplete();
@@ -170,7 +206,7 @@ export default function App() {
         setTimeout(() => setQuestCompleteOverlay(result.questJustCompleted), 800);
       }
     },
-    [game, rewards, lore, blossom, friction, ghostRace, showXpGain]
+    [game, rewards, lore, blossom, friction, ghostRace, pact, showXpGain]
   );
 
   const handleAddQuest = useCallback(
@@ -247,6 +283,18 @@ export default function App() {
         />
       )}
 
+      {/* Flying XP arc animation */}
+      {flyingXp && (
+        <FlyingXP
+          fromX={flyingXp.fromX}
+          fromY={flyingXp.fromY}
+          toX={flyingXp.toX}
+          toY={flyingXp.toY}
+          amount={flyingXp.amount}
+          onDone={() => setFlyingXp(null)}
+        />
+      )}
+
       {/* Modals */}
       {showAddModal && <AddQuestModal onAdd={handleAddQuest} onClose={() => setShowAddModal(false)} />}
       {showAIModal && <AIDecomposeModal onAdd={handleAddQuest} onClose={() => setShowAIModal(false)} ai={ai} />}
@@ -256,6 +304,10 @@ export default function App() {
       {showChallenge && <ChallengeMode onClose={() => setShowChallenge(false)} theme={theme} />}
       {showReflection && <DailyReflection onClose={() => setShowReflection(false)} theme={theme} appMode={appMode} />}
       {showDailyPlanning && <DailyPlanningModal onAdd={handleAddQuest} onClose={() => setShowDailyPlanning(false)} ai={ai} theme={theme} />}
+      {showCalendarPanel && <CalendarPanel quests={displayQuests} onAdd={handleAddQuest} onClose={() => setShowCalendarPanel(false)} theme={theme} />}
+      {showPactPanel && <AccountabilityPact pact={pact} wallet={rewards.wallet} onClose={() => setShowPactPanel(false)} theme={theme} />}
+      {showParallelTracks && <ParallelTracks parallelTracks={parallelTracks} quests={displayQuests} onToggleStep={handleToggleStep} onClose={() => setShowParallelTracks(false)} theme={theme} />}
+      {showEnergyDashboard && <EnergyDashboard energy={energy} quests={displayQuests} onClose={() => setShowEnergyDashboard(false)} theme={theme} />}
       {showRoadmap && <StudyRoadmap onClose={() => setShowRoadmap(false)} theme={theme} ai={ai} />}
       {showTimeline && (
         <Timeline
@@ -324,6 +376,7 @@ export default function App() {
           streak={game.streak}
           onClose={() => setShowBackpackPanel(false)}
           theme={theme}
+          onOpenBlossom={() => { setShowBackpackPanel(false); setShowBlossomPanel(true); }}
         />
       )}
       {hyperfocusQuest && (
@@ -381,6 +434,7 @@ export default function App() {
         onOpenSettings={() => setShowSettings(true)}
         auth={auth}
         syncStatus={syncStatus}
+        onForcePull={forcePull}
         onOpenAuth={() => setShowAuthModal(true)}
       />
 
@@ -585,7 +639,12 @@ export default function App() {
               onOpenChallenge={() => setShowChallenge(true)}
               onOpenReflection={() => setShowReflection(true)}
               onOpenDailyPlanning={() => setShowDailyPlanning(true)}
+              onOpenCalendar={() => setShowCalendarPanel(true)}
               onOpenRoadmap={() => setShowRoadmap(true)}
+              onOpenPact={() => setShowPactPanel(true)}
+              onOpenParallelTracks={() => setShowParallelTracks(true)}
+              onOpenEnergyDashboard={() => setShowEnergyDashboard(true)}
+              pactProgress={pact.getPactProgress()}
               nextStep={nextStep}
               activeQuest={activeQuest}
               theme={theme}
@@ -604,6 +663,8 @@ export default function App() {
               theme={theme}
               onStartStep={friction.startStep}
               getStepFriction={friction.getQuestFriction}
+              onStepBurst={handleStepBurst}
+              onReorderSteps={(questId, newSteps) => game.updateQuest(questId, { steps: newSteps })}
             />
           )}
         </div>

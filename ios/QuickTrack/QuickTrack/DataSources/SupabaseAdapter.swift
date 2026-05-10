@@ -56,14 +56,14 @@ struct MedicationAdapter: TrackerDataSource {
 
     func fetchSummary() async throws -> TrackerSummary {
         let userId = AppGroupManager.shared.supabaseUserId ?? ""
-        let row: DailyHabitsRow = try await client.fetchOne(
+        let row: DailyHabitsRow? = try await client.fetchOneOptional(
             table: "daily_habits",
             query: "select=daily_checks,time_blocks&user_id=eq.\(userId)"
         )
 
         let todayKey = Self.todayKey()
-        let todayChecks = row.daily_checks?[todayKey] ?? [:]
-        let activities = Self.resolveActivities(from: row.time_blocks)
+        let todayChecks = row?.daily_checks?[todayKey] ?? [:]
+        let activities = Self.resolveActivities(from: row?.time_blocks)
         let checkedCount = activities.filter { todayChecks[$0.id] == true }.count
         let totalCount = activities.count
         let unchecked = activities.filter { todayChecks[$0.id] != true }
@@ -71,7 +71,7 @@ struct MedicationAdapter: TrackerDataSource {
         // 7-day trend: completion rates for last 7 days
         let trend = (0..<7).reversed().map { daysAgo -> Double in
             let key = Self.dateKey(daysAgo: daysAgo)
-            let checks = row.daily_checks?[key] ?? [:]
+            let checks = row?.daily_checks?[key] ?? [:]
             guard totalCount > 0 else { return 0 }
             return Double(checks.count) / Double(totalCount)
         }
@@ -134,7 +134,7 @@ struct QuestStarAdapter: TrackerDataSource {
     func fetchSummary() async throws -> TrackerSummary {
         let userId = AppGroupManager.shared.supabaseUserId ?? ""
 
-        async let gameState: GameStateRow = client.fetchOne(
+        async let gameState: GameStateRow? = client.fetchOneOptional(
             table: "game_state",
             query: "select=xp,streak,last_active_date&user_id=eq.\(userId)"
         )
@@ -146,12 +146,14 @@ struct QuestStarAdapter: TrackerDataSource {
         let state = try await gameState
         let allQuests = try await quests
 
-        let level = Config.level(for: state.xp)
-        let progress = Config.levelProgress(for: state.xp)
+        let xp = state?.xp ?? 0
+        let streak = state?.streak ?? 0
+        let level = Config.level(for: xp)
+        let progress = Config.levelProgress(for: xp)
 
         // Find most urgent quest with incomplete steps
         let today = Self.todayString()
-        let isActiveToday = state.last_active_date == today
+        let isActiveToday = state?.last_active_date == today
         let hour = Calendar.current.component(.hour, from: Date())
         let streakAtRisk = !isActiveToday && hour >= 18
 
@@ -162,19 +164,16 @@ struct QuestStarAdapter: TrackerDataSource {
         let nextStep = urgentQuest?.steps.first { !$0.done }
 
         let subtitle: String
-        if streakAtRisk {
+        if streakAtRisk && streak > 0 {
             subtitle = "Streak at risk! Do 1 step now"
         } else {
-            subtitle = "Streak: \(state.streak) days"
+            subtitle = "Streak: \(streak) days"
         }
-
-        let totalSteps = allQuests.flatMap(\.steps).count
-        let doneSteps = allQuests.flatMap(\.steps).filter(\.done).count
 
         return TrackerSummary(
             trackerId: trackerId,
-            currentValue: Double(state.xp),
-            label: "Lv.\(level.index) \(level.name) | \(state.xp) XP",
+            currentValue: Double(xp),
+            label: "Lv.\(level.index) \(level.name) | \(xp) XP",
             subtitle: subtitle,
             progress: progress,
             trend: nil,
@@ -186,6 +185,56 @@ struct QuestStarAdapter: TrackerDataSource {
                     icon: "arrow.right.circle.fill",
                     isCompleted: false
                 )]
+            }
+        )
+    }
+
+    private static func todayString() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: Date())
+    }
+}
+
+// MARK: - Water Adapter
+
+struct WaterAdapter: TrackerDataSource {
+    let trackerId = "water"
+
+    private let client = SupabaseClient.shared
+
+    static let intervals: [(id: String, label: String, icon: String)] = [
+        ("water_morning", "早上", "sunrise.fill"),
+        ("water_afternoon", "下午", "sun.max.fill"),
+        ("water_evening", "晚上", "moon.fill")
+    ]
+
+    func fetchSummary() async throws -> TrackerSummary {
+        let userId = AppGroupManager.shared.supabaseUserId ?? ""
+        let row: DailyHabitsRow? = try await client.fetchOneOptional(
+            table: "daily_habits",
+            query: "select=daily_checks&user_id=eq.\(userId)"
+        )
+
+        let todayKey = Self.todayString()
+        let todayChecks = row?.daily_checks?[todayKey] ?? [:]
+        let checkedCount = Self.intervals.filter { todayChecks[$0.id] == true }.count
+
+        return TrackerSummary(
+            trackerId: trackerId,
+            currentValue: Double(checkedCount),
+            label: "\(checkedCount)/3",
+            subtitle: checkedCount == 3 ? "今日饮水完成!" : "记得喝水",
+            progress: Double(checkedCount) / 3.0,
+            trend: nil,
+            updatedAt: Date(),
+            actionItems: Self.intervals.map { interval in
+                ActionItem(
+                    id: interval.id,
+                    label: interval.label,
+                    icon: "drop.fill",
+                    isCompleted: todayChecks[interval.id] == true
+                )
             }
         )
     }

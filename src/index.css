@@ -317,3 +317,128 @@
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ════════════════════════════════════════════
+   Flying XP — arc from checkbox to Header bar
+   ════════════════════════════════════════════ */
+.flying-xp {
+  position: fixed;
+  z-index: 55;
+  pointer-events: none;
+  animation: xp-arc-flight 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+@keyframes xp-arc-flight {
+  0%   { transform: translate(0, 0) scale(1); opacity: 1;
+         filter: drop-shadow(0 2px 8px rgba(245,158,11,0.5)); }
+  40%  { transform: translate(calc(var(--to-x) * 0.35), calc(var(--to-y) * 0.55)) scale(1.35);
+         opacity: 1; filter: drop-shadow(0 4px 14px rgba(245,158,11,0.7)); }
+  100% { transform: translate(var(--to-x), var(--to-y)) scale(0.4);
+         opacity: 0; filter: drop-shadow(0 0 0 rgba(245,158,11,0)); }
+}
+
+/* XP bar absorption pulse */
+.xp-absorb {
+  animation: xp-absorb-pulse 0.6s ease-out !important;
+}
+@keyframes xp-absorb-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(245,158,11,0.5); }
+  50%  { box-shadow: 0 0 14px 4px rgba(245,158,11,0.7); }
+  100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+}
+
+/* ════════════════════════════════════════════
+   Empty States — character idle animations
+   ════════════════════════════════════════════ */
+
+/* Sleeping character breathing */
+.sleeping-character {
+  position: relative;
+  display: inline-block;
+  animation: char-breathe 4s ease-in-out infinite;
+}
+@keyframes char-breathe {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50%      { transform: scale(1.06) translateY(-2px); }
+}
+
+/* Floating Z letters */
+.zzz-floats {
+  position: absolute;
+  top: -16px;
+  right: -28px;
+  pointer-events: none;
+}
+.zzz {
+  position: absolute;
+  font-size: 11px;
+  font-weight: 800;
+  color: #94a3b8;
+  animation: zzz-float 1.8s ease-in-out infinite;
+}
+.zzz:nth-child(1) { left: 0; top: 0; animation-delay: 0s; font-size: 10px; }
+.zzz:nth-child(2) { left: 14px; top: -6px; animation-delay: 0.35s; font-size: 12px; }
+.zzz:nth-child(3) { left: 30px; top: -12px; animation-delay: 0.7s; font-size: 14px; }
+@keyframes zzz-float {
+  0%   { opacity: 0; transform: translate(-4px, 0) scale(0.7); }
+  40%  { opacity: 0.8; transform: translate(2px, -8px) scale(1); }
+  100% { opacity: 0; transform: translate(6px, -20px) scale(0.6); }
+}
+
+/* Floating treasure map */
+.treasure-float {
+  display: inline-block;
+  animation: treasure-bob 3.5s ease-in-out infinite;
+}
+@keyframes treasure-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  30%      { transform: translateY(-10px) rotate(2deg); }
+  60%      { transform: translateY(-6px) rotate(-1.5deg); }
+}
+
+/* Dormant flame (streak=0) */
+.dormant-flame {
+  display: inline-block;
+  opacity: 0.45;
+  filter: grayscale(0.4);
+  animation: flame-dim 2.5s ease-in-out infinite;
+}
+@keyframes flame-dim {
+  0%, 100% { transform: scale(1); opacity: 0.45; }
+  50%      { transform: scale(0.92); opacity: 0.3; }
+}
+
+/* ── Energy Dashboard ── */
+.energy-needle {
+  animation: needle-pulse 2s ease-in-out infinite;
+}
+@keyframes needle-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+
+/* ── Pact Progress ── */
+.pact-glow {
+  animation: pact-glow-pulse 2s ease-in-out infinite;
+}
+@keyframes pact-glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3); }
+  50%      { box-shadow: 0 0 12px 4px rgba(245, 158, 11, 0.5); }
+}
+
+.pact-win {
+  animation: pact-celebrate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes pact-celebrate {
+  0%   { transform: scale(0.8); opacity: 0; }
+  50%  { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ── Track Switch ── */
+.track-switch {
+  animation: track-slide 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes track-slide {
+  0%   { transform: translateX(-10px); opacity: 0.5; }
+  100% { transform: translateX(0); opacity: 1; }
+}

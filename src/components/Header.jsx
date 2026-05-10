@@ -9,7 +9,7 @@ import { useLanguage } from "../hooks/useLanguage";
  * - 紧凑 stat 胶囊
  * - SVG 齿轮图标
  */
-export default function Header({ levelInfo, xp, streak, completedSteps, theme, onOpenSettings, auth, syncStatus, onOpenAuth }) {
+export default function Header({ levelInfo, xp, streak, completedSteps, theme, onOpenSettings, auth, syncStatus, onForcePull, onOpenAuth }) {
   const { t } = useLanguage();
   // XP 数字跳动
   const [displayXp, setDisplayXp] = useState(xp);
@@ -91,7 +91,7 @@ export default function Header({ levelInfo, xp, streak, completedSteps, theme, o
 
               {/* XP Bar */}
               <div className="flex items-center gap-2.5">
-                <div className="relative flex-1 max-w-56 h-2.5 rounded-full bg-gray-100/80 overflow-hidden">
+                <div data-xp-bar className="relative flex-1 max-w-56 h-2.5 rounded-full bg-gray-100/80 overflow-hidden">
                   <div
                     className="absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out"
                     style={{ width: `${pct}%`, background: theme?.btnGrad || `linear-gradient(135deg, ${accent}, ${accent})` }}
@@ -127,9 +127,9 @@ export default function Header({ levelInfo, xp, streak, completedSteps, theme, o
               </div>
 
               {/* Streak */}
-              <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-orange-50/80">
-                <span className="text-xs">🔥</span>
-                <span className="text-sm font-black text-orange-500 tabular-nums">{streak}</span>
+              <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-orange-50/80" title={streak === 0 ? t("header.streakDormant") : `${streak} ${t("header.streakLabel")}`}>
+                <span className={`text-xs${streak === 0 ? " dormant-flame" : ""}`}>🔥</span>
+                <span className={`text-sm font-black tabular-nums ${streak === 0 ? "text-orange-300" : "text-orange-500"}`}>{streak}</span>
               </div>
 
               {/* Completed */}
@@ -166,6 +166,23 @@ export default function Header({ levelInfo, xp, streak, completedSteps, theme, o
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                     <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Sync pull button (authenticated only) */}
+              {auth?.isAuthenticated && onForcePull && (
+                <button
+                  onClick={onForcePull}
+                  disabled={syncStatus === "syncing"}
+                  className={`ml-0.5 w-9 h-9 rounded-xl bg-gray-100/50 hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:scale-110 active:scale-90 transition-all duration-300 ${syncStatus === "syncing" ? "animate-pulse" : ""}`}
+                  title={t("header.sync") || "Sync"}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                    <path d="M16 21h5v-5" />
                   </svg>
                 </button>
               )}

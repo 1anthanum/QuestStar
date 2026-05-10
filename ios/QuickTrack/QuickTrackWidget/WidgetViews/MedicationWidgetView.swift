@@ -14,10 +14,10 @@ struct MedicationWidgetView: View {
         case .needsLogin:
             WidgetNeedsLoginView(icon: "pill.fill", color: color)
         case .loaded(let summary):
-            contentView(summary: summary, stale: false)
+            contentView(summary: summary)
         case .cached(let summary, let age):
             VStack(spacing: 0) {
-                contentView(summary: summary, stale: true)
+                contentView(summary: summary)
                 StalenessBanner(age: age)
             }
         case .error(let message):
@@ -26,7 +26,7 @@ struct MedicationWidgetView: View {
     }
 
     @ViewBuilder
-    private func contentView(summary: TrackerSummary, stale: Bool) -> some View {
+    private func contentView(summary: TrackerSummary) -> some View {
         switch family {
         case .systemSmall:
             smallView(summary: summary)
@@ -47,19 +47,15 @@ struct MedicationWidgetView: View {
                     WidgetProgressRing(progress: progress, color: color, size: 36)
                 }
             }
-
             Text(summary.label)
                 .font(.headline)
-
             if let subtitle = summary.subtitle {
                 Text(subtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-
             Spacer(minLength: 0)
-
             if let trend = summary.trend {
                 Sparkline(data: trend, color: color)
                     .frame(height: 20)
@@ -67,11 +63,10 @@ struct MedicationWidgetView: View {
         }
     }
 
-    // MARK: - Medium
+    // MARK: - Medium (with interactive check-off buttons)
 
     private func mediumView(summary: TrackerSummary) -> some View {
         HStack(spacing: 12) {
-            // Left: metric + progress
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Image(systemName: "pill.fill")
@@ -79,18 +74,14 @@ struct MedicationWidgetView: View {
                     Text("Medication")
                         .font(.caption.bold())
                 }
-
                 Text(summary.label)
                     .font(.title3.bold())
-
                 if let subtitle = summary.subtitle {
                     Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-
                 Spacer(minLength: 0)
-
                 if let trend = summary.trend {
                     Sparkline(data: trend, color: color)
                         .frame(height: 20)
@@ -99,21 +90,25 @@ struct MedicationWidgetView: View {
 
             Divider()
 
-            // Right: action items
-            VStack(alignment: .leading, spacing: 4) {
+            // Right: tap-to-check buttons (iOS 17+ interactive widget)
+            VStack(alignment: .leading, spacing: 3) {
                 if let items = summary.actionItems, !items.isEmpty {
-                    ForEach(items.prefix(5)) { item in
-                        HStack(spacing: 4) {
-                            Image(systemName: "circle")
-                                .font(.system(size: 8))
-                                .foregroundStyle(color)
-                            Text(item.label)
-                                .font(.caption2)
-                                .lineLimit(1)
+                    ForEach(items.prefix(4)) { item in
+                        Button(intent: LogEventIntent(activityId: item.id, activityLabel: item.label)) {
+                            HStack(spacing: 4) {
+                                Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(item.isCompleted ? .secondary : color)
+                                Text(item.label)
+                                    .font(.caption2)
+                                    .foregroundStyle(item.isCompleted ? .secondary : .primary)
+                                    .lineLimit(1)
+                            }
                         }
+                        .buttonStyle(.plain)
                     }
-                    if items.count > 5 {
-                        Text("+\(items.count - 5) more")
+                    if items.count > 4 {
+                        Text("+\(items.count - 4) more")
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                     }

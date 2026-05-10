@@ -1,11 +1,14 @@
 import SwiftUI
+import AuthenticationServices
 
 struct LoginView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var isLoading = false
+    @State private var isOAuthLoading = false
     @State private var errorMessage: String?
     @State private var isLoggedIn = AppGroupManager.shared.isAuthenticated
+    @State private var webAuthSession: ASWebAuthenticationSession?
 
     var body: some View {
         if isLoggedIn {
@@ -46,6 +49,35 @@ struct LoginView: View {
             Text("Supabase Login")
                 .font(.headline)
 
+            // GitHub OAuth button
+            Button {
+                loginWithGitHub()
+            } label: {
+                HStack(spacing: 8) {
+                    if isOAuthLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "chevron.left.forwardslash.chevron.right")
+                    }
+                    Text("Sign in with GitHub")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.black)
+            .disabled(isOAuthLoading || isLoading)
+
+            // Divider
+            HStack {
+                Rectangle().frame(height: 1).foregroundStyle(.secondary.opacity(0.3))
+                Text("or")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Rectangle().frame(height: 1).foregroundStyle(.secondary.opacity(0.3))
+            }
+
+            // Email/password fields
             TextField("Email", text: $email)
                 .textContentType(.emailAddress)
                 .autocorrectionDisabled()
@@ -76,7 +108,7 @@ struct LoginView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .disabled(email.isEmpty || password.isEmpty || isLoading)
+            .disabled(email.isEmpty || password.isEmpty || isLoading || isOAuthLoading)
         }
         .padding()
     }
@@ -97,4 +129,71 @@ struct LoginView: View {
 
         isLoading = false
     }
+
+    private func loginWithGitHub() {
+        isOAuthLoading = true
+        errorMessage = nil
+
+        do {
+            let authURL = try SupabaseClient.shared.gitHubOAuthURL()
+
+            let session = ASWebAuthenticationSession(
+                url: authURL,
+                callbackURLScheme: SupabaseClient.callbackScheme
+            ) { callbackURL, error in
+                Task { @MainActor in
+                    defer { isOAuthLoading = false }
+
+                    if let error = error as? ASWebAuthenticationSessionError,
+                       error.code == .canceledLogin {
+                        return
+                    }
+
+                    if let error {
+                        errorMessage = error.localizedDescription
+                        return
+                    }
+
+                    guard let callbackURL else {
+                        errorMessage = "No callback received"
+                        return
+                    }
+
+                    do {
+                        try await SupabaseClient.shared.handleOAuthCallback(callbackURL)
+                        isLoggedIn = true
+                    } catch {
+                        errorMessage = error.localizedDescription
+                    }
+                }
+            }
+
+            session.prefersEphemeralWebBrowserSession = false
+            #if os(iOS)
+            session.presentationContextProvider = OAuthPresentationContext.shared
+            #endif
+            session.start()
+
+            webAuthSession = session
+        } catch {
+            errorMessage = error.localizedDescription
+            isOAuthLoading = false
+        }
+    }
 }
+
+// MARK: - Presentation Context (iOS)
+
+#if os(iOS)
+class OAuthPresentationContext: NSObject, ASWebAuthenticationPresentationContextProviding {
+    static let shared = OAuthPresentationContext()
+
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = scene.windows.first else {
+            return ASPresentationAnchor()
+        }
+        return window
+    }
+}
+#endif

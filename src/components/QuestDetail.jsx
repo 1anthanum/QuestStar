@@ -1,4 +1,6 @@
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useCallback } from "react";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CATEGORIES, XP_CONFIG, ANCHOR_LAYERS } from "../utils/constants";
 import { useLanguage } from "../hooks/useLanguage";
 import { predictCompletion, formatPrediction } from "../utils/timePredictor";
@@ -39,8 +41,23 @@ function deadlineBadge(dateStr, isDone, t, lang) {
   return <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 ml-2">📅 {formatted}</span>;
 }
 
-export default function QuestDetail({ quest, streak, onToggleStep, onDelete, onFocus, theme, onStartStep, getStepFriction }) {
+export default function QuestDetail({ quest, streak, onToggleStep, onDelete, onFocus, theme, onStartStep, getStepFriction, onStepBurst, onReorderSteps }) {
   const { t, lang } = useLanguage();
+
+  // Drag-and-drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  const handleDragEnd = useCallback((event) => {
+    const { active, over } = event;
+    if (active.id !== over?.id && onReorderSteps) {
+      const oldIndex = quest.steps.findIndex((s) => s.id === active.id);
+      const newIndex = quest.steps.findIndex((s) => s.id === over.id);
+      const reordered = arrayMove(quest.steps, oldIndex, newIndex);
+      onReorderSteps(quest.id, reordered);
+    }
+  }, [quest, onReorderSteps]);
   const cat = CATEGORIES[quest.category] || CATEGORIES.work;
   const done = quest.steps.filter((s) => s.done).length;
   const total = quest.steps.length;
@@ -187,6 +204,7 @@ export default function QuestDetail({ quest, streak, onToggleStep, onDelete, onF
                   index={idx}
                   total={total}
                   onToggle={() => onToggleStep(quest.id, step.id)}
+                  onStepBurst={onStepBurst}
                 />
               );
             });
@@ -230,17 +248,23 @@ export default function QuestDetail({ quest, streak, onToggleStep, onDelete, onF
           )}
         </div>
       ) : (
-        <div className="space-y-2 stagger-children">
-          {quest.steps.map((step, i) => (
-            <StepItem
-              key={step.id}
-              step={step}
-              index={i}
-              total={total}
-              onToggle={() => onToggleStep(quest.id, step.id)}
-            />
-          ))}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={quest.steps.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2 stagger-children pl-5">
+              {quest.steps.map((step, i) => (
+                <StepItem
+                  key={step.id}
+                  step={step}
+                  index={i}
+                  total={total}
+                  onToggle={() => onToggleStep(quest.id, step.id)}
+                  onStepBurst={onStepBurst}
+                  sortable={!!onReorderSteps}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* ── Friction Calibrator summary ── */}

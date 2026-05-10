@@ -114,6 +114,21 @@ export const REWARD_CONFIG = {
 };
 
 // ═══════════════════════════════════════════
+// Accountability Pact Config
+// ═══════════════════════════════════════════
+
+export const PACT_CONFIG = {
+  minStake: 1,
+  maxStake: 50,
+  defaultStake: 5,
+  defaultTargetSteps: 5,
+  defaultDurationDays: 3,
+  maxDurationDays: 14,
+  winBonus: 5, // flat $5 bonus on successful pact
+  historyLimit: 20,
+};
+
+// ═══════════════════════════════════════════
 // AI Config — re-exported from aiProviders.js
 // ═══════════════════════════════════════════
 

@@ -13,7 +13,7 @@ import MathText from "./MathText";
 import { getCurrentSeason } from "../utils/narrativeEngine";
 import { useLanguage } from "../hooks/useLanguage";
 
-export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDeleteQuest, onAddQuest, onOpenSkillTree, onOpenChallenge, onOpenReflection, onOpenDailyPlanning, onOpenRoadmap, nextStep, activeQuest, theme, ai, appMode }) {
+export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDeleteQuest, onAddQuest, onOpenSkillTree, onOpenChallenge, onOpenReflection, onOpenDailyPlanning, onOpenCalendar, onOpenRoadmap, onOpenPact, onOpenParallelTracks, onOpenEnergyDashboard, pactProgress, nextStep, activeQuest, theme, ai, appMode }) {
   const { t, lang } = useLanguage();
   const season = useMemo(() => getCurrentSeason(lang), [lang]);
   const accent = theme?.accent || "#6366f1";
@@ -213,7 +213,7 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDel
           icon="📝"
           accent={accent}
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Daily Planning Card */}
             <div
               onClick={onOpenDailyPlanning}
@@ -231,10 +231,87 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDel
                 </div>
               </div>
             </div>
+            {/* Calendar Card */}
+            <div
+              onClick={onOpenCalendar}
+              className="cursor-pointer rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.005] active:scale-[0.995] border bg-gradient-to-br from-cyan-500/[0.08] to-emerald-500/[0.04] border-cyan-500/10 hover:from-cyan-500/[0.12]"
+            >
+              <div className="px-5 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📅</span>
+                  <div>
+                    <div className="text-sm font-bold text-gray-700">{t("calendar.title")}</div>
+                    <div className="text-[11px] text-gray-400">
+                      {lang === "zh" ? "习惯 · 心情 · 截止日" : "Habits · Moods · Deadlines"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
             <ReflectionCard onClick={onOpenReflection} theme={theme} appMode={appMode} />
           </div>
         </CollapsibleSection>
       )}
+
+      {/* ══════════════════════════════════════ */}
+      {/* ── BEHAVIORAL TOOLS (both modes) ──  */}
+      {/* ══════════════════════════════════════ */}
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+        {/* Accountability Pact Card */}
+        <div
+          onClick={onOpenPact}
+          className="cursor-pointer rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.005] active:scale-[0.995] border bg-gradient-to-br from-amber-500/[0.08] to-orange-500/[0.04] border-amber-500/10"
+        >
+          <div className="px-4 py-3.5 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">🤝</span>
+              <div>
+                <div className="text-xs font-bold text-gray-700">{t("pact.cardTitle")}</div>
+                {pactProgress ? (
+                  <div className="text-[10px] text-amber-600 font-semibold">
+                    {pactProgress.completedSteps}/{pactProgress.targetSteps} · {pactProgress.daysLeft}d
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-gray-400">{t("pact.cardHint")}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Parallel Tracks Card */}
+        <div
+          onClick={onOpenParallelTracks}
+          className="cursor-pointer rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.005] active:scale-[0.995] border bg-gradient-to-br from-indigo-500/[0.08] to-purple-500/[0.04] border-indigo-500/10"
+        >
+          <div className="px-4 py-3.5 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">🛤️</span>
+              <div>
+                <div className="text-xs font-bold text-gray-700">{t("tracks.cardTitle")}</div>
+                <div className="text-[10px] text-gray-400">{t("tracks.cardHint")}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Energy Dashboard Card */}
+        <div
+          onClick={onOpenEnergyDashboard}
+          className="cursor-pointer rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.005] active:scale-[0.995] border bg-gradient-to-br from-emerald-500/[0.08] to-teal-500/[0.04] border-emerald-500/10"
+        >
+          <div className="px-4 py-3.5 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">⚡</span>
+              <div>
+                <div className="text-xs font-bold text-gray-700">{t("energy.cardTitle")}</div>
+                <div className="text-[10px] text-gray-400">{t("energy.cardHint")}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* ══════════════════════════════════════ */}
       {/* ── SHARED SECTIONS ──                */}

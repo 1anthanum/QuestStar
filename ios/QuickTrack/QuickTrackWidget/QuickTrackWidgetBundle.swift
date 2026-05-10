@@ -5,6 +5,7 @@ import SwiftUI
 struct QuickTrackWidgetBundle: WidgetBundle {
     var body: some Widget {
         MedicationWidget()
+        WaterWidget()
         QuestStarWidget()
         SleepWidget()
     }

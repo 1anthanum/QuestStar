@@ -41,5 +41,13 @@ extension Tracker {
         dataSource: .healthKit(identifier: "sleepAnalysis")
     )
 
-    static let allTrackers: [Tracker] = [.medication, .queststar, .sleep]
+    static let water = Tracker(
+        id: "water",
+        displayName: "Water",
+        icon: "drop.fill",
+        color: "#06B6D4",
+        dataSource: .supabase(tables: ["daily_habits"])
+    )
+
+    static let allTrackers: [Tracker] = [.medication, .water, .queststar, .sleep]
 }

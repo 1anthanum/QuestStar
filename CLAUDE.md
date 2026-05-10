@@ -8,7 +8,7 @@
 - **Deployment**: Vercel at `quest-star.vercel.app`, also supports Cloudflare Pages + GitHub Pages
 - **Dual-track persistence**: Guest = localStorage only; Authenticated = localStorage + Supabase cloud sync
 - **No state management library**: Pure React hooks + `useLocalStorage` custom hook + `useCloudSync` overlay
-- **~30,000 lines** across 34 components, 13 hooks, 12 utils, 2 lib modules
+- **~35,000 lines** across 46 components, 19 hooks, 15 utils, 2 lib modules
 
 ---
 
@@ -44,15 +44,21 @@ main.jsx
     └── App.jsx          → orchestrator (~520 lines)
         ├── useCloudSync → transparent localStorage ↔ Supabase bidirectional sync
         ├── Hooks (all business logic + persistence via useLocalStorage)
-        │   ├── useGameState      → quests, xp, streak, levels
-        │   ├── useRewardSystem   → wallet, milestones, shield
-        │   ├── useKnowledgeLore  → lore fragment collection
-        │   ├── useBlossomMode    → progressive concept mastery
-        │   ├── useTheme          → 6 color themes, CSS variable injection
-        │   ├── useAI             → Multi-provider AI integration
+        │   ├── useGameState        → quests, xp, streak, levels
+        │   ├── useRewardSystem     → wallet, milestones, shield
+        │   ├── useKnowledgeLore    → lore fragment collection
+        │   ├── useBlossomMode      → progressive concept mastery
+        │   ├── useTheme            → 6 color themes, CSS variable injection
+        │   ├── useAI               → Multi-provider AI integration
         │   ├── useDeadlineReminder → browser notifications
-        │   └── useTimer          → generic countdown/elapsed timer
-        ├── Components (34 modals/panels, all conditionally rendered)
+        │   ├── useTimer            → generic countdown/elapsed timer
+        │   ├── useSmartLauncher    → anti-paralysis step recommender
+        │   ├── useFrictionCalibrator → step timing + difficulty mismatch detection
+        │   ├── useEnergyProfile    → time-of-day energy tracking
+        │   ├── useGhostRace        → self-competition vs past week
+        │   ├── useAccountabilityPact → wallet staking commitment system
+        │   └── useParallelTracks   → dual-quest anti-boredom switching
+        ├── Components (46 modals/panels, all conditionally rendered)
         └── Utils (constants, game logic, lore data, blossom data, translations)
 ```
 
@@ -109,7 +115,7 @@ src/
 │
 ├── hooks/
 │   ├── useLocalStorage.js      # Base persistence hook (all others depend on this)
-│   ├── useAuth.js              # AuthProvider context + login/signup/OAuth actions
+│   ├── useAuth.jsx             # AuthProvider context + login/signup/OAuth actions
 │   ├── useCloudSync.js         # Transparent bidirectional sync layer
 │   ├── useCloudStorage.js      # Per-field cloud storage hook (available but not primary)
 │   ├── useGameState.js         # Core: quests, xp, streak, level
@@ -120,7 +126,13 @@ src/
 │   ├── useLanguage.jsx         # LanguageProvider context + t() hook
 │   ├── useAI.js                # Multi-provider AI integration
 │   ├── useDeadlineReminder.js  # Browser Notification API alerts
-│   └── useTimer.js             # Countdown/elapsed timer for Hyperfocus
+│   ├── useTimer.js             # Countdown/elapsed timer for Hyperfocus
+│   ├── useSmartLauncher.js     # Anti-paralysis single-step recommender
+│   ├── useFrictionCalibrator.js # Step timing + difficulty mismatch detection
+│   ├── useEnergyProfile.js     # Time-of-day energy level tracking
+│   ├── useGhostRace.js         # Self-competition vs past week's same day
+│   ├── useAccountabilityPact.js # Wallet staking commitment (loss aversion)
+│   └── useParallelTracks.js    # Dual-quest anti-boredom switching
 │
 ├── components/
 │   ├── Header.jsx              # Level bar, XP, streak, user avatar + sync indicator
@@ -133,7 +145,7 @@ src/
 │   ├── MathText.jsx            # KaTeX LaTeX rendering wrapper
 │   ├── AnimatedBackground.jsx  # Theme-colored floating orbs
 │   │
-│   ├── AuthModal.jsx           # Login / Signup modal (email + GitHub OAuth)
+│   ├── AuthModal.jsx           # Login / Signup modal (email + Google + GitHub OAuth)
 │   ├── PasswordGate.jsx        # Shared deployment password gate
 │   ├── AddQuestModal.jsx       # Manual quest creation
 │   ├── AIDecomposeModal.jsx    # AI-powered goal decomposition (depth modes + refine)
@@ -153,6 +165,25 @@ src/
 │   ├── DailyReflection.jsx     # Mood + reflection journal
 │   ├── StudyRoadmap.jsx        # Study path visualization
 │   │
+│   ├── SmartLauncher.jsx       # "Just This One" anti-paralysis step card
+│   ├── EnergyPanel.jsx         # Weekly energy level marking UI
+│   ├── EnergyDashboard.jsx     # Energy-aware scheduling dashboard
+│   ├── GhostRaceIndicator.jsx  # Race status badge vs past self
+│   ├── BossRush.jsx            # Gamified overdue quest boss battle
+│   ├── AccountabilityPact.jsx  # Wallet staking commitment UI
+│   ├── ParallelTracks.jsx      # Dual-quest switching UI
+│   ├── CalendarPanel.jsx       # Calendar view with ICS import/export
+│   ├── DailyPlanningModal.jsx  # AI-powered daily plan generator
+│   ├── FlyingXP.jsx            # XP arc animation on step complete
+│   │
+│   ├── reflections/            # Multi-mode reflection system
+│   │   ├── OneTapQuickMode.jsx # One-tap mood + OK moment capture
+│   │   ├── CampfireCheckIn.jsx # Guided campfire reflection
+│   │   ├── ChatCompanion.jsx   # AI companion chat reflection
+│   │   ├── PromptRoulette.jsx  # Random prompt wheel
+│   │   ├── BodyTap.jsx         # Body sensation mapping
+│   │   └── MoodTerrain.jsx     # SVG mood terrain visualization
+│   │
 │   ├── StepCompleteGuide.jsx   # Post-step "what's next" recommendations
 │   ├── Celebrations.jsx        # XpPopup, LevelUpOverlay, QuestCompleteOverlay
 │   ├── OnboardingGuide.jsx     # First-time tutorial
@@ -170,10 +201,14 @@ src/
 │   ├── timePredictor.js        # Quest velocity + completion estimation
 │   ├── translations.js         # EN/ZH translation strings
 │   ├── aiProviders.js          # Multi-provider config + unified callAI() + testConnection()
-│   ├── aiService.js            # AI-powered functions (decompose, refine, microlearn, knowledge, QA, summarize)
+│   ├── aiService.js            # AI-powered functions (decompose, refine, microlearn, knowledge, QA, summarize, dailyPlan)
 │   ├── claudeClient.js         # Claude-specific API client
 │   ├── batchParser.js          # Outline text → quest grouping
-│   └── fileExtractor.js        # File import parsing
+│   ├── fileExtractor.js        # File import parsing
+│   ├── narrativeEngine.js      # Procedural quest RPG narratives + seasonal events
+│   ├── reflectionModes.js      # Reflection mode configs, prompts, body zones
+│   ├── terrainGenerator.js     # SVG path generator for mood terrain visualization
+│   └── icsService.js           # ICS (iCalendar) import/export for deadlines
 │
 supabase/
 ├── schema.sql                  # Full DDL: 9 tables + RLS + triggers + indexes
@@ -200,13 +235,14 @@ ios/                            # QuickTrack native widget project (see ios/CLAU
 
 ## Authentication & Cloud Sync
 
-### Auth System (`useAuth.js`)
+### Auth System (`useAuth.jsx`)
 
 - **Provider**: Supabase Auth
-- **Methods**: Email/password + GitHub OAuth
+- **Methods**: Email/password + Google OAuth + GitHub OAuth
 - **Context**: `AuthProvider` wraps entire app in `main.jsx`
-- **Hook**: `useAuth()` → `{ user, profile, isAuthenticated, isGuest, signInWithEmail, signUpWithEmail, signInWithGitHub, signOut }`
+- **Hook**: `useAuth()` → `{ user, profile, isAuthenticated, isGuest, signInWithEmail, signUpWithEmail, signInWithGoogle, signInWithGitHub, signOut }`
 - **Graceful degradation**: If `VITE_SUPABASE_URL` is not set, app runs in guest-only mode (all auth functions return errors)
+- **Google OAuth setup**: Requires enabling Google provider in Supabase Dashboard + creating OAuth app in Google Cloud Console with redirect URI `https://<project-ref>.supabase.co/auth/v1/callback`
 
 ### Cloud Sync Strategy (`useCloudSync.js`)
 
@@ -334,6 +370,9 @@ All keys are prefixed with `qt_`. This is the single source of truth for React s
 | `qt_boss_rush` | JSON object | Boss Rush | `{ active, bossHp, damageDealt, startedAt }` | extra_state |
 | `qt_rescue_splits` | JSON object | Smart Launcher | `{ questId: [microStepIds] }` auto-split tracking | extra_state |
 | `qt_launcher_history` | JSON array | Smart Launcher | Recent launcher picks for dedup | extra_state |
+| `qt_pact` | JSON object | useAccountabilityPact | Active commitment pact (stake, target, deadline) | extra_state |
+| `qt_pact_history` | JSON array | useAccountabilityPact | Historical pacts (capped at historyLimit) | extra_state |
+| `qt_parallel_tracks` | JSON object | useParallelTracks | Active dual-quest session (quest IDs, activeTrack, steps) | extra_state |
 
 ---
 
@@ -450,6 +489,90 @@ All keys are prefixed with `qt_`. This is the single source of truth for React s
 - Tab 1 (Skills): Blossom nodes at deep-2/deep-3/dormant stages
 - Tab 2 (Lore): Collected fragments grouped by book
 - Tab 3 (Rewards): REWARD_CONFIG milestones with claimed/available/locked status
+
+### Smart Launcher (Anti-Paralysis)
+- Single-card "Just This One" interface — system picks 1 optimal step
+- Multi-factor scoring: deadline urgency + quest stagnation + energy match + quest type + variety + progress momentum
+- Doom Timer: quest stagnant >=3 days triggers auto-split into micro-steps (<=5 min each)
+- Rescue Mode: stagnant quests fade gray, rescue restores color
+- Hook: `useSmartLauncher.js`, Component: `SmartLauncher.jsx`
+
+### Friction Calibrator
+- Tracks actual time per step: `startedAt` on first interaction, `completedAt` on toggle
+- Expected durations: easy<5min, medium<15min, hard<30min
+- Flags mismatches: easy>15min, medium>30min, hard>60min
+- Summary in QuestDetail shows flagged steps with actual vs expected times
+- Hook: `useFrictionCalibrator.js`
+
+### Energy-Aware Scheduling
+- 3 collection modes: manual marking, post-hoc tagging, auto-inference from completion speed
+- Energy levels per time bucket (morning/afternoon/evening) x day-of-week
+- Recommends difficulty based on current energy: high→hard, medium→medium, low→easy
+- Hook: `useEnergyProfile.js`, Components: `EnergyPanel.jsx`, `EnergyDashboard.jsx`
+
+### Ghost Race (Self-Competition)
+- Records daily completion timeline with hourly bucketing
+- Compares today vs last week's same day
+- Status: "ahead by N" / "behind by N" / "neck and neck" / "no ghost data"
+- 14-day rolling window in `qt_completion_timeline`
+- Hook: `useGhostRace.js`, Component: `GhostRaceIndicator.jsx`
+
+### Boss Rush Mode
+- Aggregates overdue quests into "Boss" encounter
+- Boss HP = total remaining steps across overdue quests
+- Damage per step: easy=1, medium=2, hard=3 HP
+- Boss defeated = 3x XP bonus + celebration
+- Component: `BossRush.jsx`
+
+### Accountability Pact
+- Wallet staking commitment system (loss aversion mechanic)
+- User stakes $X to complete Y steps within Z days
+- Success: stake returned + bonus; Failure: stake forfeited
+- Config: `PACT_CONFIG` in constants.js (minStake, maxStake, winBonus, historyLimit)
+- Hook: `useAccountabilityPact.js`, Component: `AccountabilityPact.jsx`
+
+### Parallel Tracks (Anti-Boredom)
+- Pre-select 2 quests with different categories for switching
+- AI-free heuristic suggests pairs from different categories
+- Tracks steps completed and session duration
+- Hook: `useParallelTracks.js`, Component: `ParallelTracks.jsx`
+
+### Quest Narrative Engine
+- Auto-generates RPG story frame per quest: category → archetype mapping
+- Archetypes: learning→"Ancient Scroll", code→"Divine Forge", habit→"Inner Arts", work→"Kingdom Rule"
+- Seasonal world events: spring/summer/autumn/winter rotating themes
+- Displayed in QuestDetail below quest name
+- Util: `narrativeEngine.js`
+
+### Step Drag-and-Drop Reordering
+- Uses `@dnd-kit/core` + `@dnd-kit/sortable` for step reordering
+- Drag handle (⠿) appears on each step in flat (non-layered) quest views
+- 8px activation distance to prevent accidental drags
+- `onReorderSteps` callback in App.jsx calls `game.updateQuest()`
+
+### Reflection System (6 modes)
+- **OneTap**: Quick mood emoji + OK moment capture
+- **Campfire**: Guided campfire check-in with warmth metaphor
+- **Chat Companion**: AI companion chat with guardian responses
+- **Prompt Roulette**: Random prompt wheel with spin animation
+- **Body Tap**: Body sensation zone mapping with tag colors
+- **Mood Terrain**: SVG terrain visualization from mood history
+- Config: `reflectionModes.js`, SVG: `terrainGenerator.js`
+
+### Calendar & ICS Integration
+- Calendar view with quest deadline visualization
+- ICS (iCalendar RFC 5545) import/export for deadline sync
+- Component: `CalendarPanel.jsx`, Util: `icsService.js`
+
+### Daily Planning (AI-Powered)
+- Life mode AI planner generates daily activity schedule
+- Uses `generateDailyPlan()` from aiService.js
+- Component: `DailyPlanningModal.jsx`
+
+### Flying XP Animation
+- XP arc animation from step position to header XP counter
+- Triggered via `onStepBurst` callback in StepItem
+- Component: `FlyingXP.jsx`
 
 ---
 
@@ -647,68 +770,34 @@ Top-level dual-mode switcher separates quests into two independent tracks:
 - [x] Personal data isolation (seed-personal.sql)
 - [ ] App.jsx decomposition (useModalManager + useStepCompletionChain)
 
-### Phase 2 — ADHD Behavioral Engine (High Priority)
+### Phase 2 — ADHD Behavioral Engine (Complete)
 Core ADHD compensation systems — address decision paralysis, procrastination, and working memory.
 
-- [ ] **Smart Launcher** (Anti-Paralysis #1 + Rescue Mode #3, merged)
-  - Single-card "Just This One" interface — system picks 1 optimal step based on deadline urgency + difficulty + energy + history
-  - Doom Timer detection: quest stagnant ≥3 days → auto-split next step into micro-steps (≤5 min)
-  - Rescue Mode visual: stagnant quest cards fade gray, rescue restores color
-  - Hook: `useSmartLauncher.js` — priority scoring engine
-  - Component: `SmartLauncher.jsx` — Tinder-style swipe card UI
-  - Extends existing `guidanceEngine.js` ranking logic
+- [x] **Smart Launcher** — Anti-paralysis single-step recommender with Doom Timer rescue splits
+- [x] **Friction Calibrator** — Step timing tracking with difficulty mismatch detection
+- [x] **Energy-Aware Scheduling** — Time-of-day energy profiling with difficulty recommendations
+- [x] **Accountability Pact** — Wallet staking commitment system (loss aversion)
+- [x] **Parallel Tracks** — Dual-quest anti-boredom switching
 
-- [ ] **Friction Calibrator** (#10)
-  - Track actual time per step: `startedAt` timestamp on first interaction, `completedAt` on toggle done
-  - Compare actual vs expected (easy<5min, medium<15min, hard<30min)
-  - If easy steps consistently >15min → suggest reclassify or split
-  - New localStorage keys: `qt_step_timing` (JSON object `{ stepId: { startedAt, completedAt } }`)
-  - Weekly friction report: "These 3 steps took 5x longer than expected"
-
-- [ ] **Energy-Aware Scheduling** (#2)
-  - User can mark energy levels per time-of-day (morning/afternoon/evening: high/medium/low)
-  - Post-hoc marking: after Hyperfocus session or study block, tag the time slot's energy level
-  - Auto-infer from completion data: steps completed fast = high energy window
-  - Hard steps recommended during high-energy windows, easy steps during low
-  - New localStorage key: `qt_energy_profile` (JSON `{ dayOfWeek: { morning, afternoon, evening } }`)
-
-### Phase 3 — RPG Narrative Layer (Mid Priority)
+### Phase 3 — RPG Narrative Layer (Complete)
 Deep gamification to sustain long-term engagement via novelty and collection mechanics.
 
-- [ ] **Procedural Quest Narrative** (#6)
-  - Auto-generate RPG story frame per quest based on category + difficulty
-  - Category → archetype: learning→"古卷解读", code→"神器锻造", habit→"内功修炼", work→"王国治理"
-  - Step completion advances plot fragments; quest complete unlocks ending
-  - AI-generated (cached in localStorage `qt_quest_narratives`), fallback to template bank
-  - Display: subtle story text below quest name in QuestCard + full narrative in QuestDetail
+- [x] **Procedural Quest Narrative** — Auto-generated RPG story frames per quest archetype
+- [x] **Seasonal World Events** — Monthly auto-rotating world themes
+- [x] **Boss Rush Mode** — Gamified overdue quest clearing with boss HP mechanics
 
-- [ ] **Seasonal World Events** (#7)
-  - Monthly auto-rotating world theme (spring=觉醒森林, summer=烈焰试炼, autumn=丰收祭典, winter=永夜征途)
-  - Theme-specific limited lore fragments (miss the month = miss the fragment)
-  - Season determined by `new Date().getMonth()` — zero config
-  - Visual: seasonal banner in QuestBoard, seasonal badge on completed quests
-  - New lore book: "季节编年史" with 12 monthly fragments
-
-- [ ] **Boss Rush Mode** (#8)
-  - Aggregates all overdue quests into "Boss" encounters
-  - Boss HP = total remaining steps across overdue quests
-  - Each step completed = damage dealt (XP-weighted: easy=1, medium=2, hard=3)
-  - Boss defeated = 3x XP bonus + limited "Boss Slayer" lore fragment
-  - Trigger: manual activation from action bar, or auto-prompt when overdue count ≥3
-  - Component: `BossRush.jsx` — HP bar + damage animation + boss portrait
-  - Reuses `handleToggleStep` chain for actual step completion
-
-### Phase 4 — Social + Competition (Lower Priority)
+### Phase 4 — Social + Competition (Complete)
 External motivation through self-competition and narrative engagement.
 
-- [ ] **Ghost Race** (#4)
-  - Record daily completion timeline: `{ date: [{ stepId, completedAt }] }`
-  - Display previous week's same-day progress as translucent overlay on today's board
-  - "Ahead by 3 steps" / "Behind by 2 steps" indicator
-  - New localStorage key: `qt_completion_timeline` (JSON, 14-day rolling window)
-  - Visual: ghost progress bar alongside current progress in Header
+- [x] **Ghost Race** — Self-competition vs past week's same day with race status badge
 
 ### Phase 5 — UX Enhancement
+- [x] Step drag-and-drop reordering (dnd-kit)
+- [x] Calendar view with ICS import/export
+- [x] Flying XP arc animation
+- [x] Multi-mode reflection system (6 modes)
+- [x] AI-powered daily planning
+- [x] Google OAuth login
 - [ ] Data visualization dashboard (XP curves, habit heatmap, streak history)
 - [ ] PWA support (Service Worker + manifest.json for mobile install)
 - [ ] Notification enhancement (habit reminders, streak warnings, blossom intervals)
@@ -790,3 +879,7 @@ SELECT id, name, steps, deadline FROM quests WHERE user_id = ?;
 12. **Quest data shape mismatch** — localStorage uses `questType` (camelCase) but Supabase uses `quest_type` (snake_case). The `pushToCloud` and `pullFromCloud` functions handle this mapping. Any new quest fields must be mapped in both directions.
 
 13. **Widget ↔ Web sync gap** — QuickTrack iOS widget reads/writes Supabase directly. Web `useCloudSync` only pulls on login, so widget-written data (e.g., medication check-off) won't appear in web until next refresh. This is acceptable for personal use but documented in `ios/CLAUDE.md` for future improvement.
+
+14. **Step reordering only in flat view** — Drag-and-drop reordering works in the non-layered (flat) step list only. Mountain-layer grouped views don't support reordering since layer grouping is semantic.
+
+15. **Default vs named exports** — Most hooks use named exports (`export function useX`), but `useBlossomMode` and `useAccountabilityPact` use `export default`. Their imports match (`import useX from`) but this inconsistency exists. Don't change existing exports without updating all import sites.

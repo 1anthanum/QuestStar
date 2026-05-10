@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback } from "react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { XP_CONFIG, ANCHOR_LAYERS, ANCHOR_STEPS } from "../utils/constants";
 import { useLanguage } from "../hooks/useLanguage";
 import MathText from "./MathText";
@@ -9,12 +11,25 @@ const DIFFICULTY_LABELS = {
   hard: { label: "Hard", color: "text-red-500", bg: "bg-red-50", xp: XP_CONFIG.difficulty.hard },
 };
 
-export default function StepItem({ step, onToggle, index, total }) {
+export default function StepItem({ step, onToggle, index, total, onStepBurst, sortable = false }) {
   const { t } = useLanguage();
   const [justCompleted, setJustCompleted] = useState(false);
-  const [floatingXp, setFloatingXp] = useState(null);
   const [showNote, setShowNote] = useState(false);
   const containerRef = useRef(null);
+
+  // Drag-and-drop sortable
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: step.id, disabled: !sortable });
+
+  const sortableStyle = sortable
+    ? { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
+    : {};
 
   const diff = step.difficulty ? DIFFICULTY_LABELS[step.difficulty] : null;
   const layer = step.layer ? ANCHOR_LAYERS[step.layer] : null;
@@ -36,9 +51,10 @@ export default function StepItem({ step, onToggle, index, total }) {
 
     if (!step.done) {
       setJustCompleted(true);
-      if (diff) {
-        setFloatingXp(diff.xp);
-        setTimeout(() => setFloatingXp(null), 1100);
+      // Emit burst position for FlyingXP arc animation
+      if (diff && containerRef.current) {
+        const r = containerRef.current.getBoundingClientRect();
+        onStepBurst?.({ x: r.left + 20, y: r.top + r.height / 2, amount: diff.xp });
       }
       setTimeout(() => setJustCompleted(false), 600);
     }
@@ -46,14 +62,17 @@ export default function StepItem({ step, onToggle, index, total }) {
   }, [step.done, diff, onToggle]);
 
   return (
-    <div className="group relative">
-      {/* Floating XP */}
-      {floatingXp && (
-        <div className="xp-float" style={{ right: 16, top: 8 }}>
-          +{floatingXp}
-        </div>
+    <div className="group relative" ref={setNodeRef} style={sortableStyle}>
+      {/* Drag handle */}
+      {sortable && (
+        <span
+          {...attributes}
+          {...listeners}
+          className="absolute left-[-20px] top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing select-none text-sm z-10"
+        >
+          ⠿
+        </span>
       )}
-
       <div
         ref={containerRef}
         onClick={handleClick}

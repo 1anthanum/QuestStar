@@ -10,6 +10,9 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
+    CODE_SIGN_IDENTITY: "Apple Development"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
 
 targets:
   QuickTrack:
@@ -22,12 +25,17 @@ targets:
       - path: Shared
     resources:
       - path: QuickTrack/Assets.xcassets
+    dependencies:
+      - target: QuickTrackWidget_iOS
+        embed: true
+        platformFilter: iOS
+      - target: QuickTrackWidget_macOS
+        embed: true
+        platformFilter: macOS
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jaciecrown.quicktrack
-        INFOPLIST_KEY_CFBundleDisplayName: QuickTrack
-        GENERATE_INFOPLIST_FILE: true
-        INFOPLIST_KEY_NSHealthShareUsageDescription: "QuickTrack reads sleep data to display on your widget."
+        INFOPLIST_FILE: QuickTrack/Info.plist
     entitlements:
       path: QuickTrack/QuickTrack.entitlements
       properties:
@@ -46,14 +54,13 @@ targets:
       - path: Shared
       - path: QuickTrack/Models
       - path: QuickTrack/DataSources
+      - path: QuickTrack/Intents
     resources:
       - path: QuickTrackWidget/Assets.xcassets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jaciecrown.quicktrack.widget
-        GENERATE_INFOPLIST_FILE: true
-        INFOPLIST_KEY_CFBundleDisplayName: QuickTrack Widget
-        INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        INFOPLIST_FILE: QuickTrackWidget/Info.plist
     entitlements:
       path: QuickTrackWidget/QuickTrackWidget.entitlements
       properties:

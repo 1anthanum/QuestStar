@@ -22,6 +22,7 @@ export function useCloudSync() {
   const [migrated, setMigrated] = useState(false);
   const pushTimerRef = useRef(null);
   const lastPushRef = useRef(null);
+  const lastPullRef = useRef(null);
 
   // ── Key mapping: localStorage key → Supabase table + column ──
   const KEY_MAP = {
@@ -234,6 +235,7 @@ export function useCloudSync() {
         }
       }
 
+      lastPullRef.current = Date.now();
       // Force React re-render by dispatching a custom event
       window.dispatchEvent(new Event("qt-cloud-pull"));
     } catch (err) {
@@ -355,7 +357,25 @@ export function useCloudSync() {
     }
   }
 
-  // Manual sync trigger
+  // ── Step 3: Pull on tab visibility (picks up widget-written changes) ──
+  useEffect(() => {
+    if (!isAuthenticated || !supabase || !user) return;
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        // Debounce: skip if we pulled very recently (< 10s)
+        const now = Date.now();
+        if (lastPullRef.current && now - lastPullRef.current < 10000) return;
+        setSyncStatus("syncing");
+        pullFromCloud(user.id).then(() => setSyncStatus("synced"));
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [isAuthenticated, user?.id]);
+
+  // Manual push trigger
   const forceSync = useCallback(async () => {
     if (!isAuthenticated || !user) return;
     setSyncStatus("syncing");
@@ -363,7 +383,15 @@ export function useCloudSync() {
     setSyncStatus("synced");
   }, [isAuthenticated, user?.id]);
 
-  return { syncStatus, migrated, forceSync };
+  // Manual pull trigger (for sync button in Header)
+  const forcePull = useCallback(async () => {
+    if (!isAuthenticated || !user) return;
+    setSyncStatus("syncing");
+    await pullFromCloud(user.id);
+    setSyncStatus("synced");
+  }, [isAuthenticated, user?.id]);
+
+  return { syncStatus, migrated, forceSync, forcePull };
 }
 
 // ── Helpers ──
