@@ -52,6 +52,11 @@ import { useKnowledgeLore } from "./hooks/useKnowledgeLore";
 import useBlossomMode from "./hooks/useBlossomMode";
 import useAccountabilityPact from "./hooks/useAccountabilityPact";
 import useParallelTracks from "./hooks/useParallelTracks";
+import { useBudgetTracker } from "./hooks/useBudgetTracker";
+import BudgetDashboard from "./components/BudgetDashboard";
+import { useVEMSync } from "./hooks/useVEMSync";
+import VEMQuickPanel from "./components/VEMQuickPanel";
+import MicroFeedbackChip from "./components/MicroFeedbackChip";
 
 export default function App() {
   const auth = useAuth();
@@ -69,7 +74,9 @@ export default function App() {
   const [onboardingDone, setOnboardingDone] = useLocalStorage("qt_onboarding_done", false);
   const [appMode, setAppMode] = useLocalStorage("qt_app_mode", "study");
   const energy = useEnergyProfile();
+  const budget = useBudgetTracker();
   const pact = useAccountabilityPact(rewards.wallet, rewards.addToWallet, rewards.spendFromWallet);
+  const vem = useVEMSync();
 
   const [showLauncher, setShowLauncher] = useState(false);
   const [showEnergyPanel, setShowEnergyPanel] = useState(false);
@@ -77,6 +84,8 @@ export default function App() {
   const [showPactPanel, setShowPactPanel] = useState(false);
   const [showParallelTracks, setShowParallelTracks] = useState(false);
   const [showEnergyDashboard, setShowEnergyDashboard] = useState(false);
+  const [showVEMPanel, setShowVEMPanel] = useState(false);
+  const [microFeedback, setMicroFeedback] = useState(null);
 
   // ── Mode-based quest filtering ──
   const modePrefix = APP_MODES[appMode]?.tagPrefix || "Stage ";
@@ -84,8 +93,8 @@ export default function App() {
   const studyCount = game.quests.filter(q => q.tag?.startsWith("Stage ")).length;
   const lifeCount = game.quests.filter(q => q.tag?.startsWith("Phase ")).length;
 
-  // Smart Launcher — anti-paralysis + rescue mode (feeds from energy profile)
-  const launcher = useSmartLauncher(displayQuests, energy.profile);
+  // Smart Launcher — anti-paralysis + rescue mode (feeds from energy profile + VEM)
+  const launcher = useSmartLauncher(displayQuests, energy.profile, vem.dailySummary?.vitality);
   const parallelTracks = useParallelTracks(displayQuests);
 
   const [activeQuestId, setActiveQuestId] = useState(null);
@@ -197,16 +206,35 @@ export default function App() {
               allClear,
             });
           }, 1800);
+
+          // VEM: emit step completion + micro-feedback (30% chance)
+          vem.emit("quest.step_completed", {
+            questId,
+            stepId,
+            difficulty: step?.difficulty,
+            layer: step?.layer,
+            anchorStep: step?.anchorStep,
+            questCategory: quest.category,
+            questType: quest.questType,
+          });
+          if (Math.random() < 0.3) {
+            const fb = vem.getPendingFeedback();
+            if (fb) setTimeout(() => setMicroFeedback(fb), 2200);
+          }
         }
       }
       if (result.didLevelUp) {
         setTimeout(() => setLevelUpOverlay(result.didLevelUp), 400);
       }
       if (result.questJustCompleted) {
+        vem.emit("quest.quest_completed", {
+          category: result.questJustCompleted.category,
+          totalSteps: result.questJustCompleted.steps?.length,
+        });
         setTimeout(() => setQuestCompleteOverlay(result.questJustCompleted), 800);
       }
     },
-    [game, rewards, lore, blossom, friction, ghostRace, pact, showXpGain]
+    [game, rewards, lore, blossom, friction, ghostRace, pact, vem, showXpGain]
   );
 
   const handleAddQuest = useCallback(
@@ -421,6 +449,32 @@ export default function App() {
           onImport={game.importData}
           onReset={game.resetAll}
           onClose={() => setShowSettings(false)}
+          vemConfig={vem.config}
+          onUpdateVEMConfig={vem.updateConfig}
+          onTestVEM={vem.testConnection}
+          vemTestResult={vem.testResult}
+          vemOutboxCount={vem.outboxCount}
+          onFlushVEM={vem.manualFlush}
+        />
+      )}
+      {showVEMPanel && (
+        <VEMQuickPanel
+          summary={vem.dailySummary}
+          budget={vem.energyBudget}
+          onClose={() => setShowVEMPanel(false)}
+          theme={theme}
+        />
+      )}
+      {microFeedback && (
+        <MicroFeedbackChip
+          feedback={microFeedback}
+          onRespond={(chipId) => {
+            vem.emit("feedback.chip", { promptId: microFeedback.id, chipId });
+            vem.consumeFeedback(microFeedback.id);
+            setMicroFeedback(null);
+          }}
+          onDismiss={() => setMicroFeedback(null)}
+          theme={theme}
         />
       )}
 
@@ -436,6 +490,9 @@ export default function App() {
         syncStatus={syncStatus}
         onForcePull={forcePull}
         onOpenAuth={() => setShowAuthModal(true)}
+        vemSummary={vem.dailySummary}
+        vemEnabled={vem.enabled}
+        onOpenVEMPanel={() => setShowVEMPanel(true)}
       />
 
       {/* Content */}
@@ -453,9 +510,12 @@ export default function App() {
               </button>
             )}
             <h1 className="text-3xl font-black text-gray-800">
-              {view === "board" ? t("app.title") : activeQuest?.name}
+              {view === "board"
+                ? (appMode === "budget" ? t("budget.title") : t("app.title"))
+                : activeQuest?.name}
             </h1>
           </div>
+          {appMode !== "budget" && (
           <div className="flex gap-2">
             {/* Study-only buttons: Backpack, Blossom, Lore */}
             {appMode === "study" && (
@@ -507,14 +567,14 @@ export default function App() {
             >
               📅
             </button>
-            {/* Energy Profile */}
+            {/* Energy Profile / VEM */}
             <button
-              onClick={() => setShowEnergyPanel(true)}
+              onClick={() => vem.enabled ? setShowVEMPanel(true) : setShowEnergyPanel(true)}
               className="text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm"
-              style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
-              title={lang === "zh" ? "能量曲线" : "Energy Profile"}
+              style={{ background: vem.enabled ? "linear-gradient(135deg, #f59e0b, #ef4444)" : "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+              title={lang === "zh" ? (vem.enabled ? "能量地图" : "能量曲线") : (vem.enabled ? "Energy Map" : "Energy Profile")}
             >
-              {energy.currentEnergy.level === "high" ? "⚡" : energy.currentEnergy.level === "low" ? "🌙" : "☀️"}
+              {vem.enabled && vem.dailySummary?.weatherEmoji ? vem.dailySummary.weatherEmoji : energy.currentEnergy.level === "high" ? "⚡" : energy.currentEnergy.level === "low" ? "🌙" : "☀️"}
             </button>
             {/* Boss Rush */}
             <button
@@ -578,6 +638,7 @@ export default function App() {
               {t("app.manual")}
             </button>
           </div>
+          )}
         </div>
 
         {/* Mode Tabs — study / life switcher */}
@@ -588,22 +649,14 @@ export default function App() {
             theme={theme}
             studyCount={studyCount}
             lifeCount={lifeCount}
+            budgetCount={budget.monthExpenses.length}
           />
         )}
 
-        {/* Ghost Race indicator */}
-        {view === "board" && ghostRace.raceStatus.status !== "noGhost" && (
-          <div className="mb-4 flex justify-center">
-            <GhostRaceIndicator
-              raceStatus={ghostRace.raceStatus}
-              todayCount={ghostRace.raceStatus.todayCount}
-              ghostCount={ghostRace.raceStatus.ghostCount}
-            />
-          </div>
-        )}
+        {/* Ghost Race indicator — now inline in TodayDashboard */}
 
         {/* Smart Launcher — anti-paralysis single-card picker */}
-        {showLauncher && view === "board" && (
+        {showLauncher && view === "board" && appMode !== "budget" && (
           <div className="mb-6 animate-fade-in">
             <SmartLauncher
               topPick={launcher.topPick}
@@ -628,7 +681,11 @@ export default function App() {
 
         {/* Views — key forces remount for fade-in */}
         <div key={view + (activeQuestId || "") + appMode} className="animate-fade-in">
-          {view === "board" && (
+          {view === "board" && appMode === "budget" && (
+            <BudgetDashboard budget={budget} theme={theme} />
+          )}
+
+          {view === "board" && appMode !== "budget" && (
             <QuestBoard
               quests={displayQuests}
               activeQuestId={activeQuestId}
@@ -650,6 +707,29 @@ export default function App() {
               theme={theme}
               ai={ai}
               appMode={appMode}
+              // TodayDashboard data
+              xp={game.xp}
+              streak={game.streak}
+              levelInfo={game.levelInfo}
+              dailyStepCount={rewards.dailyStepCount}
+              topPick={launcher.topPick}
+              stagnantCount={launcher.stagnantQuests.length}
+              onAcceptPick={(questId, stepId) => {
+                launcher.recordPick(questId, stepId);
+                setActiveQuestId(questId);
+                setView("detail");
+              }}
+              onOpenLauncher={() => setShowLauncher(true)}
+              weeklyTrend={ghostRace.weeklyTrend}
+              raceStatus={ghostRace.raceStatus}
+              // VEM
+              vemEnabled={vem.enabled}
+              vemSummary={vem.dailySummary}
+              vemBudget={vem.energyBudget}
+              onExpandVEM={() => setShowVEMPanel(true)}
+              // QuickAddTask
+              onOpenFullModal={() => setShowAddModal(true)}
+              onOpenAI={() => setShowAIModal(true)}
             />
           )}
 

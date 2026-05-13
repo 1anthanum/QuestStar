@@ -11,6 +11,7 @@ struct TrackerSummary: Codable, Sendable {
     let trend: [Double]?
     let updatedAt: Date
     let actionItems: [ActionItem]?
+    let stepMeta: StepMeta?       // For interactive widget step completion
 }
 
 struct ActionItem: Codable, Sendable, Identifiable {
@@ -18,4 +19,12 @@ struct ActionItem: Codable, Sendable, Identifiable {
     let label: String
     let icon: String        // SF Symbol name
     let isCompleted: Bool
+}
+
+/// Metadata needed by CompleteStepIntent to execute from widget
+struct StepMeta: Codable, Sendable {
+    let questId: String
+    let questName: String
+    let difficulty: String
+    let questType: String
 }

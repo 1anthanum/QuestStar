@@ -4,13 +4,14 @@ import { useLanguage } from "../hooks/useLanguage";
  * 双模式切换 Tab：学习 / 日常
  * 顶层入口切换，控制 QuestBoard 显示的任务集合
  */
-export default function ModeTabs({ mode, onChangeMode, theme, studyCount, lifeCount }) {
+export default function ModeTabs({ mode, onChangeMode, theme, studyCount, lifeCount, budgetCount }) {
   const { t } = useLanguage();
   const accent = theme?.accent || "#6366f1";
 
   const tabs = [
-    { key: "study", icon: "\u{1F4DA}", label: t("mode.study"), count: studyCount },
-    { key: "life",  icon: "\u{1F331}", label: t("mode.life"),  count: lifeCount },
+    { key: "study",  icon: "\u{1F4DA}", label: t("mode.study"),  count: studyCount },
+    { key: "life",   icon: "\u{1F331}", label: t("mode.life"),   count: lifeCount },
+    { key: "budget", icon: "\u{1F4B0}", label: t("mode.budget"), count: budgetCount },
   ];
 
   return (

@@ -61,7 +61,8 @@ struct SleepTimelineProvider: TimelineProvider {
         progress: 0.9,
         trend: [6.5, 7.0, 5.8, 7.5, 6.2, 7.8, 7.2],
         updatedAt: .now,
-        actionItems: nil
+        actionItems: nil,
+        stepMeta: nil
     )
 }
 

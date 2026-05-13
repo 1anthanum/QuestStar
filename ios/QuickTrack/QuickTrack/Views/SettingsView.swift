@@ -1,12 +1,54 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @ObservedObject private var theme = ThemeManager.shared
     @State private var supabaseURL: String = AppGroupManager.shared.supabaseURL ?? ""
     @State private var supabaseAnonKey: String = AppGroupManager.shared.supabaseAnonKey ?? ""
     @State private var showSaved = false
 
     var body: some View {
         Form {
+            // Theme Picker
+            Section("Theme") {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(AppTheme.all) { t in
+                            Button {
+                                HapticEngine.selection()
+                                theme.setTheme(t)
+                            } label: {
+                                VStack(spacing: 6) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [t.gradient1, t.gradient2],
+                                                    startPoint: .topLeading, endPoint: .bottomTrailing
+                                                )
+                                            )
+                                            .frame(width: 44, height: 44)
+                                        Image(systemName: t.icon)
+                                            .font(.system(size: 18))
+                                            .foregroundStyle(.white)
+                                    }
+                                    .overlay(
+                                        Circle()
+                                            .stroke(.white, lineWidth: theme.current.id == t.id ? 3 : 0)
+                                            .frame(width: 44, height: 44)
+                                    )
+                                    .shadow(color: t.accent.opacity(theme.current.id == t.id ? 0.5 : 0), radius: 8)
+                                    Text(t.name)
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundStyle(theme.current.id == t.id ? t.accent : .secondary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+            }
+
             Section("Supabase Connection") {
                 TextField("Project URL", text: $supabaseURL)
                     .autocorrectionDisabled()

@@ -37,7 +37,7 @@ struct LogEventIntent: AppIntent {
 
         // 2. Merge new check into today's date
         var allChecks = row?.daily_checks ?? [:]
-        let todayKey = Self.todayKey()
+        let todayKey = Config.todayString()
         var todayChecks = allChecks[todayKey] ?? [:]
         todayChecks[activityId] = true
         allChecks[todayKey] = todayChecks
@@ -57,7 +57,8 @@ struct LogEventIntent: AppIntent {
             progress: nil,
             trend: nil,
             updatedAt: Date(),
-            actionItems: nil
+            actionItems: nil,
+            stepMeta: nil
         )) {
             appGroup.cacheData(summaryData, forKey: "medication")
         }
@@ -65,11 +66,5 @@ struct LogEventIntent: AppIntent {
         WidgetCenter.shared.reloadTimelines(ofKind: "MedicationWidget")
 
         return .result()
-    }
-
-    private static func todayKey() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: Date())
     }
 }

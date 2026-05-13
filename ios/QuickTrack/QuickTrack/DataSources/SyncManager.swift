@@ -12,7 +12,6 @@ final class SyncManager: ObservableObject {
     private let logger = Logger(subsystem: "QuickTrack", category: "Sync")
     private let client = SupabaseClient.shared
     private var timer: Timer?
-    private var lastSyncDate: Date?
 
     /// Published data — views observe these for automatic updates
     @Published var gameState: GameStateRow?
@@ -70,7 +69,7 @@ final class SyncManager: ObservableObject {
         do {
             async let gs: GameStateRow? = client.fetchOneOptional(
                 table: "game_state",
-                query: "select=xp,streak,last_active_date&user_id=eq.\(userId)"
+                query: "select=xp,streak,last_active_date,daily_first_win&user_id=eq.\(userId)"
             )
             async let dh: DailyHabitsRow? = client.fetchOneOptional(
                 table: "daily_habits",
@@ -78,7 +77,7 @@ final class SyncManager: ObservableObject {
             )
             async let qs: [QuestRow] = client.fetchMany(
                 table: "quests",
-                query: "select=id,name,steps,deadline,tag&user_id=eq.\(userId)&order=created_at.desc"
+                query: "select=id,name,steps,deadline,tag,quest_type&user_id=eq.\(userId)&order=created_at.desc"
             )
 
             let fetchedGs = try await gs
@@ -111,7 +110,7 @@ final class SyncManager: ObservableObject {
 
     func toggleCheck(_ activityId: String) async {
         guard let userId = AppGroupManager.shared.supabaseUserId else { return }
-        let todayKey = Self.todayString()
+        let todayKey = Config.todayString()
         var allChecks = habits?.daily_checks ?? [:]
         var todayChecks = allChecks[todayKey] ?? [:]
         todayChecks[activityId] = !(todayChecks[activityId] ?? false)
@@ -132,9 +131,28 @@ final class SyncManager: ObservableObject {
         }
     }
 
+    /// Completes a step with full XP calculation matching the web app.
+    /// Returns the total XP gained for this action (for popup display).
     func toggleStep(quest: QuestRow, step: QuestStep) async -> Int {
         guard let userId = AppGroupManager.shared.supabaseUserId else { return 0 }
 
+        let today = Config.todayString()
+        let oldXp = gameState?.xp ?? 0
+        let oldStreak = gameState?.streak ?? 0
+        let lastActive = gameState?.last_active_date
+        let lastFirstWin = gameState?.daily_first_win
+
+        // 1. Calculate new streak
+        let newStreak = Config.calculateStreak(lastActiveDate: lastActive, currentStreak: oldStreak)
+
+        // 2. Calculate step XP (with streak bonus + quest type multiplier)
+        let stepXp = Config.stepXp(difficulty: step.difficulty, streak: newStreak, questType: quest.quest_type)
+
+        // 3. Daily first-win bonus (+25 if first step today)
+        let isFirstWinToday = lastFirstWin != today
+        let firstWinBonus = isFirstWinToday ? Config.XP.dailyFirstWin : 0
+
+        // 4. Build updated steps and check quest completion
         let updatedSteps: [[String: Any]] = quest.steps.map { s in
             var dict: [String: Any] = ["id": s.id, "text": s.text, "done": s.done]
             if let d = s.difficulty { dict["difficulty"] = d }
@@ -142,64 +160,71 @@ final class SyncManager: ObservableObject {
             return dict
         }
 
-        let stepXp = xpValue(for: step.difficulty)
-        let oldXp = gameState?.xp ?? 0
+        // 5. Quest completion bonus (+50 if this was the last step)
+        let remainingAfter = quest.steps.filter { !$0.done && $0.id != step.id }.count
+        let questCompleteBonus = remainingAfter == 0 ? Config.XP.questBonus : 0
 
-        // Optimistic
+        // 6. Total XP
+        let totalXp = stepXp + firstWinBonus + questCompleteBonus
+        let newXp = oldXp + totalXp
+
+        // 7. Optimistic UI update
         if let idx = quests.firstIndex(where: { $0.id == quest.id }) {
             let newSteps = quest.steps.map { s in
                 s.id == step.id ? QuestStep(id: s.id, text: s.text, done: true, difficulty: s.difficulty) : s
             }
-            quests[idx] = QuestRow(id: quest.id, name: quest.name, steps: newSteps, deadline: quest.deadline, tag: quest.tag)
+            quests[idx] = QuestRow(id: quest.id, name: quest.name, steps: newSteps, deadline: quest.deadline, tag: quest.tag, quest_type: quest.quest_type)
         }
-        gameState = GameStateRow(xp: oldXp + stepXp, streak: gameState?.streak ?? 0, last_active_date: Self.todayString())
+        gameState = GameStateRow(
+            xp: newXp,
+            streak: newStreak,
+            last_active_date: today,
+            daily_first_win: isFirstWinToday ? today : lastFirstWin
+        )
 
+        // 8. Write to Supabase
         do {
             try await client.patchWithQuery(
                 table: "quests",
                 query: "user_id=eq.\(userId)&id=eq.\(quest.id)",
                 body: ["steps": updatedSteps]
             )
-            try await client.upsert(
-                table: "game_state",
-                body: [
-                    "user_id": userId,
-                    "xp": oldXp + stepXp,
-                    "last_active_date": Self.todayString()
-                ]
-            )
+
+            var gameBody: [String: Any] = [
+                "user_id": userId,
+                "xp": newXp,
+                "streak": newStreak,
+                "last_active_date": today
+            ]
+            if isFirstWinToday {
+                gameBody["daily_first_win"] = today
+            }
+            try await client.upsert(table: "game_state", body: gameBody)
+
             WidgetCenter.shared.reloadTimelines(ofKind: "QuestStarWidget")
         } catch {
+            logger.error("toggleStep write failed: \(error.localizedDescription)")
             await refresh()
         }
 
-        return stepXp
+        return totalXp
     }
 
-    // MARK: - Helpers
+    // MARK: - Convenience
 
+    /// Shorthand — still used by views for todayKey
     static func todayString() -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: Date())
+        Config.todayString()
     }
 
-    private func xpValue(for d: String?) -> Int {
-        switch d {
-        case "easy": 10
-        case "medium": 20
-        case "hard": 35
-        default: 15
-        }
-    }
+    // MARK: - Equality Checks
 
     private func isEqual(_ a: GameStateRow?, _ b: GameStateRow?) -> Bool {
         a?.xp == b?.xp && a?.streak == b?.streak && a?.last_active_date == b?.last_active_date
     }
 
     private func isEqual(_ a: DailyHabitsRow?, _ b: DailyHabitsRow?) -> Bool {
-        // Simple reference: compare check counts for today
-        let todayKey = Self.todayString()
+        let todayKey = Config.todayString()
         let aChecks = a?.daily_checks?[todayKey] ?? [:]
         let bChecks = b?.daily_checks?[todayKey] ?? [:]
         return aChecks.count == bChecks.count && aChecks.allSatisfy { bChecks[$0.key] == $0.value }

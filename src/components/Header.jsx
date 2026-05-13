@@ -9,7 +9,7 @@ import { useLanguage } from "../hooks/useLanguage";
  * - 紧凑 stat 胶囊
  * - SVG 齿轮图标
  */
-export default function Header({ levelInfo, xp, streak, completedSteps, theme, onOpenSettings, auth, syncStatus, onForcePull, onOpenAuth }) {
+export default function Header({ levelInfo, xp, streak, completedSteps, theme, onOpenSettings, auth, syncStatus, onForcePull, onOpenAuth, vemSummary, vemEnabled, onOpenVEMPanel }) {
   const { t } = useLanguage();
   // XP 数字跳动
   const [displayXp, setDisplayXp] = useState(xp);
@@ -137,6 +137,18 @@ export default function Header({ levelInfo, xp, streak, completedSteps, theme, o
                 <span className="text-xs">✅</span>
                 <span className="text-sm font-black text-emerald-500 tabular-nums">{completedSteps}</span>
               </div>
+
+              {/* VEM energy badge */}
+              {vemEnabled && vemSummary && (
+                <button
+                  onClick={onOpenVEMPanel}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-50/80 hover:bg-amber-100/80 transition-colors"
+                  title={vemSummary.insightText || "Energy Map"}
+                >
+                  <span className="text-sm">{vemSummary.weatherEmoji || '\u2601\uFE0F'}</span>
+                  <span className="text-[10px] font-bold text-amber-600">V{Math.round(vemSummary.vitality || 0)}</span>
+                </button>
+              )}
 
               {/* User avatar / Login button */}
               {auth?.isAuthenticated ? (

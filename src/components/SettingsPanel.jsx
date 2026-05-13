@@ -3,7 +3,7 @@ import { THEMES } from "../utils/constants";
 import { AI_PROVIDERS, PROVIDER_ORDER } from "../utils/aiProviders";
 import { useLanguage } from "../hooks/useLanguage";
 
-export default function SettingsPanel({ ai, themeCtx, onExport, onImport, onReset, onClose }) {
+export default function SettingsPanel({ ai, themeCtx, onExport, onImport, onReset, onClose, vemConfig, onUpdateVEMConfig, onTestVEM, vemTestResult, vemOutboxCount, onFlushVEM }) {
   const { t, lang, setLang } = useLanguage();
   const [showKey, setShowKey] = useState(false);
   const [importStatus, setImportStatus] = useState(null);
@@ -248,6 +248,101 @@ export default function SettingsPanel({ ai, themeCtx, onExport, onImport, onRese
             <p className="text-xs text-gray-400 mt-1">
               {t("settings.domainHint")}
             </p>
+          </div>
+
+          {/* ── VEM Energy Map ── */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-600 mb-2.5">{t("vem.settingsTitle")}</label>
+
+            {/* Enable toggle */}
+            <div className="flex items-center justify-between mb-3 p-3 rounded-xl bg-gray-50">
+              <span className="text-sm font-semibold text-gray-700">{t("vem.enable")}</span>
+              <button
+                onClick={() => onUpdateVEMConfig?.({ enabled: !vemConfig?.enabled })}
+                className={`relative w-11 h-6 rounded-full transition-all ${vemConfig?.enabled ? "" : "bg-gray-300"}`}
+                style={vemConfig?.enabled ? { background: accent } : {}}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${vemConfig?.enabled ? "translate-x-[22px]" : "translate-x-0.5"}`} />
+              </button>
+            </div>
+
+            {vemConfig?.enabled && (
+              <div className="space-y-3">
+                {/* Endpoint */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">{t("vem.endpoint")}</label>
+                  <input
+                    type="url"
+                    value={vemConfig?.endpoint || ""}
+                    onChange={(e) => onUpdateVEMConfig?.({ endpoint: e.target.value })}
+                    placeholder="https://vem.example.com"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:border-amber-400 focus:outline-none text-sm font-mono"
+                  />
+                </div>
+
+                {/* API Key */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">{t("vem.apiKey")}</label>
+                  <input
+                    type="password"
+                    value={vemConfig?.apiKey || ""}
+                    onChange={(e) => onUpdateVEMConfig?.({ apiKey: e.target.value })}
+                    placeholder="vem-key-..."
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:border-amber-400 focus:outline-none text-sm font-mono"
+                  />
+                </div>
+
+                {/* Sync Level */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">{t("vem.syncLevel")}</label>
+                  <div className="flex gap-2">
+                    {["basic", "full"].map((level) => (
+                      <button
+                        key={level}
+                        onClick={() => onUpdateVEMConfig?.({ syncLevel: level })}
+                        className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all border-2 ${
+                          vemConfig?.syncLevel === level
+                            ? "text-white"
+                            : "text-gray-500 border-gray-200 bg-white"
+                        }`}
+                        style={vemConfig?.syncLevel === level ? { borderColor: accent, background: btnGrad } : {}}
+                      >
+                        {t(`vem.sync${level === "basic" ? "Basic" : "Full"}`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Test + Flush */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={onTestVEM}
+                    className="flex-1 py-2 rounded-xl bg-amber-50 text-amber-700 font-semibold text-xs hover:bg-amber-100 transition-all"
+                  >
+                    {t("vem.testBtn")}
+                  </button>
+                  <button
+                    onClick={onFlushVEM}
+                    className="flex-1 py-2 rounded-xl bg-blue-50 text-blue-700 font-semibold text-xs hover:bg-blue-100 transition-all"
+                  >
+                    {t("vem.flushBtn")}
+                    {vemOutboxCount > 0 && (
+                      <span className="ml-1 text-[10px] opacity-70">({vemOutboxCount})</span>
+                    )}
+                  </button>
+                </div>
+                {vemTestResult && (
+                  <p className={`text-xs font-semibold ${vemTestResult.success ? "text-emerald-600" : "text-red-500"}`}>
+                    {vemTestResult.success ? t("vem.testSuccess") : `${t("vem.testFail")}: ${vemTestResult.error || ""}`}
+                  </p>
+                )}
+
+                {/* Privacy note */}
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  {t("vem.privacyNote")}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Data management */}

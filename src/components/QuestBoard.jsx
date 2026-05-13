@@ -9,11 +9,22 @@ import { ChallengeCard } from "./ChallengeMode";
 import { ReflectionCard } from "./DailyReflection";
 import { StudyRoadmapCard } from "./StudyRoadmap";
 import { HabitDashboardCard, TimeBlockCard } from "./LifeHabitDashboard";
-import MathText from "./MathText";
+import TodayDashboard from "./TodayDashboard";
+import EnergyBudget from "./EnergyBudget";
+import QuickAddTask from "./QuickAddTask";
 import { getCurrentSeason } from "../utils/narrativeEngine";
 import { useLanguage } from "../hooks/useLanguage";
 
-export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDeleteQuest, onAddQuest, onOpenSkillTree, onOpenChallenge, onOpenReflection, onOpenDailyPlanning, onOpenCalendar, onOpenRoadmap, onOpenPact, onOpenParallelTracks, onOpenEnergyDashboard, pactProgress, nextStep, activeQuest, theme, ai, appMode }) {
+export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDeleteQuest, onAddQuest, onOpenSkillTree, onOpenChallenge, onOpenReflection, onOpenDailyPlanning, onOpenCalendar, onOpenRoadmap, onOpenPact, onOpenParallelTracks, onOpenEnergyDashboard, pactProgress, nextStep, activeQuest, theme, ai, appMode,
+  // TodayDashboard props
+  xp, streak, levelInfo, dailyStepCount,
+  topPick, stagnantCount, onAcceptPick, onOpenLauncher,
+  weeklyTrend, raceStatus,
+  // VEM props
+  vemEnabled, vemSummary, vemBudget, onExpandVEM,
+  // QuickAddTask props
+  onOpenFullModal, onOpenAI,
+}) {
   const { t, lang } = useLanguage();
   const season = useMemo(() => getCurrentSeason(lang), [lang]);
   const accent = theme?.accent || "#6366f1";
@@ -37,40 +48,43 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDel
 
   return (
     <>
-      {/* ── Seasonal World Event Banner ── */}
+      {/* ══ Today Dashboard ══ */}
+      <TodayDashboard
+        xp={xp}
+        streak={streak}
+        levelInfo={levelInfo}
+        dailyStepCount={dailyStepCount}
+        topPick={topPick}
+        stagnantCount={stagnantCount}
+        onAcceptPick={onAcceptPick}
+        weeklyTrend={weeklyTrend}
+        raceStatus={raceStatus}
+        vemEnabled={vemEnabled}
+        vemSummary={vemSummary}
+        onExpandVEM={onExpandVEM}
+        onSelectQuest={onSelectQuest}
+        onOpenLauncher={onOpenLauncher}
+        theme={theme}
+      />
+
+      {/* ── Seasonal World Event (compact, below dashboard) ── */}
       {season && (
-        <div className="mb-4 rounded-2xl p-4 bg-white/70 backdrop-blur border border-white/60 flex items-center gap-3">
-          <span className="text-3xl">{season.icon}</span>
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
-              <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: theme?.accent || "#6366f1" }} />
-              {lang === "zh" ? "当前世界事件" : "World Event"}
-            </p>
-            <p className="text-sm font-semibold text-gray-800 truncate">{season.name}</p>
-            <p className="text-[11px] text-gray-400 italic truncate">{season.desc}</p>
+        <div className="mb-4 rounded-xl px-4 py-2.5 bg-white/60 backdrop-blur border border-white/40 flex items-center gap-2.5">
+          <span className="text-xl">{season.icon}</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold text-gray-600 truncate">{season.name}</p>
           </div>
+          <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ background: accent }} />
         </div>
       )}
 
-      {/* Quick action: next step — with breathe effect (never collapsed) */}
-      {nextStep && activeQuest && (
-        <div
-          className="mb-6 rounded-2xl p-5 text-white cursor-pointer card-hover animate-breathe relative overflow-hidden"
-          style={{ background: theme?.btnGrad || "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
-          onClick={() => onSelectQuest(activeQuest.id)}
-        >
-          {/* Shimmer overlay */}
-          <div className="absolute inset-0 xp-bar-shimmer opacity-20" />
-          <div className="relative">
-            <div className="text-xs font-semibold opacity-80 mb-1 flex items-center gap-1.5">
-              <span className="inline-block w-2 h-2 bg-white rounded-full animate-pulse" />
-              {t("board.nextAction")}
-            </div>
-            <div className="text-lg font-bold leading-snug"><MathText text={nextStep.text} /></div>
-            <div className="text-xs opacity-60 mt-1.5">{t("board.from")} <MathText text={activeQuest.name} /></div>
-          </div>
-        </div>
-      )}
+      {/* ── Quick Add Task ── */}
+      <QuickAddTask
+        onAdd={onAddQuest}
+        onOpenFullModal={onOpenFullModal}
+        onOpenAI={onOpenAI}
+        theme={theme}
+      />
 
       {/* ── Life Mode: Habit Dashboard ── */}
       {isLife && quests.length > 0 && (
@@ -296,21 +310,25 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDel
           </div>
         </div>
 
-        {/* Energy Dashboard Card */}
-        <div
-          onClick={onOpenEnergyDashboard}
-          className="cursor-pointer rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.005] active:scale-[0.995] border bg-gradient-to-br from-emerald-500/[0.08] to-teal-500/[0.04] border-emerald-500/10"
-        >
-          <div className="px-4 py-3.5 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="text-xl">⚡</span>
-              <div>
-                <div className="text-xs font-bold text-gray-700">{t("energy.cardTitle")}</div>
-                <div className="text-[10px] text-gray-400">{t("energy.cardHint")}</div>
+        {/* Energy Dashboard Card / VEM Budget */}
+        {vemEnabled && vemBudget ? (
+          <EnergyBudget budget={vemBudget} quests={quests} theme={theme} />
+        ) : (
+          <div
+            onClick={onOpenEnergyDashboard}
+            className="cursor-pointer rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.005] active:scale-[0.995] border bg-gradient-to-br from-emerald-500/[0.08] to-teal-500/[0.04] border-emerald-500/10"
+          >
+            <div className="px-4 py-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">⚡</span>
+                <div>
+                  <div className="text-xs font-bold text-gray-700">{t("energy.cardTitle")}</div>
+                  <div className="text-[10px] text-gray-400">{t("energy.cardHint")}</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ══════════════════════════════════════ */}

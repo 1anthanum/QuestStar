@@ -1,9 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
+    @ObservedObject private var theme = ThemeManager.shared
     @State private var selectedTab = 0
-
-    private let accent = Color(hex: "#6366F1")
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -31,7 +30,7 @@ struct ContentView: View {
             }
             .tag(2)
         }
-        .tint(accent)
+        .tint(theme.current.accent)
     }
 }
 
@@ -56,7 +55,7 @@ struct GradientCard<Content: View>: View {
                     RoundedRectangle(cornerRadius: 22)
                         .fill(
                             LinearGradient(
-                                colors: [accentColor.opacity(0.03), .clear],
+                                colors: [accentColor.opacity(0.04), .clear],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -67,24 +66,28 @@ struct GradientCard<Content: View>: View {
                 RoundedRectangle(cornerRadius: 22)
                     .stroke(
                         LinearGradient(
-                            colors: [accentColor.opacity(0.2), accentColor.opacity(0.05), .clear],
+                            colors: [accentColor.opacity(0.25), accentColor.opacity(0.08), .clear],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
                         lineWidth: 1
                     )
             )
-            .shadow(color: accentColor.opacity(0.08), radius: 16, y: 8)
+            .shadow(color: accentColor.opacity(0.1), radius: 16, y: 8)
     }
 }
 
 struct MeshBackground: View {
+    var theme: AppTheme = ThemeManager.shared.current
+
+    @State private var animate = false
+
     var body: some View {
         ZStack {
             LinearGradient(
                 colors: [
-                    Color(hex: "#F8F7FF"),
-                    Color(hex: "#F0EFFF").opacity(0.5),
+                    theme.pageBgTop,
+                    theme.pageBgBottom.opacity(0.5),
                     Color(.systemBackground)
                 ],
                 startPoint: .top,
@@ -92,24 +95,31 @@ struct MeshBackground: View {
             )
             .ignoresSafeArea()
 
-            // Soft orbs
-            Circle()
-                .fill(Color(hex: "#6366F1").opacity(0.04))
-                .frame(width: 300, height: 300)
-                .blur(radius: 60)
-                .offset(x: -100, y: -200)
+            // Animated floating orbs
+            if theme.orbs.count >= 3 {
+                Circle()
+                    .fill(theme.orbs[0].opacity(0.06))
+                    .frame(width: 300, height: 300)
+                    .blur(radius: 60)
+                    .offset(x: animate ? -80 : -120, y: animate ? -180 : -220)
 
-            Circle()
-                .fill(Color(hex: "#8B5CF6").opacity(0.03))
-                .frame(width: 250, height: 250)
-                .blur(radius: 50)
-                .offset(x: 120, y: -50)
+                Circle()
+                    .fill(theme.orbs[1].opacity(0.05))
+                    .frame(width: 250, height: 250)
+                    .blur(radius: 50)
+                    .offset(x: animate ? 140 : 100, y: animate ? -30 : -70)
 
-            Circle()
-                .fill(Color(hex: "#06B6D4").opacity(0.03))
-                .frame(width: 200, height: 200)
-                .blur(radius: 40)
-                .offset(x: -80, y: 200)
+                Circle()
+                    .fill(theme.orbs[2].opacity(0.04))
+                    .frame(width: 200, height: 200)
+                    .blur(radius: 40)
+                    .offset(x: animate ? -60 : -100, y: animate ? 220 : 180)
+            }
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 6).repeatForever(autoreverses: true)) {
+                animate = true
+            }
         }
     }
 }

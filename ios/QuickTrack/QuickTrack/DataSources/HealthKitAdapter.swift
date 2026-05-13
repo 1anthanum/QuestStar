@@ -43,7 +43,8 @@ struct SleepAdapter: TrackerDataSource {
                     icon: "exclamationmark.triangle.fill",
                     isCompleted: false
                 )
-            ] : nil
+            ] : nil,
+            stepMeta: nil
         )
     }
 
@@ -105,7 +106,8 @@ struct SleepAdapter: TrackerDataSource {
             progress: nil,
             trend: nil,
             updatedAt: Date(),
-            actionItems: nil
+            actionItems: nil,
+            stepMeta: nil
         )
     }
 }

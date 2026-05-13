@@ -8,10 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		003F303A94020C17007960C2 /* WaterWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C3C641790B6071C9F74A504 /* WaterWidget.swift */; };
+		01B066D82AEBAA7B141A07D3 /* CompleteStepIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F1157F0FEEF3B8B5344AB8F /* CompleteStepIntent.swift */; };
 		01F5417F936109C80E9DB1B9 /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A94DA234DAC2469BECC62A98 /* SupabaseClient.swift */; };
 		01F8F812B643342E4DBE37A1 /* TrackerSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07B7D0BB332B44D3323703F9 /* TrackerSummary.swift */; };
 		042430B4B1F8657DC7DE9BAF /* WidgetComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E38F7C2A12C61B92DA1C49C7 /* WidgetComponents.swift */; };
 		0A9EE92A361C7A35E0F45E65 /* AddQuestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31CB05067EBD3079E418C011 /* AddQuestView.swift */; };
+		0B3BA9F9F610CBA4292ACAA6 /* CelebrationOverlays.swift in Sources */ = {isa = PBXBuildFile; fileRef = 778AA42A57A41506A07400EC /* CelebrationOverlays.swift */; };
 		0F451917D26C860FB890EDC3 /* QuestStarWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70AFEB8C933E308D5050590D /* QuestStarWidgetView.swift */; };
 		0F54F6C3ADD1E0D692105FB6 /* HealthKitAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0F953C2D22C7815BB9FED9 /* HealthKitAdapter.swift */; };
 		0FE53C3D8FA199D0EC0407DD /* WidgetLoadState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F77A94FEF117DFE2075547E /* WidgetLoadState.swift */; };
@@ -26,6 +28,7 @@
 		21B0CC9335C022599BC7BE3F /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E60440F67C60B9D68E55FB /* ContentView.swift */; };
 		24566A2C8A4086FFB46738D0 /* RefreshSummaryIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945096824BA9726322B76A75 /* RefreshSummaryIntent.swift */; };
 		2D6E765AF01B2925844A32E5 /* MedicationWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23B5C7AA59D8DDE2530C0681 /* MedicationWidgetView.swift */; };
+		300202F82227C1FD448D1891 /* HapticEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D645AFB9A2345D8DCEE865 /* HapticEngine.swift */; };
 		3271B2986C5A20C9FEC1FF9A /* QuestStarWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC083FCAC35EC70CFAB9CBFE /* QuestStarWidget.swift */; };
 		362F07AAF3D7F0F31696649A /* SyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1F185EB247E692BC85FAF1 /* SyncManager.swift */; };
 		400760EF714F753CE3FDB743 /* Tracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D626DC20C254B445023B1640 /* Tracker.swift */; };
@@ -35,9 +38,11 @@
 		4AEE97F742D246F11D1AD008 /* SupabaseAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C4CDA819DE9CCD0DC8013D1 /* SupabaseAdapter.swift */; };
 		4B1CE7F53FAB86C6F415E672 /* SyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1F185EB247E692BC85FAF1 /* SyncManager.swift */; };
 		4D4AFCB1A8539E882E80DC71 /* AppGroupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93B6A13DD74955CB628A4BAD /* AppGroupManager.swift */; };
+		4D861882389E6BF8F65C9777 /* RewardChain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ECE3DFB2073B41463294592 /* RewardChain.swift */; };
 		4E620AC79B3076AB9CEA434D /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFD156ECCB17B2644B98873 /* SettingsView.swift */; };
 		543039CFA040D62EF1F6D1B2 /* QuestStarWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC083FCAC35EC70CFAB9CBFE /* QuestStarWidget.swift */; };
 		5C5002B8AF78A432BE6FA4D0 /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A94DA234DAC2469BECC62A98 /* SupabaseClient.swift */; };
+		6005851526666F37CA8E55F3 /* CompleteStepIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F1157F0FEEF3B8B5344AB8F /* CompleteStepIntent.swift */; };
 		63FBAF597948937C1E4E0DDA /* AppGroupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93B6A13DD74955CB628A4BAD /* AppGroupManager.swift */; };
 		6640D9D8ED81A21BCC1D7B53 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C152B172128D86F3BA01A7D /* TodayView.swift */; };
 		66A48B45345209FE3D934081 /* Tracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D626DC20C254B445023B1640 /* Tracker.swift */; };
@@ -68,6 +73,8 @@
 		A7FF76912A2F00DBA7781295 /* LogEventIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E4068D76A3DE53F9ACCCCC2 /* LogEventIntent.swift */; };
 		A9818692F7258371932A1E44 /* SyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1F185EB247E692BC85FAF1 /* SyncManager.swift */; };
 		AD76EA44BFB7F9AF1BC281E3 /* RefreshSummaryIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945096824BA9726322B76A75 /* RefreshSummaryIntent.swift */; };
+		AD9DA7055C1413E810D62F0A /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F95AA7FECF6E82E5E93475E /* ThemeManager.swift */; };
+		AE731456229C74F76A060DD2 /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F95AA7FECF6E82E5E93475E /* ThemeManager.swift */; };
 		AF3114D304CD2FE039DBBF11 /* LogEventIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E4068D76A3DE53F9ACCCCC2 /* LogEventIntent.swift */; };
 		B1BD4A7BA28C3C759C75AE49 /* SupabaseAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C4CDA819DE9CCD0DC8013D1 /* SupabaseAdapter.swift */; };
 		B415F9C32A0785D88EB74DE1 /* AppGroupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93B6A13DD74955CB628A4BAD /* AppGroupManager.swift */; };
@@ -77,6 +84,8 @@
 		BD57CAFF3BB849CE4544CC1F /* SupabaseAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C4CDA819DE9CCD0DC8013D1 /* SupabaseAdapter.swift */; };
 		C253267413BDD1CED4473BB3 /* Tracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D626DC20C254B445023B1640 /* Tracker.swift */; };
 		C2AAC834FE0360452B297A8E /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3010D83DEC0F090EFFAF90C /* LoginView.swift */; };
+		C405086D8FFA41E28184D6D0 /* RewardChain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ECE3DFB2073B41463294592 /* RewardChain.swift */; };
+		C4D370B987EC53FBFCDF0A71 /* CompleteStepIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F1157F0FEEF3B8B5344AB8F /* CompleteStepIntent.swift */; };
 		C7A85130B6866961C94AF8E0 /* QuestsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A54650EFF870432900E80B41 /* QuestsView.swift */; };
 		CABA3958BD4C6420AFB7A38B /* TrackerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A94BB1EB5AE2752FE8F9FE2 /* TrackerListView.swift */; };
 		CB50528B46D67D1BA45D7CA3 /* QuickTrackWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADDD80A4C990DED2A7CD6C09 /* QuickTrackWidgetBundle.swift */; };
@@ -87,8 +96,11 @@
 		D36C947A16EE33519D9FDD6F /* MedicationWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57B9E590CC3AFE11315E76A6 /* MedicationWidget.swift */; };
 		D3FB377E834CD73B65F35803 /* MedicationWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57B9E590CC3AFE11315E76A6 /* MedicationWidget.swift */; };
 		D413A26F482555B1F8B3314F /* TrackerSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07B7D0BB332B44D3323703F9 /* TrackerSummary.swift */; };
+		D64A3183AD325522072BFE4F /* HapticEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D645AFB9A2345D8DCEE865 /* HapticEngine.swift */; };
 		DCBD6A9453C5300D8AEB5473 /* AddQuestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31CB05067EBD3079E418C011 /* AddQuestView.swift */; };
 		DF02870445DB2FB1FDC4AA52 /* RefreshSummaryIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945096824BA9726322B76A75 /* RefreshSummaryIntent.swift */; };
+		E37D9234D34F0D994CA263F9 /* CelebrationOverlays.swift in Sources */ = {isa = PBXBuildFile; fileRef = 778AA42A57A41506A07400EC /* CelebrationOverlays.swift */; };
+		E71D5833BDD95EF0266437A1 /* CompleteStepIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F1157F0FEEF3B8B5344AB8F /* CompleteStepIntent.swift */; };
 		E9428561D3672C1F110B0C93 /* SleepWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38E3BE3B13B68ABFAF40823B /* SleepWidgetView.swift */; };
 		EBC74E4C72C0CF7E74679607 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C152B172128D86F3BA01A7D /* TodayView.swift */; };
 		EC24E1DE374237F6A708E06C /* RefreshSummaryIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945096824BA9726322B76A75 /* RefreshSummaryIntent.swift */; };
@@ -161,6 +173,8 @@
 		027314810ECFE718BC0295A4 /* QuickTrackWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QuickTrackWidget.entitlements; sourceTree = "<group>"; };
 		07B7D0BB332B44D3323703F9 /* TrackerSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerSummary.swift; sourceTree = "<group>"; };
 		09A13EC7C343603E90C1935C /* QuickTrack.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = QuickTrack.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0ECE3DFB2073B41463294592 /* RewardChain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewardChain.swift; sourceTree = "<group>"; };
+		0F95AA7FECF6E82E5E93475E /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		1467EA9B1CBAF77E52292D0E /* SleepWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepWidget.swift; sourceTree = "<group>"; };
 		17E60440F67C60B9D68E55FB /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		23B5C7AA59D8DDE2530C0681 /* MedicationWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationWidgetView.swift; sourceTree = "<group>"; };
@@ -179,8 +193,10 @@
 		6238468F6F5CD68489CF45D3 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
 		6F77A94FEF117DFE2075547E /* WidgetLoadState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetLoadState.swift; sourceTree = "<group>"; };
 		70AFEB8C933E308D5050590D /* QuestStarWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestStarWidgetView.swift; sourceTree = "<group>"; };
+		778AA42A57A41506A07400EC /* CelebrationOverlays.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationOverlays.swift; sourceTree = "<group>"; };
 		79682BC6AF92E4903945E2F7 /* WaterWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterWidgetView.swift; sourceTree = "<group>"; };
 		7D7A337DF0402B9F23A8CE28 /* QuickTrackApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickTrackApp.swift; sourceTree = "<group>"; };
+		7F1157F0FEEF3B8B5344AB8F /* CompleteStepIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompleteStepIntent.swift; sourceTree = "<group>"; };
 		93B6A13DD74955CB628A4BAD /* AppGroupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroupManager.swift; sourceTree = "<group>"; };
 		945096824BA9726322B76A75 /* RefreshSummaryIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshSummaryIntent.swift; sourceTree = "<group>"; };
 		9A94BB1EB5AE2752FE8F9FE2 /* TrackerListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerListView.swift; sourceTree = "<group>"; };
@@ -197,6 +213,7 @@
 		E38F7C2A12C61B92DA1C49C7 /* WidgetComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetComponents.swift; sourceTree = "<group>"; };
 		ED1F185EB247E692BC85FAF1 /* SyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncManager.swift; sourceTree = "<group>"; };
 		F7AFD7F4FB7BD98D13935765 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		F7D645AFB9A2345D8DCEE865 /* HapticEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticEngine.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -208,6 +225,7 @@
 				435840F90CFF5D772D07288D /* QuickTrack.entitlements */,
 				7D7A337DF0402B9F23A8CE28 /* QuickTrackApp.swift */,
 				AA73FD03657C6FDE57B5AB93 /* DataSources */,
+				5E5C5BDB794501B7D16278DB /* Engine */,
 				4D05C5DEACAC44CABC3FDC6A /* Intents */,
 				E913F6FE0264477612630948 /* Models */,
 				66F50CF42F2D60BE0760F8D3 /* Views */,
@@ -251,10 +269,22 @@
 		4D05C5DEACAC44CABC3FDC6A /* Intents */ = {
 			isa = PBXGroup;
 			children = (
+				7F1157F0FEEF3B8B5344AB8F /* CompleteStepIntent.swift */,
 				4E4068D76A3DE53F9ACCCCC2 /* LogEventIntent.swift */,
 				945096824BA9726322B76A75 /* RefreshSummaryIntent.swift */,
 			);
 			path = Intents;
+			sourceTree = "<group>";
+		};
+		5E5C5BDB794501B7D16278DB /* Engine */ = {
+			isa = PBXGroup;
+			children = (
+				778AA42A57A41506A07400EC /* CelebrationOverlays.swift */,
+				F7D645AFB9A2345D8DCEE865 /* HapticEngine.swift */,
+				0ECE3DFB2073B41463294592 /* RewardChain.swift */,
+				0F95AA7FECF6E82E5E93475E /* ThemeManager.swift */,
+			);
+			path = Engine;
 			sourceTree = "<group>";
 		};
 		66F50CF42F2D60BE0760F8D3 /* Views */ = {
@@ -458,6 +488,7 @@
 			files = (
 				B415F9C32A0785D88EB74DE1 /* AppGroupManager.swift in Sources */,
 				8DD9E3D32DE56876BD141CE4 /* ColorHex.swift in Sources */,
+				C4D370B987EC53FBFCDF0A71 /* CompleteStepIntent.swift in Sources */,
 				676F9A1A156284DFFED87EB9 /* Config.swift in Sources */,
 				0F54F6C3ADD1E0D692105FB6 /* HealthKitAdapter.swift in Sources */,
 				44EA40E04CECDA5DD66BC85A /* LogEventIntent.swift in Sources */,
@@ -488,19 +519,24 @@
 			files = (
 				DCBD6A9453C5300D8AEB5473 /* AddQuestView.swift in Sources */,
 				4D4AFCB1A8539E882E80DC71 /* AppGroupManager.swift in Sources */,
+				0B3BA9F9F610CBA4292ACAA6 /* CelebrationOverlays.swift in Sources */,
 				6E68A22499849F0B7858FF4C /* ColorHex.swift in Sources */,
+				01B066D82AEBAA7B141A07D3 /* CompleteStepIntent.swift in Sources */,
 				45DB54121B99638EEBEA588E /* Config.swift in Sources */,
 				7291D2F6477946A782754EA5 /* ContentView.swift in Sources */,
+				300202F82227C1FD448D1891 /* HapticEngine.swift in Sources */,
 				969BD8A5B6DA25C2A2A1B5CF /* HealthKitAdapter.swift in Sources */,
 				AF3114D304CD2FE039DBBF11 /* LogEventIntent.swift in Sources */,
 				C2AAC834FE0360452B297A8E /* LoginView.swift in Sources */,
 				A184F813891BBC76CC9F83B4 /* QuestsView.swift in Sources */,
 				183BF8D9886CF5FF0891C725 /* QuickTrackApp.swift in Sources */,
 				DF02870445DB2FB1FDC4AA52 /* RefreshSummaryIntent.swift in Sources */,
+				4D861882389E6BF8F65C9777 /* RewardChain.swift in Sources */,
 				4E620AC79B3076AB9CEA434D /* SettingsView.swift in Sources */,
 				4AEE97F742D246F11D1AD008 /* SupabaseAdapter.swift in Sources */,
 				5C5002B8AF78A432BE6FA4D0 /* SupabaseClient.swift in Sources */,
 				91A318419E9E6C84BCDDC7C2 /* SyncManager.swift in Sources */,
+				AE731456229C74F76A060DD2 /* ThemeManager.swift in Sources */,
 				6640D9D8ED81A21BCC1D7B53 /* TodayView.swift in Sources */,
 				C253267413BDD1CED4473BB3 /* Tracker.swift in Sources */,
 				95B4AC306C418BAFA9684A6F /* TrackerDataSource.swift in Sources */,
@@ -515,19 +551,24 @@
 			files = (
 				0A9EE92A361C7A35E0F45E65 /* AddQuestView.swift in Sources */,
 				906DEE8D742D2508E982EAAD /* AppGroupManager.swift in Sources */,
+				E37D9234D34F0D994CA263F9 /* CelebrationOverlays.swift in Sources */,
 				97E55DD0F46962A5595DFFCA /* ColorHex.swift in Sources */,
+				6005851526666F37CA8E55F3 /* CompleteStepIntent.swift in Sources */,
 				FA17F3EB77B4754CE5AF60E4 /* Config.swift in Sources */,
 				21B0CC9335C022599BC7BE3F /* ContentView.swift in Sources */,
+				D64A3183AD325522072BFE4F /* HapticEngine.swift in Sources */,
 				8E346AA2FC7F209A2B7CABFE /* HealthKitAdapter.swift in Sources */,
 				A7FF76912A2F00DBA7781295 /* LogEventIntent.swift in Sources */,
 				725F6ECB6BA6F4D5CEA6845D /* LoginView.swift in Sources */,
 				C7A85130B6866961C94AF8E0 /* QuestsView.swift in Sources */,
 				B6DEE975FB21F82ADE020E62 /* QuickTrackApp.swift in Sources */,
 				AD76EA44BFB7F9AF1BC281E3 /* RefreshSummaryIntent.swift in Sources */,
+				C405086D8FFA41E28184D6D0 /* RewardChain.swift in Sources */,
 				973067AA492DB216DD33D3E7 /* SettingsView.swift in Sources */,
 				B1BD4A7BA28C3C759C75AE49 /* SupabaseAdapter.swift in Sources */,
 				01F5417F936109C80E9DB1B9 /* SupabaseClient.swift in Sources */,
 				A9818692F7258371932A1E44 /* SyncManager.swift in Sources */,
+				AD9DA7055C1413E810D62F0A /* ThemeManager.swift in Sources */,
 				EBC74E4C72C0CF7E74679607 /* TodayView.swift in Sources */,
 				1C9AB27820045949CCD24815 /* Tracker.swift in Sources */,
 				9F80496B15810ACE7ADB3166 /* TrackerDataSource.swift in Sources */,
@@ -542,6 +583,7 @@
 			files = (
 				63FBAF597948937C1E4E0DDA /* AppGroupManager.swift in Sources */,
 				A45CAE34CA97CB5A5907392F /* ColorHex.swift in Sources */,
+				E71D5833BDD95EF0266437A1 /* CompleteStepIntent.swift in Sources */,
 				F99EAD403840FF9106881016 /* Config.swift in Sources */,
 				FFA5CE757A11B865C62E0657 /* HealthKitAdapter.swift in Sources */,
 				BA55188ED3A53BE435C0D1E3 /* LogEventIntent.swift in Sources */,

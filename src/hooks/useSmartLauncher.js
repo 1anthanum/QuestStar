@@ -80,7 +80,7 @@ function generateMicroSteps(step) {
 }
 
 // ── Priority scoring engine ──
-function scoreStep(step, quest, allQuests, launcherHistory, energyProfile) {
+function scoreStep(step, quest, allQuests, launcherHistory, energyProfile, vemVitality) {
   let score = 0;
   const reasons = [];
 
@@ -116,11 +116,17 @@ function scoreStep(step, quest, allQuests, launcherHistory, energyProfile) {
   }
 
   // 3. Difficulty vs time-of-day energy (max +15)
+  // When VEM vitality is available, derive energy level from the 0-100 index
   const bucket = getHourBucket();
-  const profile = energyProfile || {};
-  const dayOfWeek = new Date().getDay();
-  const dayProfile = profile[dayOfWeek] || {};
-  const energy = dayProfile[bucket] || "medium";
+  let energy;
+  if (vemVitality != null) {
+    energy = vemVitality >= 65 ? "high" : vemVitality >= 35 ? "medium" : "low";
+  } else {
+    const profile = energyProfile || {};
+    const dayOfWeek = new Date().getDay();
+    const dayProfile = profile[dayOfWeek] || {};
+    energy = dayProfile[bucket] || "medium";
+  }
 
   if (energy === "high" && step.difficulty === "hard") {
     score += 15;
@@ -168,7 +174,7 @@ function scoreStep(step, quest, allQuests, launcherHistory, energyProfile) {
   return { score, reasons, stagnantDays };
 }
 
-export function useSmartLauncher(quests, energyProfile) {
+export function useSmartLauncher(quests, energyProfile, vemVitality) {
   const [launcherHistory, setLauncherHistory] = useLocalStorage("qt_launcher_history", []);
   const [rescueSplits, setRescueSplits] = useLocalStorage("qt_rescue_splits", {});
 
@@ -186,7 +192,7 @@ export function useSmartLauncher(quests, energyProfile) {
       if (!nextStep) continue;
 
       const { score, reasons, stagnantDays } = scoreStep(
-        nextStep, quest, quests, launcherHistory, energyProfile
+        nextStep, quest, quests, launcherHistory, energyProfile, vemVitality
       );
 
       const needsRescue = stagnantDays >= 3;
@@ -215,7 +221,7 @@ export function useSmartLauncher(quests, energyProfile) {
 
     scored.sort((a, b) => b.score - a.score);
     return scored;
-  }, [quests, launcherHistory, energyProfile]);
+  }, [quests, launcherHistory, energyProfile, vemVitality]);
 
   // ── Top pick: THE one step to do right now ──
   const topPick = candidates[0] || null;

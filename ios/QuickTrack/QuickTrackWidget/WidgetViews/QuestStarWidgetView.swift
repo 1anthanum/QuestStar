@@ -61,11 +61,37 @@ struct QuestStarWidgetView: View {
 
             Spacer(minLength: 0)
 
-            if let items = summary.actionItems, let first = items.first {
-                Text(first.label)
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+            if let items = summary.actionItems, let first = items.first, !first.isCompleted {
+                // Interactive button to complete next step
+                if let meta = summary.stepMeta {
+                    Button(intent: CompleteStepIntent(
+                        questId: meta.questId,
+                        stepId: first.id,
+                        questName: meta.questName,
+                        stepText: first.label,
+                        stepDifficulty: meta.difficulty,
+                        questType: meta.questType
+                    )) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 8))
+                            Text(first.label)
+                                .font(.system(size: 9))
+                                .lineLimit(1)
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .frame(maxWidth: .infinity)
+                        .background(color.opacity(0.8), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Text(first.label)
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
             }
         }
     }
@@ -111,16 +137,40 @@ struct QuestStarWidgetView: View {
                 }
             }
 
-            if let items = summary.actionItems, let first = items.first {
+            if let items = summary.actionItems, let first = items.first, !first.isCompleted {
                 Divider()
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text("Next Step")
                         .font(.system(size: 9, weight: .semibold))
                         .foregroundStyle(.secondary)
                     Text(first.label)
                         .font(.caption2)
-                        .lineLimit(3)
+                        .lineLimit(2)
                     Spacer(minLength: 0)
+
+                    // Interactive complete button
+                    if let meta = summary.stepMeta {
+                        Button(intent: CompleteStepIntent(
+                            questId: meta.questId,
+                            stepId: first.id,
+                            questName: meta.questName,
+                            stepText: first.label,
+                            stepDifficulty: meta.difficulty,
+                            questType: meta.questType
+                        )) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 10))
+                                Text("Done")
+                                    .font(.system(size: 10, weight: .bold))
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(color, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
         }

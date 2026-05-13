@@ -56,6 +56,12 @@ export function useCloudSync() {
     qt_aiProvider: { table: "user_settings", column: "ai_provider" },
     qt_knownDomain: { table: "user_settings", column: "known_domain" },
     qt_onboarding_done: { table: "user_settings", column: "onboarding_done" },
+    // VEM
+    qt_vem_config: { table: "user_settings", column: "vem_config" },
+    // budget_tracker
+    qt_expenses: { table: "extra_state", column: "budget_expenses" },
+    qt_budget_config: { table: "extra_state", column: "budget_config" },
+    qt_transfer_status: { table: "extra_state", column: "transfer_status" },
   };
 
   // ── Step 1: On authentication, run migration then pull ──
@@ -220,6 +226,7 @@ export function useCloudSync() {
         safeSet("qt_aiProvider", st.ai_provider);
         safeSet("qt_knownDomain", st.known_domain);
         safeSet("qt_onboarding_done", st.onboarding_done);
+        if (st.vem_config) safeSet("qt_vem_config", st.vem_config);
         // AI keys
         if (st.ai_keys) {
           if (st.ai_keys.claude) safeSet("qt_claude_apiKey", st.ai_keys.claude);
@@ -233,6 +240,18 @@ export function useCloudSync() {
           if (st.ai_models.deepseek) safeSet("qt_deepseek_model", st.ai_models.deepseek);
           if (st.ai_models.qwen) safeSet("qt_qwen_model", st.ai_models.qwen);
         }
+      }
+
+      // Pull extra_state (budget + other JSONB fields)
+      const { data: ex } = await supabase
+        .from("extra_state")
+        .select("*")
+        .eq("user_id", userId)
+        .single();
+      if (ex) {
+        if (ex.budget_expenses) safeSet("qt_expenses", ex.budget_expenses);
+        if (ex.budget_config) safeSet("qt_budget_config", ex.budget_config);
+        if (ex.transfer_status) safeSet("qt_transfer_status", ex.transfer_status);
       }
 
       lastPullRef.current = Date.now();
@@ -335,6 +354,7 @@ export function useCloudSync() {
           ai_provider: safeGet("qt_aiProvider", "claude"),
           known_domain: safeGet("qt_knownDomain", ""),
           onboarding_done: safeGet("qt_onboarding_done", false),
+          vem_config: safeGet("qt_vem_config", null),
           ai_keys: {
             claude: safeGet("qt_claude_apiKey", ""),
             glm: safeGet("qt_glm_apiKey", ""),
@@ -347,6 +367,16 @@ export function useCloudSync() {
             deepseek: safeGet("qt_deepseek_model", ""),
             qwen: safeGet("qt_qwen_model", ""),
           },
+        }, { onConflict: "user_id" })
+      );
+
+      // extra_state (budget + other JSONB)
+      promises.push(
+        supabase.from("extra_state").upsert({
+          user_id: userId,
+          budget_expenses: safeGet("qt_expenses", []),
+          budget_config: safeGet("qt_budget_config", null),
+          transfer_status: safeGet("qt_transfer_status", null),
         }, { onConflict: "user_id" })
       );
 

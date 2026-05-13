@@ -28,6 +28,7 @@ struct GameStateRow: Decodable {
     let xp: Int
     let streak: Int
     let last_active_date: String?
+    let daily_first_win: String?
 }
 
 /// Matches quests table row
@@ -37,6 +38,7 @@ struct QuestRow: Decodable {
     let steps: [QuestStep]
     let deadline: String?
     let tag: String?
+    let quest_type: String?
 }
 
 struct QuestStep: Decodable {
@@ -91,21 +93,19 @@ struct MedicationAdapter: TrackerDataSource {
                     icon: "pill.fill",
                     isCompleted: false
                 )
-            }
+            },
+            stepMeta: nil
         )
     }
 
     // MARK: - Helpers
 
     private static func todayKey() -> String {
-        dateKey(daysAgo: 0)
+        Config.todayString()
     }
 
     private static func dateKey(daysAgo: Int) -> String {
-        let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: Date())!
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
+        Config.dateString(daysAgo: daysAgo)
     }
 
     private static func resolveActivities(from timeBlocks: [TimeBlockRow]?) -> [(id: String, label: String)] {
@@ -136,11 +136,11 @@ struct QuestStarAdapter: TrackerDataSource {
 
         async let gameState: GameStateRow? = client.fetchOneOptional(
             table: "game_state",
-            query: "select=xp,streak,last_active_date&user_id=eq.\(userId)"
+            query: "select=xp,streak,last_active_date,daily_first_win&user_id=eq.\(userId)"
         )
         async let quests: [QuestRow] = client.fetchMany(
             table: "quests",
-            query: "select=id,name,steps,deadline,tag&user_id=eq.\(userId)"
+            query: "select=id,name,steps,deadline,tag,quest_type&user_id=eq.\(userId)&order=created_at.desc"
         )
 
         let state = try await gameState
@@ -152,7 +152,7 @@ struct QuestStarAdapter: TrackerDataSource {
         let progress = Config.levelProgress(for: xp)
 
         // Find most urgent quest with incomplete steps
-        let today = Self.todayString()
+        let today = Config.todayString()
         let isActiveToday = state?.last_active_date == today
         let hour = Calendar.current.component(.hour, from: Date())
         let streakAtRisk = !isActiveToday && hour >= 18
@@ -170,6 +170,17 @@ struct QuestStarAdapter: TrackerDataSource {
             subtitle = "Streak: \(streak) days"
         }
 
+        // Build stepMeta for interactive widget
+        let meta: StepMeta? = {
+            guard let quest = urgentQuest, let step = nextStep else { return nil }
+            return StepMeta(
+                questId: quest.id,
+                questName: quest.name,
+                difficulty: step.difficulty ?? "medium",
+                questType: quest.quest_type ?? "daily"
+            )
+        }()
+
         return TrackerSummary(
             trackerId: trackerId,
             currentValue: Double(xp),
@@ -185,15 +196,11 @@ struct QuestStarAdapter: TrackerDataSource {
                     icon: "arrow.right.circle.fill",
                     isCompleted: false
                 )]
-            }
+            },
+            stepMeta: meta
         )
     }
 
-    private static func todayString() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: Date())
-    }
 }
 
 // MARK: - Water Adapter
@@ -216,7 +223,7 @@ struct WaterAdapter: TrackerDataSource {
             query: "select=daily_checks&user_id=eq.\(userId)"
         )
 
-        let todayKey = Self.todayString()
+        let todayKey = Config.todayString()
         let todayChecks = row?.daily_checks?[todayKey] ?? [:]
         let checkedCount = Self.intervals.filter { todayChecks[$0.id] == true }.count
 
@@ -235,13 +242,9 @@ struct WaterAdapter: TrackerDataSource {
                     icon: "drop.fill",
                     isCompleted: todayChecks[interval.id] == true
                 )
-            }
+            },
+            stepMeta: nil
         )
     }
 
-    private static func todayString() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: Date())
-    }
 }

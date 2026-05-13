@@ -69,7 +69,8 @@ struct MedicationTimelineProvider: TimelineProvider {
         actionItems: [
             ActionItem(id: "a1", label: "Omega-3+Turmeric+Zinc", icon: "pill.fill", isCompleted: false),
             ActionItem(id: "a2", label: "Magnesium L-Threonate", icon: "pill.fill", isCompleted: false)
-        ]
+        ],
+        stepMeta: nil
     )
 }
 

@@ -3,23 +3,31 @@ import WidgetKit
 
 struct TodayView: View {
     @ObservedObject private var sync = SyncManager.shared
-    @State private var xpPopup: Int?
-    @State private var xpPopupOffset: CGFloat = 0
-    @State private var xpPopupScale: CGFloat = 0.5
-    @State private var xpPopupOpacity: Double = 0
+    @ObservedObject private var theme = ThemeManager.shared
+
+    // Reward chain state
+    @State private var xpPopupResult: RewardChainResult?
+    @State private var showXpPopup = false
+    @State private var showCoinBurst = false
+    @State private var coinAmount: Int = 0
+    @State private var showLoreDrop = false
+    @State private var loreFragment: LoreFragment?
+    @State private var showLevelUp = false
+    @State private var levelUpName = ""
+    @State private var levelUpIndex = 0
+    @State private var showQuestComplete = false
+    @State private var questCompleteName = ""
+
+    // Interaction state
     @State private var waterBounce: String?
     @State private var completedStepId: String?
-    @State private var showSparkles = false
 
-    private let accent = Color(hex: "#6366F1")
-    private let accentGradient = LinearGradient(
-        colors: [Color(hex: "#6366F1"), Color(hex: "#8B5CF6")],
-        startPoint: .topLeading, endPoint: .bottomTrailing
-    )
+    private var accent: Color { theme.current.accent }
+    private var accentGradient: LinearGradient { theme.accentGradient }
 
     var body: some View {
         ZStack {
-            MeshBackground()
+            MeshBackground(theme: theme.current)
 
             ScrollView {
                 VStack(spacing: 20) {
@@ -40,6 +48,46 @@ struct TodayView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 20)
             }
+
+            // MARK: - Celebration Overlays (z-layered)
+
+            if showXpPopup, let result = xpPopupResult {
+                XpPopupView(
+                    xp: result.xpGained,
+                    streakBonus: result.streakBonus,
+                    isFirstWin: result.isFirstWinToday,
+                    isVisible: $showXpPopup
+                )
+                .transition(.asymmetric(insertion: .scale, removal: .opacity))
+                .zIndex(10)
+            }
+
+            if showCoinBurst {
+                CoinBurstView(amount: coinAmount, isVisible: $showCoinBurst)
+                    .zIndex(20)
+            }
+
+            if showLoreDrop, let frag = loreFragment {
+                LoreDropView(fragment: frag, isVisible: $showLoreDrop)
+                    .zIndex(20)
+            }
+
+            if showLevelUp {
+                LevelUpOverlay(
+                    levelName: levelUpName,
+                    levelIndex: levelUpIndex,
+                    isVisible: $showLevelUp
+                )
+                .zIndex(30)
+            }
+
+            if showQuestComplete {
+                QuestCompleteOverlay(
+                    questName: questCompleteName,
+                    isVisible: $showQuestComplete
+                )
+                .zIndex(30)
+            }
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -52,13 +100,107 @@ struct TodayView: View {
                         .font(.headline)
                 }
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    HapticEngine.selection()
+                    theme.cycle()
+                } label: {
+                    Image(systemName: theme.current.icon)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(accent)
+                        .padding(6)
+                        .background(accent.opacity(0.1), in: Circle())
+                }
+            }
         }
         .refreshable { await sync.refresh() }
         .onAppear { sync.startPolling() }
         .onDisappear { sync.stopPolling() }
-        .overlay(alignment: .top) {
-            if xpPopup != nil {
-                xpPopupView
+    }
+
+    // MARK: - Reward Chain Trigger
+
+    private func runRewardChain(quest: QuestRow, step: QuestStep) async {
+        let oldXp = sync.gameState?.xp ?? 0
+        let isFirstWin = sync.gameState?.daily_first_win != Config.todayString()
+
+        // 1. Complete the step (writes to Supabase)
+        let xpGained = await sync.toggleStep(quest: quest, step: step)
+
+        // 2. Haptic: step done
+        HapticEngine.stepComplete()
+
+        let newXp = sync.gameState?.xp ?? oldXp
+
+        // 3. Run reward chain evaluation
+        let result = RewardChain.evaluate(
+            xpGained: xpGained,
+            oldXp: oldXp,
+            newXp: newXp,
+            quest: quest,
+            completedStep: step,
+            isFirstWinToday: isFirstWin,
+            streak: sync.gameState?.streak ?? 0
+        )
+
+        // 4. Sequence the celebrations with delays for maximum dopamine
+
+        // XP popup (immediate)
+        xpPopupResult = result
+        withAnimation(.spring(response: 0.3)) { showXpPopup = true }
+        completedStepId = step.id
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            withAnimation { completedStepId = nil }
+        }
+
+        // Coin drop (8% chance, after 0.8s)
+        if let coin = result.coinDrop {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                HapticEngine.coinDrop()
+                coinAmount = coin
+                withAnimation(.spring(response: 0.3)) { showCoinBurst = true }
+            }
+        }
+
+        // Lore drop (12% chance, after delay)
+        if let lore = result.loreDrop {
+            let loreDelay = result.coinDrop != nil ? 2.8 : 1.5
+            DispatchQueue.main.asyncAfter(deadline: .now() + loreDelay) {
+                HapticEngine.loreDrop()
+                loreFragment = lore
+                withAnimation(.spring(response: 0.3)) { showLoreDrop = true }
+            }
+        }
+
+        // Level up
+        if result.leveledUp, let name = result.newLevelName {
+            let levelDelay: Double = {
+                var d = 1.0
+                if result.coinDrop != nil { d += 2.0 }
+                if result.loreDrop != nil { d += 2.0 }
+                return d
+            }()
+            DispatchQueue.main.asyncAfter(deadline: .now() + levelDelay) {
+                HapticEngine.levelUp()
+                levelUpName = name
+                levelUpIndex = Config.level(for: result.newTotalXp).index
+                withAnimation { showLevelUp = true }
+            }
+        }
+
+        // Quest complete
+        if result.questCompleted, let qName = result.questName {
+            let qDelay: Double = {
+                var d = 1.5
+                if result.coinDrop != nil { d += 2.0 }
+                if result.loreDrop != nil { d += 2.0 }
+                if result.leveledUp { d += 3.0 }
+                return d
+            }()
+            DispatchQueue.main.asyncAfter(deadline: .now() + qDelay) {
+                HapticEngine.questComplete()
+                questCompleteName = qName
+                withAnimation { showQuestComplete = true }
             }
         }
     }
@@ -85,7 +227,6 @@ struct TodayView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            // Streak badge
             let streak = sync.gameState?.streak ?? 0
             if streak > 0 {
                 HStack(spacing: 4) {
@@ -101,7 +242,7 @@ struct TodayView: View {
                     LinearGradient(colors: [.orange, .red], startPoint: .topLeading, endPoint: .bottomTrailing),
                     in: Capsule()
                 )
-                .shadow(color: .orange.opacity(0.3), radius: 8, y: 4)
+                .shadow(color: .orange.opacity(0.4), radius: 10, y: 4)
             }
         }
         .padding(.top, 8)
@@ -120,7 +261,6 @@ struct TodayView: View {
 
         return GradientCard(accent: accent) {
             VStack(spacing: 14) {
-                // Level progress
                 HStack(spacing: 14) {
                     ZStack {
                         Circle()
@@ -129,7 +269,7 @@ struct TodayView: View {
                             .trim(from: 0, to: progress)
                             .stroke(
                                 AngularGradient(
-                                    colors: [Color(hex: "#818CF8"), Color(hex: "#6366F1"), Color(hex: "#4F46E5")],
+                                    colors: [theme.current.accentLight, accent, theme.current.accentHover],
                                     center: .center
                                 ),
                                 style: StrokeStyle(lineWidth: 5, lineCap: .round)
@@ -165,7 +305,6 @@ struct TodayView: View {
                     }
                 }
 
-                // Quick stats row
                 HStack(spacing: 0) {
                     statPill(icon: "scroll.fill", value: "\(active)", label: "Active", color: Color(hex: "#10B981"))
                     statPill(icon: "checkmark.circle.fill", value: "\(habitsDone)", label: "Habits", color: .green)
@@ -220,7 +359,6 @@ struct TodayView: View {
                             .font(.headline.bold())
                     }
                     Spacer()
-                    // Progress arc
                     ZStack {
                         Circle()
                             .stroke(Color.cyan.opacity(0.12), lineWidth: 3)
@@ -240,6 +378,7 @@ struct TodayView: View {
                         let done = todayChecks[interval.id] == true
                         let isBouncing = waterBounce == interval.id
                         Button {
+                            HapticEngine.selection()
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.4)) {
                                 waterBounce = interval.id
                             }
@@ -250,7 +389,6 @@ struct TodayView: View {
                         } label: {
                             VStack(spacing: 8) {
                                 ZStack {
-                                    // Outer ring
                                     Circle()
                                         .fill(done
                                               ? LinearGradient(colors: [.cyan.opacity(0.15), .blue.opacity(0.1)], startPoint: .top, endPoint: .bottom)
@@ -265,7 +403,6 @@ struct TodayView: View {
                                             )
                                             .frame(width: 56, height: 56)
                                     }
-                                    // Icon
                                     Image(systemName: done ? "drop.fill" : "drop")
                                         .font(.system(size: 22))
                                         .foregroundStyle(
@@ -273,7 +410,6 @@ struct TodayView: View {
                                                 ? LinearGradient(colors: [.cyan, .blue], startPoint: .top, endPoint: .bottom)
                                                 : LinearGradient(colors: [.gray.opacity(0.35), .gray.opacity(0.25)], startPoint: .top, endPoint: .bottom)
                                         )
-                                    // Checkmark overlay
                                     if done {
                                         Image(systemName: "checkmark.circle.fill")
                                             .font(.system(size: 14))
@@ -328,7 +464,6 @@ struct TodayView: View {
                                     .lineLimit(1)
                             }
                             Spacer()
-                            // XP reward badge
                             let xpText = xpForDifficulty(step.difficulty)
                             Text(xpText)
                                 .font(.system(size: 12, weight: .bold, design: .rounded))
@@ -340,16 +475,7 @@ struct TodayView: View {
                         }
 
                         Button {
-                            Task {
-                                let xp = await sync.toggleStep(quest: quest, step: step)
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                    completedStepId = step.id
-                                }
-                                showXpAnimation(xp)
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                                    withAnimation { completedStepId = nil }
-                                }
-                            }
+                            Task { await runRewardChain(quest: quest, step: step) }
                         } label: {
                             HStack(spacing: 12) {
                                 let isCompleting = completedStepId == step.id
@@ -429,7 +555,6 @@ struct TodayView: View {
                     }
                     Spacer()
 
-                    // Progress chip
                     HStack(spacing: 4) {
                         Text("\(checked)/\(total)")
                             .font(.system(size: 12, weight: .bold, design: .rounded))
@@ -447,7 +572,6 @@ struct TodayView: View {
                     )
                 }
 
-                // Progress bar
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Capsule().fill(Color.pink.opacity(0.08))
@@ -465,6 +589,7 @@ struct TodayView: View {
                     ForEach(Array(activities.enumerated()), id: \.element.id) { index, activity in
                         let done = todayChecks[activity.id] == true
                         Button {
+                            HapticEngine.selection()
                             Task { await sync.toggleCheck(activity.id) }
                         } label: {
                             HStack(spacing: 12) {
@@ -524,54 +649,6 @@ struct TodayView: View {
                 .foregroundStyle(.quaternary)
                 .padding(.top, 8)
             }
-        }
-    }
-
-    // MARK: - XP Popup (Animated)
-
-    private var xpPopupView: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "star.fill")
-                .font(.system(size: 14))
-                .foregroundStyle(.yellow)
-            Text("+\(xpPopup ?? 0) XP")
-                .font(.system(size: 18, weight: .black, design: .rounded))
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 24)
-        .padding(.vertical, 12)
-        .background(
-            Capsule()
-                .fill(accentGradient)
-                .overlay(
-                    Capsule()
-                        .stroke(.white.opacity(0.2), lineWidth: 1)
-                )
-                .shadow(color: accent.opacity(0.5), radius: 16, y: 6)
-        )
-        .scaleEffect(xpPopupScale)
-        .offset(y: xpPopupOffset + 60)
-        .opacity(xpPopupOpacity)
-    }
-
-    private func showXpAnimation(_ xp: Int) {
-        xpPopup = xp
-        xpPopupOffset = 0
-        xpPopupScale = 0.3
-        xpPopupOpacity = 0
-
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
-            xpPopupScale = 1.0
-            xpPopupOpacity = 1.0
-        }
-
-        withAnimation(.easeOut(duration: 1.0).delay(1.0)) {
-            xpPopupOffset = -40
-            xpPopupOpacity = 0
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
-            xpPopup = nil
         }
     }
 

@@ -67,7 +67,8 @@ struct WaterTimelineProvider: TimelineProvider {
             ActionItem(id: "water_morning", label: "早上", icon: "drop.fill", isCompleted: true),
             ActionItem(id: "water_afternoon", label: "下午", icon: "drop.fill", isCompleted: true),
             ActionItem(id: "water_evening", label: "晚上", icon: "drop.fill", isCompleted: false)
-        ]
+        ],
+        stepMeta: nil
     )
 }
 

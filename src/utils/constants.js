@@ -157,9 +157,66 @@ export const ANCHOR_STEPS = {
 // ═══════════════════════════════════════════
 
 export const APP_MODES = {
-  study: { tagPrefix: "Stage ", icon: "\u{1F4DA}", key: "study" },
-  life:  { tagPrefix: "Phase ", icon: "\u{1F331}", key: "life" },
+  study:  { tagPrefix: "Stage ", icon: "\u{1F4DA}", key: "study" },
+  life:   { tagPrefix: "Phase ", icon: "\u{1F331}", key: "life" },
+  budget: { tagPrefix: null,     icon: "\u{1F4B0}", key: "budget" },
 };
+
+// ═══════════════════════════════════════════
+// VEM (Visualization Energy Map) Config
+// ═══════════════════════════════════════════
+
+export const VEM_CONFIG_DEFAULTS = {
+  enabled: false,
+  endpoint: '',
+  apiKey: '',
+  syncLevel: 'basic', // 'basic' | 'full'
+};
+
+export const VEM_INDICES = ['vitality', 'stress', 'clarity', 'momentum', 'recovery'];
+
+export const VEM_INDEX_META = {
+  vitality:  { key: 'vitality',  short: 'V',  color: '#22c55e' },
+  stress:    { key: 'stress',    short: 'S',  color: '#ef4444' },
+  clarity:   { key: 'clarity',   short: 'K',  color: '#3b82f6' },
+  momentum:  { key: 'momentum',  short: 'Mo', color: '#f59e0b' },
+  recovery:  { key: 'recovery',  short: 'R',  color: '#8b5cf6' },
+};
+
+export const VEM_WEATHER_THRESHOLDS = [
+  { min: 70, emoji: '\u2600\uFE0F', label: 'sunny' },
+  { min: 55, emoji: '\uD83C\uDF24\uFE0F', label: 'partlyCloudy' },
+  { min: 40, emoji: '\u2601\uFE0F', label: 'cloudy' },
+  { min: 25, emoji: '\uD83C\uDF27\uFE0F', label: 'rainy' },
+  { min: 0,  emoji: '\u26C8\uFE0F', label: 'stormy' },
+];
+
+export const VEM_FEEDBACK_POOL = [
+  { id: 'difficulty_feel',
+    chips: [
+      { id: 'hard', en: 'Harder', zh: '\u6BD4\u60F3\u7684\u96BE' },
+      { id: 'ok',   en: 'Just right', zh: '\u521A\u521A\u597D' },
+      { id: 'easy', en: 'Easy', zh: '\u5F88\u7B80\u5355' },
+    ]},
+  { id: 'energy_now',
+    chips: [
+      { id: 'high',   en: 'Energized', zh: '\u7CBE\u529B\u5145\u6C9B' },
+      { id: 'medium', en: 'Okay', zh: '\u8FD8\u884C' },
+      { id: 'low',    en: 'Tired', zh: '\u7D2F\u4E86' },
+    ]},
+  { id: 'continue_or_break',
+    chips: [
+      { id: 'continue', en: 'Keep going', zh: '\u7EE7\u7EED' },
+      { id: 'break',    en: 'Need a break', zh: '\u4F11\u606F\u4E00\u4E0B' },
+      { id: 'switch',   en: 'Switch task', zh: '\u6362\u4E2A\u4EFB\u52A1' },
+    ]},
+  { id: 'focus_quality',
+    chips: [
+      { id: 'deep',      en: 'Deep focus', zh: '\u6DF1\u5EA6\u4E13\u6CE8' },
+      { id: 'scattered', en: 'Scattered', zh: '\u6709\u70B9\u5206\u5FC3' },
+      { id: 'struggling',en: 'Struggling', zh: '\u5F88\u6323\u624E' },
+    ]},
+];
 
 // ═══════════════════════════════════════════
 // Theme System

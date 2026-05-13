@@ -65,7 +65,8 @@ struct QuestStarTimelineProvider: TimelineProvider {
         updatedAt: .now,
         actionItems: [
             ActionItem(id: "s1", label: "React Hooks: Build counter", icon: "arrow.right.circle.fill", isCompleted: false)
-        ]
+        ],
+        stepMeta: StepMeta(questId: "q1", questName: "React Hooks", difficulty: "medium", questType: "daily")
     )
 }
 
