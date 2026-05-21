@@ -2,14 +2,16 @@ import { LEVELS, XP_CONFIG, REWARD_CONFIG } from "./constants";
 
 // ── 等级计算 ──
 export function getLevel(xp) {
+  // ID-10 修复：对非数值 / NaN 输入做守卫，避免 xpInLevel / progress 变成 NaN
+  const safeXp = typeof xp === "number" && !Number.isNaN(xp) ? xp : 0;
   let current = LEVELS[0];
   for (const l of LEVELS) {
-    if (xp >= l.xpNeeded) current = l;
+    if (safeXp >= l.xpNeeded) current = l;
     else break;
   }
   const idx = LEVELS.indexOf(current);
   const next = LEVELS[idx + 1] || null;
-  const xpInLevel = xp - current.xpNeeded;
+  const xpInLevel = safeXp - current.xpNeeded;
   const xpForNext = next ? next.xpNeeded - current.xpNeeded : 1;
   return {
     ...current,

@@ -42,7 +42,8 @@ function toICSTimestamp() {
 
 function questToVEVENT(quest) {
   if (!quest.deadline) return "";
-  const done = quest.steps.every((s) => s.done);
+  // ID-11 修复：空步骤数组不应被视为"已完成"（every 对空数组返回 true）
+  const done = quest.steps.length > 0 && quest.steps.every((s) => s.done);
   const stepsDone = quest.steps.filter((s) => s.done).length;
   const total = quest.steps.length;
   const pct = total > 0 ? Math.round((stepsDone / total) * 100) : 0;

@@ -19,7 +19,7 @@ const MARKERS = [
   /^[一二三四五六七八九十]+[、.．]\s*/,       // Chinese ordinals
   /^[①②③④⑤⑥⑦⑧⑨⑩]\s*/,              // Circled numbers
   /^\(\d+\)\s*/,                        // Parenthesized numbers
-  /^\d+(\.\d+)*[.、．)）]\s*/,           // Nested numbered: 1. / 1.1. / 1.1.1)
+  /^\d+(\.\d+)*[.、．)）](?!\d)\s*/,      // Nested numbered: 1. / 1.1. / 1.1.1) — ID-12 修复：(?!\d) 防止把 "1.1 Sub" 回溯剥成 "1 Sub"
   /^[-*·•–—]\s*/,                      // Bullet characters
 ];
 

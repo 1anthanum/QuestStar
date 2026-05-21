@@ -9,7 +9,8 @@ export function useLocalStorage(key, initialValue) {
   const [storedValue, setStoredValue] = useState(() => {
     try {
       const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
+      // ID-09 修复：用 item !== null 判定"键是否存在"，而非真值判断
+      return item !== null ? JSON.parse(item) : initialValue;
     } catch (err) {
       console.warn(`Error reading localStorage key "${key}":`, err);
       return initialValue;
