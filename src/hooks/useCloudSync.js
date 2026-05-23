@@ -96,28 +96,25 @@ export function useCloudSync() {
   useEffect(() => {
     if (!isAuthenticated || !supabase || !user) return;
 
+    // Cross-tab writes
     const handleStorageChange = (e) => {
-      // Only handle our qt_ keys
       if (!e.key || !e.key.startsWith("qt_")) return;
       debouncedPush(user.id);
     };
-
-    // Listen for storage events (cross-tab) and custom events (same tab)
-    window.addEventListener("storage", handleStorageChange);
-
-    // For same-tab changes, we use a MutationObserver-like approach:
-    // Override localStorage.setItem to detect changes
-    const originalSetItem = window.localStorage.setItem.bind(window.localStorage);
-    window.localStorage.setItem = function (key, value) {
-      originalSetItem(key, value);
-      if (key.startsWith("qt_")) {
-        debouncedPush(user.id);
-      }
+    // Same-tab writes: listen for the "qt-write" event emitted by useLocalStorage.
+    // (ID-04: replaces the previous global monkey-patch of window.localStorage.setItem)
+    const handleLocalWrite = (e) => {
+      const k = e.detail?.key;
+      if (!k || !k.startsWith("qt_")) return;
+      debouncedPush(user.id);
     };
+
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("qt-write", handleLocalWrite);
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      window.localStorage.setItem = originalSetItem;
+      window.removeEventListener("qt-write", handleLocalWrite);
       if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
     };
   }, [isAuthenticated, user?.id]);
@@ -435,9 +432,8 @@ function safeGet(key, fallback) {
 
 function safeSet(key, value) {
   try {
-    // Use the raw setItem to avoid triggering our push listener during pull
-    Object.getPrototypeOf(window.localStorage).setItem.call(
-      window.localStorage, key, JSON.stringify(value)
-    );
+    // Write directly (not via useLocalStorage), so no "qt-write" is emitted and
+    // pulling cloud data does not trigger a push back. (ID-04)
+    window.localStorage.setItem(key, JSON.stringify(value));
   } catch {}
 }

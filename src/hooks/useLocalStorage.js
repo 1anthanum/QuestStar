@@ -23,6 +23,8 @@ export function useLocalStorage(key, initialValue) {
         const newValue = value instanceof Function ? value(prev) : value;
         try {
           window.localStorage.setItem(key, JSON.stringify(newValue));
+          // ID-04: 通知云同步层"本机有写入"，取代其对 localStorage.setItem 的全局猴补丁
+          window.dispatchEvent(new CustomEvent("qt-write", { detail: { key } }));
         } catch (err) {
           console.warn(`Error saving to localStorage key "${key}":`, err);
         }

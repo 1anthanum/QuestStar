@@ -140,34 +140,47 @@ describe("useCloudSync — 主动推送（forceSync）", () => {
   });
 });
 
-// 说明：生产代码用 `window.localStorage.setItem = fn` 接管同标签页内的写入。该赋值
-// 在 jsdom 里【无法】遮蔽原型上的 setItem（与 useLocalStorage 那条测试同因），因此
-// 这条"猴补丁"路径无法在 jsdom 里被触发。好在 hook 也监听了跨标签的 "storage" 事件、
-// 同样走 debouncedPush——下面用手动派发 StorageEvent 来稳定地刻画"防抖 + 卸载清理"。
-describe("useCloudSync — qt_ 变更触发的 2 秒防抖推送（经 storage 事件）", () => {
-  it("登录后收到 qt_ 变更会在约 2 秒后推送一次；2 秒内多次变更只推一次（防抖）", async () => {
+// ID-04 重构后：同标签页写入改为监听 useLocalStorage 派发的 "qt-write" 自定义事件
+// （不再用 window.localStorage.setItem 全局猴补丁）；跨标签仍走 "storage" 事件。
+// 两条路径都汇入 debouncedPush。
+describe("useCloudSync — qt_ 变更触发的 2 秒防抖推送", () => {
+  it("登录后同标签写入（qt-write 事件）约 2 秒后推送一次；2 秒内多次只推一次（防抖）", async () => {
     vi.useFakeTimers();
     auth.value = { user: { id: "u1" }, isAuthenticated: true, loading: false };
     renderHook(() => useCloudSync());
     await act(async () => {
-      window.dispatchEvent(new StorageEvent("storage", { key: "qt_xp", newValue: "99" }));
-      window.dispatchEvent(new StorageEvent("storage", { key: "qt_streak", newValue: "5" }));
+      window.dispatchEvent(new CustomEvent("qt-write", { detail: { key: "qt_xp" } }));
+      window.dispatchEvent(new CustomEvent("qt-write", { detail: { key: "qt_streak" } }));
       await vi.advanceTimersByTimeAsync(2000);
     });
     const gsUpserts = sb.pushCalls.filter((c) => c.table === "game_state" && c.op === "upsert");
-    expect(gsUpserts.length, "2 秒内多次变更应被防抖成一次推送，但推送次数不为 1。").toBe(1);
+    expect(gsUpserts.length, "2 秒内多次写入应被防抖成一次推送，但推送次数不为 1。").toBe(1);
   });
 
-  it("卸载后移除监听：之后再有 qt_ 变更不再触发推送", async () => {
+  it("跨标签写入（storage 事件）同样会触发防抖推送", async () => {
+    vi.useFakeTimers();
+    auth.value = { user: { id: "u1" }, isAuthenticated: true, loading: false };
+    renderHook(() => useCloudSync());
+    await act(async () => {
+      window.dispatchEvent(new StorageEvent("storage", { key: "qt_xp", newValue: "1" }));
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    expect(
+      sb.pushCalls.some((c) => c.table === "game_state" && c.op === "upsert"),
+      "跨标签的 storage 变更没有触发推送。"
+    ).toBe(true);
+  });
+
+  it("卸载后移除监听：之后再有 qt-write 变更不再触发推送", async () => {
     vi.useFakeTimers();
     auth.value = { user: { id: "u1" }, isAuthenticated: true, loading: false };
     const { unmount } = renderHook(() => useCloudSync());
     unmount();
     sb.pushCalls = [];
     await act(async () => {
-      window.dispatchEvent(new StorageEvent("storage", { key: "qt_xp", newValue: "123" }));
+      window.dispatchEvent(new CustomEvent("qt-write", { detail: { key: "qt_xp" } }));
       await vi.advanceTimersByTimeAsync(3000);
     });
-    expect(sb.pushCalls, "卸载后的 qt_ 变更仍触发了推送——说明监听没被清理。").toHaveLength(0);
+    expect(sb.pushCalls, "卸载后的写入仍触发了推送——说明监听没被清理。").toHaveLength(0);
   });
 });
