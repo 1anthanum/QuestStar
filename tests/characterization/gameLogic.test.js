@@ -270,10 +270,10 @@ describe("calculateStreak — 依赖系统时间（用 fake timers 固定'今天
     expect(calculateStreak(daysAgo(3), 0)).toBe(0);
   });
 
-  it("未来日期（lastActive 在今天之后）→ 被当作断连走惩罚（仅记录，疑似 bug）", () => {
+  it("未来日期（lastActive 在今天之后）→ ID-03 修复后：视为同日，连签不变（不再扣分）", () => {
     setToday();
     const future = new Date(new Date().getTime() + 5 * DAY_MS);
-    expect(calculateStreak(future, 10)).toBe(8);
+    expect(calculateStreak(future, 10)).toBe(10);
   });
 
   it("昨天时 Shield 不被消耗（diff=1 不触发 useShieldFn）", () => {

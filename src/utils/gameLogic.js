@@ -45,6 +45,9 @@ export function calculateStreak(lastActiveDate, currentStreak, shieldAvailable =
 
   const diffDays = Math.round((today - last) / (1000 * 60 * 60 * 24));
 
+  // ID-03 修复：未来日期（设备时钟/时区异常导致 lastActive 晚于今天）视为"同日"，不扣连签
+  if (diffDays < 0) return currentStreak;
+
   if (diffDays === 0) return currentStreak; // 同一天，不变
   if (diffDays === 1) return currentStreak + 1; // 连续
 
