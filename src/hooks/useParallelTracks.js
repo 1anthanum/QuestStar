@@ -5,7 +5,7 @@ import { useLocalStorage } from "./useLocalStorage";
  * useParallelTracks — Dual-quest anti-boredom switching.
  * Pre-selects 2 quests with different categories so switching feels genuinely different.
  */
-export default function useParallelTracks(quests) {
+export function useParallelTracks(quests) {
   const [tracks, setTracks] = useLocalStorage("qt_parallel_tracks", null);
 
   const isActive = !!tracks;

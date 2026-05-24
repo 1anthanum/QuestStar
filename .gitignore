@@ -3,3 +3,11 @@ dist
 .DS_Store
 *.local
 .env
+
+# 测试产物
+test-results
+tests/e2e/.report
+playwright-report
+
+# 中文文档（本地参考，不入库）
+docs-CN/

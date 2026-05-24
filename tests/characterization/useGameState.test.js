@@ -200,3 +200,53 @@ describe("useGameState — 其它操作", () => {
     expect(result.current.streak).toBe(0);
   });
 });
+
+// ── addXP (Life habit XP, independent of streak) — new in v3 ──
+describe("useGameState — addXP", () => {
+  it("加原始 XP，不动 streak（设计决策 D5）", () => {
+    const { result } = renderHook(() => useGameState());
+    act(() => result.current.addXP(5, "habit"));
+    expect(result.current.xp).toBe(5);
+    expect(result.current.streak).toBe(0);
+  });
+
+  it("跨过等级线返回 didLevelUp（100 → 2 级）", () => {
+    const { result } = renderHook(() => useGameState());
+    let ret;
+    act(() => { ret = result.current.addXP(100, "habit"); });
+    expect(result.current.xp).toBe(100);
+    expect(ret.didLevelUp).toBeTruthy();
+  });
+
+  it("同级内不升级", () => {
+    const { result } = renderHook(() => useGameState());
+    let ret;
+    act(() => { ret = result.current.addXP(10, "habit"); });
+    expect(ret.didLevelUp).toBe(false);
+  });
+
+  it("0 / 负数 / NaN 都是 no-op", () => {
+    const { result } = renderHook(() => useGameState());
+    act(() => result.current.addXP(0, "habit"));
+    act(() => result.current.addXP(-5, "habit"));
+    act(() => result.current.addXP(NaN, "habit"));
+    expect(result.current.xp).toBe(0);
+  });
+
+  it("source 默认 'quest' 并回传", () => {
+    const { result } = renderHook(() => useGameState());
+    let ret;
+    act(() => { ret = result.current.addXP(3); });
+    expect(ret.source).toBe("quest");
+  });
+
+  it("habit XP 与 quest XP 累加进同一总额", () => {
+    const { result } = renderHook(() => useGameState());
+    let q;
+    act(() => { q = result.current.addQuest({ name: "Q", steps: [easyStep("a")] }); });
+    act(() => result.current.toggleStep(q.id, q.steps[0].id));
+    const afterQuest = result.current.xp;
+    act(() => result.current.addXP(5, "habit"));
+    expect(result.current.xp).toBe(afterQuest + 5);
+  });
+});

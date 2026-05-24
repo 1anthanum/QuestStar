@@ -163,8 +163,29 @@ create table public.extra_state (
   reflections jsonb default '{}'::jsonb,
   challenge jsonb default '{}'::jsonb,
   deadline_notified jsonb default '{}'::jsonb,
+  -- budget tracker
+  budget_expenses jsonb default '[]'::jsonb,
+  budget_config jsonb,
+  transfer_status jsonb,
+  -- Life v3 habit system (Phase 3)
+  habit_active jsonb default '[]'::jsonb,
+  habit_log jsonb default '{}'::jsonb,
+  habit_graduations jsonb default '[]'::jsonb,
+  habit_explore_budget jsonb default '{}'::jsonb,
+  habit_schedule jsonb,
   updated_at timestamptz default now()
 );
+
+-- ── Migration for existing deployments (run once in SQL Editor) ──
+-- alter table public.extra_state
+--   add column if not exists budget_expenses jsonb default '[]'::jsonb,
+--   add column if not exists budget_config jsonb,
+--   add column if not exists transfer_status jsonb,
+--   add column if not exists habit_active jsonb default '[]'::jsonb,
+--   add column if not exists habit_log jsonb default '{}'::jsonb,
+--   add column if not exists habit_graduations jsonb default '[]'::jsonb,
+--   add column if not exists habit_explore_budget jsonb default '{}'::jsonb,
+--   add column if not exists habit_schedule jsonb;
 
 alter table public.extra_state enable row level security;
 

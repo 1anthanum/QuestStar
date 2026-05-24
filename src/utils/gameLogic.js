@@ -39,11 +39,13 @@ export function calculateStreak(lastActiveDate, currentStreak, shieldAvailable =
   const last = new Date(lastActiveDate);
   const today = new Date();
 
-  // 标准化到日期（去掉时分秒）
-  last.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
+  // 以 UTC 日期为基准比较，与 getTodayStr()（toISOString 取 UTC 日期）保持一致。
+  // 之前用本地午夜归一化，但 lastActive 存的是 UTC 日期串，导致本地午夜～UTC 午夜
+  // 之间（如 UTC+8 的 00:00–08:00）同日完成被误判为"连续一天"，连签虚增。
+  const lastUTC = Date.UTC(last.getUTCFullYear(), last.getUTCMonth(), last.getUTCDate());
+  const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
 
-  const diffDays = Math.round((today - last) / (1000 * 60 * 60 * 24));
+  const diffDays = Math.round((todayUTC - lastUTC) / (1000 * 60 * 60 * 24));
 
   // ID-03 修复：未来日期（设备时钟/时区异常导致 lastActive 晚于今天）视为"同日"，不扣连签
   if (diffDays < 0) return currentStreak;

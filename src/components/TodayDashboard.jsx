@@ -4,6 +4,7 @@ import { useLanguage } from "../hooks/useLanguage";
 import MathText from "./MathText";
 import ProgressRing from "./ProgressRing";
 import VEMWeatherCard from "./VEMWeatherCard";
+import DailyProgressBar from "./DailyProgressBar";
 
 // ═══════════════════════════════════════════
 // TodayDashboard — "What should I do right now?"
@@ -21,20 +22,13 @@ import VEMWeatherCard from "./VEMWeatherCard";
 const DAY_LABELS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAY_LABELS_ZH = ["一", "二", "三", "四", "五", "六", "日"];
 
-function getGreeting(lang) {
+function getGreeting(t) {
   const h = new Date().getHours();
-  if (lang === "zh") {
-    if (h < 6) return { text: "夜深了", icon: "🌙" };
-    if (h < 12) return { text: "早上好", icon: "☀️" };
-    if (h < 14) return { text: "中午好", icon: "🌤️" };
-    if (h < 18) return { text: "下午好", icon: "⛅" };
-    return { text: "晚上好", icon: "🌙" };
-  }
-  if (h < 6) return { text: "Late night", icon: "🌙" };
-  if (h < 12) return { text: "Good morning", icon: "☀️" };
-  if (h < 14) return { text: "Good afternoon", icon: "🌤️" };
-  if (h < 18) return { text: "Good afternoon", icon: "⛅" };
-  return { text: "Good evening", icon: "🌙" };
+  if (h < 6) return { text: t("today.greetLateNight"), icon: "🌙" };
+  if (h < 12) return { text: t("today.greetMorning"), icon: "☀️" };
+  if (h < 14) return { text: t("today.greetNoon"), icon: "🌤️" };
+  if (h < 18) return { text: t("today.greetAfternoon"), icon: "⛅" };
+  return { text: t("today.greetEvening"), icon: "🌙" };
 }
 
 function formatDate(lang) {
@@ -105,10 +99,10 @@ function NextStepCard({ topPick, onAccept, onSelectQuest, theme, lang, t }) {
       <div className="rounded-2xl p-5 bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-100 text-center">
         <span className="text-3xl mb-2 block">🎉</span>
         <p className="text-sm font-bold text-emerald-600">
-          {lang === "zh" ? "所有任务都完成了！" : "All caught up!"}
+          {t("today.allCaughtUp")}
         </p>
         <p className="text-xs text-emerald-400 mt-1">
-          {lang === "zh" ? "去创建新的冒险吧" : "Time to start a new quest"}
+          {t("today.startNewQuest")}
         </p>
       </div>
     );
@@ -140,7 +134,7 @@ function NextStepCard({ topPick, onAccept, onSelectQuest, theme, lang, t }) {
         <div className="flex items-center gap-2">
           <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{ background: theme?.accent || "#6366f1" }} />
           <span className="text-xs font-bold" style={{ color: theme?.accent || "#6366f1" }}>
-            {lang === "zh" ? "推荐下一步" : "Recommended Next"}
+            {t("today.recommendedNext")}
           </span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -187,12 +181,12 @@ function NextStepCard({ topPick, onAccept, onSelectQuest, theme, lang, t }) {
                   topPick.stepDifficulty === "hard" ? "bg-red-50 text-red-500" :
                   "bg-amber-50 text-amber-500"
                 }`}>
-                  {topPick.stepDifficulty === "easy" ? (lang === "zh" ? "简单" : "Easy") :
-                   topPick.stepDifficulty === "hard" ? (lang === "zh" ? "困难" : "Hard") :
-                   (lang === "zh" ? "中等" : "Medium")}
+                  {topPick.stepDifficulty === "easy" ? t("today.easy") :
+                   topPick.stepDifficulty === "hard" ? t("today.hard") :
+                   t("today.medium")}
                 </span>
               )}
-              <span className="text-gray-400">{progress.done}/{progress.total} {lang === "zh" ? "步" : "steps"}</span>
+              <span className="text-gray-400">{progress.done}/{progress.total} {t("today.steps")}</span>
             </div>
           </div>
 
@@ -202,7 +196,7 @@ function NextStepCard({ topPick, onAccept, onSelectQuest, theme, lang, t }) {
             className="shrink-0 self-center text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-lg hover:scale-105 active:scale-95 transition-all text-sm"
             style={{ background: theme?.btnGrad || "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
           >
-            {lang === "zh" ? "开始" : "Go"}
+            {t("today.go")}
           </button>
         </div>
       </div>
@@ -213,7 +207,7 @@ function NextStepCard({ topPick, onAccept, onSelectQuest, theme, lang, t }) {
         className="w-full py-2 text-[11px] font-semibold text-center transition-colors hover:bg-gray-50"
         style={{ color: theme?.accent || "#6366f1", borderTop: "1px solid rgba(0,0,0,0.04)" }}
       >
-        {lang === "zh" ? "查看完整任务 →" : "View full quest →"}
+        {t("today.viewFullQuest")}
       </button>
     </div>
   );
@@ -244,14 +238,12 @@ export default function TodayDashboard({
   theme,
 }) {
   const { t, lang } = useLanguage();
-  const greeting = useMemo(() => getGreeting(lang), [lang]);
+  const greeting = useMemo(() => getGreeting(t), [t, lang]);
   const dateStr = useMemo(() => formatDate(lang), [lang]);
   const accent = theme?.accent || "#6366f1";
 
-  // Today's step count (resets daily via useRewardSystem)
-  const todaySteps = dailyStepCount?.date === new Date().toISOString().split("T")[0]
-    ? dailyStepCount.count
-    : 0;
+  // Today's step count — dailyStepCount is already a number (pre-computed by useRewardSystem)
+  const todaySteps = typeof dailyStepCount === "number" ? dailyStepCount : 0;
 
   return (
     <div className="mb-6 space-y-4 animate-fade-in">
@@ -272,28 +264,24 @@ export default function TodayDashboard({
           >
             <span className="text-xs">🔴</span>
             <span className="text-xs font-bold text-red-600">
-              {stagnantCount} {lang === "zh" ? "个任务停滞" : "stagnant"}
+              {stagnantCount} {t("today.stagnant")}
             </span>
           </button>
         )}
       </div>
 
-      {/* ── Stats Ribbon ── */}
-      <div className="grid grid-cols-4 gap-2.5">
-        {/* Steps today */}
-        <div className="rounded-2xl p-3.5 bg-white/90 border border-white/60 shadow-sm text-center">
-          <div className="text-2xl font-black text-gray-800">{todaySteps}</div>
-          <div className="text-[10px] font-semibold text-gray-400 mt-0.5">
-            {lang === "zh" ? "今日步数" : "Steps today"}
-          </div>
-        </div>
+      {/* ── Daily Progress Bar — cumulative visualization ── */}
+      <DailyProgressBar todaySteps={todaySteps} weeklyTrend={weeklyTrend} theme={theme} />
+
+      {/* ── Stats Ribbon (3-col: XP, Streak, Level) ── */}
+      <div className="grid grid-cols-3 gap-2.5">
         {/* XP */}
         <div className="rounded-2xl p-3.5 bg-white/90 border border-white/60 shadow-sm text-center">
           <div className="text-2xl font-black" style={{ color: accent }}>
             {xp >= 1000 ? `${(xp / 1000).toFixed(1)}k` : xp}
           </div>
           <div className="text-[10px] font-semibold text-gray-400 mt-0.5">
-            {lang === "zh" ? "总经验" : "Total XP"}
+            {t("today.totalXp")}
           </div>
         </div>
         {/* Streak */}
@@ -306,7 +294,7 @@ export default function TodayDashboard({
             {streak > 0 && <span className="text-sm ml-0.5">🔥</span>}
           </div>
           <div className="relative text-[10px] font-semibold text-gray-400 mt-0.5">
-            {lang === "zh" ? "连续天数" : "Streak"}
+            {t("today.streak")}
           </div>
         </div>
         {/* Level */}
@@ -342,15 +330,15 @@ export default function TodayDashboard({
             <span>{raceStatus.status === "ahead" ? "🏃‍♂️" : raceStatus.status === "behind" ? "👻" : "🤝"}</span>
             <span>
               {raceStatus.status === "ahead"
-                ? (lang === "zh" ? `领先上周 ${raceStatus.timeAdjustedDiff} 步` : `${raceStatus.timeAdjustedDiff} steps ahead of last week`)
+                ? t("today.aheadOfLastWeek", { n: raceStatus.timeAdjustedDiff })
                 : raceStatus.status === "behind"
-                  ? (lang === "zh" ? `落后上周 ${Math.abs(raceStatus.timeAdjustedDiff)} 步` : `${Math.abs(raceStatus.timeAdjustedDiff)} steps behind`)
-                  : (lang === "zh" ? "与上周持平" : "Neck and neck")
+                  ? t("today.behindLastWeek", { n: Math.abs(raceStatus.timeAdjustedDiff) })
+                  : t("today.neckAndNeck")
               }
             </span>
           </div>
           <span className="text-xs opacity-60">
-            {lang === "zh" ? `今天 ${raceStatus.todayCount} · 上周 ${raceStatus.ghostAtThisTime}` : `Today ${raceStatus.todayCount} · Ghost ${raceStatus.ghostAtThisTime}`}
+            {t("today.todayVsGhost", { today: raceStatus.todayCount, ghost: raceStatus.ghostAtThisTime })}
           </span>
         </div>
       )}
@@ -370,10 +358,10 @@ export default function TodayDashboard({
         <div className="rounded-2xl p-4 bg-white/90 border border-white/60 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-gray-500">
-              {lang === "zh" ? "本周活跃度" : "This Week"}
+              {t("today.thisWeek")}
             </span>
             <span className="text-[10px] text-gray-400">
-              {weeklyTrend.reduce((sum, d) => sum + d.count, 0)} {lang === "zh" ? "步" : "steps"}
+              {weeklyTrend.reduce((sum, d) => sum + d.count, 0)} {t("today.steps")}
             </span>
           </div>
           <WeeklySparkline weeklyTrend={weeklyTrend} theme={theme} lang={lang} />

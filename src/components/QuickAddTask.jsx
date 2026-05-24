@@ -17,7 +17,7 @@ const CAT_KEYS = ["learning", "work", "habit", "code"];
 const CAT_EMOJIS = { learning: "📚", work: "💼", habit: "🔄", code: "💻" };
 
 export default function QuickAddTask({ onAdd, onOpenFullModal, onOpenAI, theme }) {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const [text, setText] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [category, setCategory] = useState("work");
@@ -121,7 +121,7 @@ export default function QuickAddTask({ onAdd, onOpenFullModal, onOpenAI, theme }
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={lang === "zh" ? "快速添加任务…  ↵ 创建" : "Quick add task…  ↵ to create"}
+            placeholder={t("quickAdd.placeholder")}
             className="flex-1 bg-transparent outline-none text-sm font-semibold text-gray-800 placeholder-gray-300"
           />
 
@@ -135,10 +135,7 @@ export default function QuickAddTask({ onAdd, onOpenFullModal, onOpenAI, theme }
                 background: expanded ? accent : accent + "15",
               }}
             >
-              {expanded
-                ? (lang === "zh" ? "收起" : "Less")
-                : (lang === "zh" ? "+ 步骤" : "+ Steps")
-              }
+              {expanded ? t("quickAdd.less") : t("quickAdd.steps")}
             </button>
           )}
         </div>
@@ -150,7 +147,7 @@ export default function QuickAddTask({ onAdd, onOpenFullModal, onOpenAI, theme }
             className="shrink-0 text-white font-bold px-4 py-3 rounded-2xl hover:shadow-lg hover:scale-105 active:scale-95 transition-all text-sm"
             style={{ background: theme?.btnGrad || `linear-gradient(135deg, ${accent}, #8b5cf6)` }}
           >
-            {lang === "zh" ? "创建" : "Add"}
+            {t("quickAdd.add")}
           </button>
         )}
       </div>
@@ -161,7 +158,7 @@ export default function QuickAddTask({ onAdd, onOpenFullModal, onOpenAI, theme }
           {/* Steps textarea */}
           <div>
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1 block">
-              {lang === "zh" ? "每行一个步骤" : "One step per line"}
+              {t("quickAdd.oneStepPerLine")}
             </label>
             <textarea
               ref={stepsRef}
@@ -169,25 +166,19 @@ export default function QuickAddTask({ onAdd, onOpenFullModal, onOpenAI, theme }
               onChange={(e) => setStepsText(e.target.value)}
               onKeyDown={handleStepsKeyDown}
               rows={3}
-              placeholder={lang === "zh"
-                ? "第一步\n第二步\n第三步"
-                : "Step 1\nStep 2\nStep 3"
-              }
+              placeholder={t("quickAdd.stepsPlaceholder")}
               className="w-full bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-700 outline-none resize-none placeholder-gray-300 transition-all"
               style={{ outline: "none" }}
             />
             <p className="text-[10px] text-gray-300 mt-1">
-              {lang === "zh"
-                ? `${stepsText.split("\n").filter((l) => l.trim()).length} 个步骤 · ⌘↵ 创建`
-                : `${stepsText.split("\n").filter((l) => l.trim()).length} steps · ⌘↵ to create`
-              }
+              {t("quickAdd.stepCount", { n: stepsText.split("\n").filter((l) => l.trim()).length })}
             </p>
           </div>
 
           {/* Category selector row */}
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-gray-400">
-              {lang === "zh" ? "分类" : "Category"}
+              {t("quickAdd.category")}
             </span>
             <div className="flex gap-1.5">
               {CAT_KEYS.map((key) => (
@@ -218,14 +209,14 @@ export default function QuickAddTask({ onAdd, onOpenFullModal, onOpenAI, theme }
             onClick={onOpenAI}
             className="text-[11px] font-semibold text-gray-400 hover:text-gray-600 transition-colors"
           >
-            🤖 {lang === "zh" ? "AI 拆解" : "AI Decompose"}
+            🤖 {t("quickAdd.aiDecompose")}
           </button>
           <span className="text-gray-200">·</span>
           <button
             onClick={onOpenFullModal}
             className="text-[11px] font-semibold text-gray-400 hover:text-gray-600 transition-colors"
           >
-            ✍️ {lang === "zh" ? "详细创建" : "Full editor"}
+            ✍️ {t("quickAdd.fullEditor")}
           </button>
         </div>
       )}

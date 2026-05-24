@@ -29,7 +29,7 @@ function saveJSON(key, value) {
  *   }
  * }
  */
-export default function useBlossomMode() {
+export function useBlossomMode() {
   const [nodeProgress, setNodeProgress] = useState(() =>
     loadJSON("progress", {})
   );

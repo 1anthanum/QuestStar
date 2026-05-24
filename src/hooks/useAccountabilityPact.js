@@ -7,7 +7,7 @@ import { PACT_CONFIG } from "../utils/constants";
  * Stake is deducted immediately (loss aversion). On success, stake returns + bonus.
  * On cancel/expiry, stake is forfeited.
  */
-export default function useAccountabilityPact(wallet, addToWallet, spendFromWallet) {
+export function useAccountabilityPact(wallet, addToWallet, spendFromWallet) {
   const [activePact, setActivePact] = useLocalStorage("qt_pact", null);
   const [pactHistory, setPactHistory] = useLocalStorage("qt_pact_history", []);
 

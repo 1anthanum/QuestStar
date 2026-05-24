@@ -57,7 +57,7 @@ export default function SmartLauncher({
   onClose,
   theme,
 }) {
-  const { lang } = useLanguage();
+  const { t, lang } = useLanguage();
   const labels = REASON_LABELS[lang] || REASON_LABELS.en;
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -125,7 +125,7 @@ export default function SmartLauncher({
       <div className="rounded-2xl p-6 text-center" style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(10px)" }}>
         <div className="text-4xl mb-3">🎉</div>
         <p className="text-gray-600 font-medium">
-          {lang === "zh" ? "所有任务都完成了！好好休息吧。" : "All clear! Take a well-deserved break."}
+          {t("launcher.allClear")}
         </p>
       </div>
     );
@@ -164,16 +164,14 @@ export default function SmartLauncher({
           >
             <span>🚨</span>
             <span style={{ color: "#b45309" }}>
-              {lang === "zh"
-                ? `停滞 ${current.stagnantDays} 天 — 需要拯救？`
-                : `Stagnant ${current.stagnantDays} days — Need rescue?`}
+              {t("launcher.stagnantRescue", { days: current.stagnantDays })}
             </span>
             <button
               onClick={() => setShowRescue(true)}
               className="ml-auto px-2.5 py-0.5 rounded-full text-xs font-bold text-white transition-all hover:scale-105"
               style={{ background: "linear-gradient(135deg, #f59e0b, #ef4444)" }}
             >
-              {lang === "zh" ? "🔧 拆分微步骤" : "🔧 Split into micro-steps"}
+              {t("launcher.splitMicro")}
             </button>
           </div>
         )}
@@ -253,7 +251,7 @@ export default function SmartLauncher({
               style={{ background: "#fffbeb", border: "1px solid #fbbf2433" }}
             >
               <p className="text-xs font-bold text-amber-700 mb-2">
-                {lang === "zh" ? "🔧 微步骤拆分（每步 ≤5 分钟）" : "🔧 Micro-step breakdown (≤5 min each)"}
+                {t("launcher.microBreakdown")}
               </p>
               {current.microSteps.map((ms, i) => (
                 <div key={i} className="flex items-start gap-2 mb-1.5 last:mb-0">
@@ -269,7 +267,7 @@ export default function SmartLauncher({
                 className="mt-2 w-full py-1.5 rounded-lg text-xs font-bold text-white transition-all hover:scale-[1.02]"
                 style={{ background: "linear-gradient(135deg, #f59e0b, #ef4444)" }}
               >
-                {lang === "zh" ? "应用微步骤拆分" : "Apply micro-step split"}
+                {t("launcher.applySplit")}
               </button>
             </div>
           )}
@@ -285,7 +283,7 @@ export default function SmartLauncher({
                 color: "#64748b",
               }}
             >
-              {lang === "zh" ? "换一个 →" : "Skip →"}
+              {t("launcher.skip")}
             </button>
 
             {/* Quick complete */}
@@ -301,8 +299,8 @@ export default function SmartLauncher({
               }}
             >
               {justCompleted
-                ? "✅ " + (lang === "zh" ? "完成！" : "Done!")
-                : "✓ " + (lang === "zh" ? "完成这步" : "Complete")}
+                ? "✅ " + t("launcher.done")
+                : "✓ " + t("launcher.complete")}
             </button>
 
             {/* Go to quest */}
@@ -315,7 +313,7 @@ export default function SmartLauncher({
                 boxShadow: `0 2px 10px ${theme.accentGlow}`,
               }}
             >
-              {lang === "zh" ? "就做这个 ⚡" : "Do this one ⚡"}
+              {t("launcher.doThisOne")}
             </button>
           </div>
         </div>
@@ -325,9 +323,7 @@ export default function SmartLauncher({
       {stagnantQuests && stagnantQuests.length > 1 && (
         <div className="mt-3 px-2">
           <p className="text-[11px] text-gray-400 font-semibold mb-1">
-            {lang === "zh"
-              ? `🧊 ${stagnantQuests.length} 个任务停滞中`
-              : `🧊 ${stagnantQuests.length} quests stagnating`}
+            {t("launcher.questsStagnating", { count: stagnantQuests.length })}
           </p>
           <div className="flex flex-wrap gap-1">
             {stagnantQuests.slice(0, 5).map((sq) => (

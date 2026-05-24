@@ -62,6 +62,12 @@ export function useCloudSync() {
     qt_expenses: { table: "extra_state", column: "budget_expenses" },
     qt_budget_config: { table: "extra_state", column: "budget_config" },
     qt_transfer_status: { table: "extra_state", column: "transfer_status" },
+    // Life v3 habit system (Phase 3) — JSONB columns on extra_state
+    qt_habit_active: { table: "extra_state", column: "habit_active" },
+    qt_habit_log: { table: "extra_state", column: "habit_log" },
+    qt_habit_graduations: { table: "extra_state", column: "habit_graduations" },
+    qt_habit_explore_budget: { table: "extra_state", column: "habit_explore_budget" },
+    qt_daily_schedule: { table: "extra_state", column: "habit_schedule" },
   };
 
   // ── Step 1: On authentication, run migration then pull ──
@@ -249,6 +255,12 @@ export function useCloudSync() {
         if (ex.budget_expenses) safeSet("qt_expenses", ex.budget_expenses);
         if (ex.budget_config) safeSet("qt_budget_config", ex.budget_config);
         if (ex.transfer_status) safeSet("qt_transfer_status", ex.transfer_status);
+        // Life v3 habit system (columns may not exist on older schemas — guarded)
+        if (ex.habit_active) safeSet("qt_habit_active", ex.habit_active);
+        if (ex.habit_log) safeSet("qt_habit_log", ex.habit_log);
+        if (ex.habit_graduations) safeSet("qt_habit_graduations", ex.habit_graduations);
+        if (ex.habit_explore_budget) safeSet("qt_habit_explore_budget", ex.habit_explore_budget);
+        if (ex.habit_schedule) safeSet("qt_daily_schedule", ex.habit_schedule);
       }
 
       lastPullRef.current = Date.now();
@@ -374,6 +386,19 @@ export function useCloudSync() {
           budget_expenses: safeGet("qt_expenses", []),
           budget_config: safeGet("qt_budget_config", null),
           transfer_status: safeGet("qt_transfer_status", null),
+        }, { onConflict: "user_id" })
+      );
+
+      // Life v3 habit system — SEPARATE upsert so a missing-column error
+      // (older schema without the ALTER TABLE) can't break budget sync above.
+      promises.push(
+        supabase.from("extra_state").upsert({
+          user_id: userId,
+          habit_active: safeGet("qt_habit_active", []),
+          habit_log: safeGet("qt_habit_log", {}),
+          habit_graduations: safeGet("qt_habit_graduations", []),
+          habit_explore_budget: safeGet("qt_habit_explore_budget", {}),
+          habit_schedule: safeGet("qt_daily_schedule", null),
         }, { onConflict: "user_id" })
       );
 

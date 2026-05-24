@@ -169,6 +169,23 @@ export function useGameState() {
     [setQuests, setXp, setStreak, setLastActiveDate]
   );
 
+  // ── 独立加 XP（Life habit 用，不触发 streak / first-win / quest bonus）──
+  // source: "quest"（默认，保持向后兼容）| "habit"
+  // habit 来源的 XP 只增加总 XP + 检查升级，不碰 streak（设计决策 D5）。
+  const addXP = useCallback(
+    (amount, source = "quest") => {
+      const safeAmount = Number(amount) || 0;
+      if (safeAmount <= 0) return { earnedXp: 0, didLevelUp: false, source };
+      const oldLevel = getLevel(xp);
+      const newXp = xp + safeAmount;
+      const newLevel = getLevel(newXp);
+      setXp(newXp);
+      const didLevelUp = newLevel.level > oldLevel.level ? newLevel : false;
+      return { earnedXp: safeAmount, didLevelUp, source };
+    },
+    [xp, setXp]
+  );
+
   // ── 重置所有数据 ──
   const resetAll = useCallback(() => {
     setQuests([]);
@@ -186,6 +203,7 @@ export function useGameState() {
     totalSteps,
     completedSteps,
     toggleStep,
+    addXP,
     addQuest,
     updateQuest,
     deleteQuest,

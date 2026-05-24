@@ -1,0 +1,269 @@
+// @vitest-environment jsdom
+// ============================================================================
+// Unit tests — src/hooks/useHabitSystem.js  (Life redesign v3, Phase 1)
+// ============================================================================
+//
+// Focus: the dual-write contract (Gap 1) — completeHabit must write BOTH
+// qt_habit_log (tier) AND qt_daily_checks (boolean, iOS-compat), and the
+// reconcile path must backfill iOS-side check-offs as L-tier.
+// ============================================================================
+
+import { describe, it, expect, beforeEach } from "vitest";
+import { renderHook, act } from "@testing-library/react";
+import { useHabitSystem } from "../../src/hooks/useHabitSystem.js";
+
+beforeEach(() => window.localStorage.clear());
+
+const today = new Date().toISOString().split("T")[0];
+
+// Minimal fake game with addXP capturing calls
+function makeGame() {
+  const calls = [];
+  return {
+    calls,
+    addXP: (amount, source) => {
+      calls.push({ amount, source });
+      return { earnedXp: amount, didLevelUp: false, source };
+    },
+  };
+}
+
+function readDailyChecks() {
+  return JSON.parse(window.localStorage.getItem("qt_daily_checks") || "{}");
+}
+
+describe("useHabitSystem — dual write (Gap 1)", () => {
+  it("completeHabit writes habit_log AND mirrors to daily_checks", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.activateHabit("squat", 2));
+    act(() => result.current.completeHabit("squat", "M"));
+
+    // habit_log
+    expect(result.current.habitLog[today].squat).toMatchObject({ tier: "M" });
+    // daily_checks mirror (iOS reads this)
+    expect(readDailyChecks()[today].squat).toBe(true);
+  });
+
+  it("completeHabit grants habit-source XP (not quest)", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.activateHabit("squat", 2));
+    act(() => result.current.completeHabit("squat", "H"));
+    expect(game.calls).toContainEqual({ amount: 10, source: "habit" }); // HABIT_XP.H = 10
+  });
+
+  it("uncompleteHabit removes from both log and daily_checks", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.activateHabit("squat", 2));
+    act(() => result.current.completeHabit("squat", "M"));
+    act(() => result.current.uncompleteHabit("squat"));
+    expect(result.current.habitLog[today]?.squat).toBeUndefined();
+    expect(readDailyChecks()[today]?.squat).toBeUndefined();
+  });
+
+  it("fixed item mirrors under its mirrorId (iOS-aligned)", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    // f_med1 has mirrorId t_med1 in DEFAULT_SCHEDULE
+    const medItem = { id: "f_med1", mirrorId: "t_med1" };
+    act(() => result.current.toggleFixedItem(medItem));
+    expect(result.current.habitLog[today]._fixed.f_med1).toBe(true);
+    expect(readDailyChecks()[today].t_med1).toBe(true); // iOS Medication widget key
+  });
+});
+
+describe("useHabitSystem — reconcile from daily_checks (iOS write-back)", () => {
+  it("backfills iOS check-offs as L-tier", () => {
+    const game = makeGame();
+    // Simulate iOS having checked "squat" via daily_checks
+    window.localStorage.setItem("qt_daily_checks", JSON.stringify({ [today]: { squat: true } }));
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.activateHabit("squat", 2));
+    act(() => result.current.reconcileFromDailyChecks());
+    expect(result.current.habitLog[today].squat).toMatchObject({ tier: "L", source: "ios" });
+  });
+
+  it("does not overwrite an existing tier", () => {
+    const game = makeGame();
+    window.localStorage.setItem("qt_daily_checks", JSON.stringify({ [today]: { squat: true } }));
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.activateHabit("squat", 2));
+    act(() => result.current.completeHabit("squat", "H")); // web set H
+    act(() => result.current.reconcileFromDailyChecks());
+    expect(result.current.habitLog[today].squat.tier).toBe("H"); // not downgraded to L
+  });
+});
+
+describe("useHabitSystem — layer limits", () => {
+  it("rejects 4th Layer-2 habit in medication-adjustment mode", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game, medicationAdjustment: true }));
+    act(() => result.current.activateHabit("squat", 2));
+    act(() => result.current.activateHabit("pushup", 2));
+    act(() => result.current.activateHabit("plank", 2));
+    let res;
+    act(() => { res = result.current.activateHabit("moisturize", 2); });
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe("layer_full");
+  });
+});
+
+describe("useHabitSystem — day meta", () => {
+  it("rest day + energy mode persist to _meta", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.setEnergyMode("low"));
+    act(() => result.current.declareRestDay());
+    expect(result.current.todayMeta.energyMode).toBe("low");
+    expect(result.current.todayMeta.restDay).toBe(true);
+  });
+
+  it("getTodayProgress counts completed habits", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.activateHabit("squat", 2));
+    act(() => result.current.activateHabit("walk", 1));
+    act(() => result.current.completeHabit("squat", "M"));
+    const p = result.current.getTodayProgress();
+    expect(p.completed).toBe(1);
+    expect(p.total).toBe(2);
+  });
+});
+
+// ── Phase 2: graduation rewards, auto-archive, suggestions ──
+function makeRewards() {
+  const wallet = [];
+  return { wallet, addToWallet: (amount, reason, emoji) => { wallet.push({ amount, reason, emoji }); return amount; } };
+}
+
+// Seed habit_log with N consecutive completed days ending today for a habit
+function seedLog(habitId, days) {
+  const log = {};
+  for (let i = 0; i < days; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().split("T")[0];
+    log[key] = { [habitId]: { tier: "M", completedAt: 0 } };
+  }
+  return log;
+}
+
+describe("useHabitSystem — graduation rewards (Phase 2)", () => {
+  it("L3→L2 graduation moves layer, records history, grants XP + wallet", () => {
+    const game = makeGame();
+    const rewards = makeRewards();
+    // 3 completions qualifies L3→L2
+    window.localStorage.setItem("qt_habit_log", JSON.stringify(seedLog("guitar", 3)));
+    window.localStorage.setItem("qt_habit_active", JSON.stringify([
+      { habitId: "guitar", layer: 3, assignedAt: today, timeSlot: "evening" },
+    ]));
+    const { result } = renderHook(() => useHabitSystem({ game, rewards }));
+    let grad;
+    act(() => { grad = result.current.graduateHabit("guitar"); });
+    expect(grad).toMatchObject({ from: 3, to: 2, transition: "3->2" });
+    expect(result.current.activeHabits.find((h) => h.habitId === "guitar").layer).toBe(2);
+    expect(result.current.graduations.length).toBe(1);
+    expect(game.calls.some((c) => c.amount === 50 && c.source === "habit")).toBe(true);
+    expect(rewards.wallet.some((w) => w.amount === 5)).toBe(true);
+  });
+});
+
+describe("useHabitSystem — auto-archive (Phase 2)", () => {
+  it("archives a habit with 14 days zero completion", () => {
+    const game = makeGame();
+    // 14 days of log but habit never completed
+    const log = {};
+    for (let i = 0; i < 14; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      log[d.toISOString().split("T")[0]] = { otherHabit: { tier: "L", completedAt: 0 } };
+    }
+    window.localStorage.setItem("qt_habit_log", JSON.stringify(log));
+    window.localStorage.setItem("qt_habit_active", JSON.stringify([
+      { habitId: "draw", layer: 2, assignedAt: today, timeSlot: "evening" },
+    ]));
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    let archived;
+    act(() => { archived = result.current.autoArchiveStale(); });
+    expect(archived).toContain("draw");
+    expect(result.current.activeHabits.find((h) => h.habitId === "draw").layer).toBe(-1);
+  });
+});
+
+describe("useHabitSystem — getTopSuggestion (Phase 2)", () => {
+  it("returns graduation suggestion when a habit is eligible", () => {
+    const game = makeGame();
+    window.localStorage.setItem("qt_habit_log", JSON.stringify(seedLog("guitar", 3)));
+    window.localStorage.setItem("qt_habit_active", JSON.stringify([
+      { habitId: "guitar", layer: 3, assignedAt: today, timeSlot: "evening" },
+    ]));
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    const s = result.current.getTopSuggestion();
+    expect(s).toMatchObject({ type: "graduation", habitId: "guitar" });
+  });
+
+  it("returns null when nothing notable", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.activateHabit("squat", 2));
+    expect(result.current.getTopSuggestion()).toBeNull();
+  });
+});
+
+describe("useHabitSystem — activateHabit opts (trial add)", () => {
+  it("applies a timeSlot override and records the trial + retryTomorrow flags", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.activateHabit("draw", 3, { timeSlot: "noon", retryTomorrow: true }));
+    const h = result.current.activeHabits.find((x) => x.habitId === "draw");
+    expect(h).toMatchObject({ timeSlot: "noon", trial: true, retryTomorrow: true });
+  });
+
+  it("defaults to the catalog timeSlot when no override given", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.activateHabit("squat", 2));
+    const h = result.current.activeHabits.find((x) => x.habitId === "squat");
+    expect(h.timeSlot).toBeTruthy();
+    expect(h.trial).toBeUndefined();
+  });
+});
+
+describe("useHabitSystem — getPastDays", () => {
+  it("summarizes prior days and flags ad-hoc (non-active) completions", () => {
+    const game = makeGame();
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    const yKey = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, "0")}-${String(y.getDate()).padStart(2, "0")}`;
+    // Yesterday: completed an active habit (squat) and a no-longer-active one (draw)
+    window.localStorage.setItem("qt_habit_log", JSON.stringify({
+      [yKey]: {
+        squat: { tier: "M", completedAt: Date.now() },
+        draw: { tier: "L", completedAt: Date.now() },
+        _meta: { energy: { physical: 7, cognitive: 5, emotional: 6, social: 4 } },
+      },
+    }));
+    window.localStorage.setItem("qt_habit_active", JSON.stringify([
+      { habitId: "squat", layer: 2, assignedAt: yKey },
+    ]));
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    const days = result.current.getPastDays(7);
+    expect(days).toHaveLength(1);
+    expect(days[0].date).toBe(yKey);
+    // draw is not in active list → flagged adhoc; squat is active → not adhoc
+    const adhocIds = days[0].adhoc.map((c) => c.habitId);
+    expect(adhocIds).toContain("draw");
+    expect(adhocIds).not.toContain("squat");
+    expect(days[0].energy).toMatchObject({ physical: 7 });
+  });
+
+  it("excludes today", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.activateHabit("squat", 2));
+    act(() => result.current.completeHabit("squat", "M"));
+    expect(result.current.getPastDays(7)).toHaveLength(0);
+  });
+});

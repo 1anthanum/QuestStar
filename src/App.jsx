@@ -53,6 +53,7 @@ const MorningPlanningModal = lazy(() => import("./components/habit/MorningPlanni
 const EveningCheckInModal = lazy(() => import("./components/habit/EveningCheckInModal"));
 const HabitBrowser = lazy(() => import("./components/habit/HabitBrowser"));
 import { useDeadlineReminder } from "./hooks/useDeadlineReminder";
+import { useHabitReminders } from "./hooks/useHabitReminders";
 import { useSmartLauncher } from "./hooks/useSmartLauncher";
 import { useFrictionCalibrator } from "./hooks/useFrictionCalibrator";
 import { useEnergyProfile } from "./hooks/useEnergyProfile";
@@ -86,16 +87,16 @@ export default function App() {
   const [onboardingDone, setOnboardingDone] = useLocalStorage("qt_onboarding_done", false);
   const [appMode, setAppMode] = useLocalStorage("qt_app_mode", "study");
 
-  // Life v3 habit system (feature-flagged via qt_life_v2)
-  const [lifeV2Flag] = useLocalStorage("qt_life_v2", "off");
-  const lifeV2 = lifeV2Flag === "on";
-  const habits = useHabitSystem({ game, medicationAdjustment: true });
+  // Life v3 habit system (feature-flagged via qt_life_v2; default ON)
+  const [lifeV2Flag] = useLocalStorage("qt_life_v2", "on");
+  const lifeV2 = lifeV2Flag !== "off";
+  const habits = useHabitSystem({ game, rewards, medicationAdjustment: true });
   const modals = useModalManager();
   const energy = useEnergyProfile();
   const budget = useBudgetTracker();
   const pact = useAccountabilityPact(rewards.wallet, rewards.addToWallet, rewards.spendFromWallet);
   const vem = useVEMSync();
-  const copilot = useCopilot({ game, rewards, energy, appMode, ai, lang });
+  const copilot = useCopilot({ game, rewards, energy, appMode, ai, lang, habits });
 
   const [microFeedback, setMicroFeedback] = useState(null);
 
@@ -104,6 +105,10 @@ export default function App() {
   const displayQuests = game.quests.filter(q => !q.tag || q.tag.startsWith(modePrefix));
   const studyCount = game.quests.filter(q => q.tag?.startsWith("Stage ")).length;
   const lifeCount = game.quests.filter(q => q.tag?.startsWith("Phase ")).length;
+  // Active study quests (incomplete) — surfaced in Life mode's peak-cognitive window
+  const studyQuests = game.quests.filter(
+    q => (!q.tag || q.tag.startsWith("Stage ")) && q.steps?.some(s => !s.done)
+  );
 
   // Smart Launcher — anti-paralysis + rescue mode (feeds from energy profile + VEM)
   const launcher = useSmartLauncher(displayQuests, energy.profile, vem.dailySummary?.vitality);
@@ -119,6 +124,8 @@ export default function App() {
 
   // Deadline reminder system
   useDeadlineReminder(game.quests);
+  // Habit daily reminder (Life mode) — browser + webhook channels
+  useHabitReminders({ habits, appMode, lang });
 
   // Enforce pact deadline on app load
   useEffect(() => { pact.enforcePactDeadline(); }, []);
@@ -277,7 +284,7 @@ export default function App() {
       )}
       {modals.isOpen("EveningCheckIn") && (
         <Suspense fallback={null}>
-          <EveningCheckInModal habits={habits} onClose={() => modals.hide("EveningCheckIn")} theme={theme} />
+          <EveningCheckInModal habits={habits} ai={ai} lang={lang} onClose={() => modals.hide("EveningCheckIn")} theme={theme} />
         </Suspense>
       )}
       {modals.isOpen("HabitBrowser") && (
@@ -665,9 +672,14 @@ export default function App() {
                 <HabitDashboard
                   habits={habits}
                   theme={theme}
+                  copilot={copilot}
+                  ai={ai}
+                  studyQuests={studyQuests}
                   onPlanDay={() => modals.show("MorningPlan")}
                   onEndDay={() => modals.show("EveningCheckIn")}
                   onBrowse={() => modals.show("HabitBrowser")}
+                  onOpenCopilot={() => modals.show("Copilot")}
+                  onGoStudy={() => setAppMode("study")}
                 />
               </Suspense>
             </ErrorBoundary>

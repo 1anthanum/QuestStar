@@ -9,7 +9,7 @@ import { useLanguage } from "../hooks/useLanguage";
  * - 紧凑 stat 胶囊
  * - SVG 齿轮图标
  */
-export default function Header({ levelInfo, xp, streak, completedSteps, theme, onOpenSettings, auth, syncStatus, onForcePull, onOpenAuth, vemSummary, vemEnabled, onOpenVEMPanel }) {
+export default function Header({ levelInfo, xp, streak, completedSteps, theme, onOpenSettings, onOpenCopilot, auth, syncStatus, onForcePull, onOpenAuth, vemSummary, vemEnabled, onOpenVEMPanel }) {
   const { t } = useLanguage();
   // XP 数字跳动
   const [displayXp, setDisplayXp] = useState(xp);
@@ -147,6 +147,17 @@ export default function Header({ levelInfo, xp, streak, completedSteps, theme, o
                 >
                   <span className="text-sm">{vemSummary.weatherEmoji || '\u2601\uFE0F'}</span>
                   <span className="text-[10px] font-bold text-amber-600">V{Math.round(vemSummary.vitality || 0)}</span>
+                </button>
+              )}
+
+              {/* AI Copilot button */}
+              {onOpenCopilot && (
+                <button
+                  onClick={onOpenCopilot}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-violet-50/80 hover:bg-violet-100/80 transition-colors hover:scale-110 active:scale-90"
+                  title={t("copilot.title")}
+                >
+                  <span className="text-sm">🤖</span>
                 </button>
               )}
 

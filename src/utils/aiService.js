@@ -453,3 +453,144 @@ export async function summarizeFile(fileText, fileName, provider, model, apiKey,
       : [],
   };
 }
+
+// ═══════════════════════════════════════════
+// Copilot Chat — Multi-turn conversational AI
+// ═══════════════════════════════════════════
+
+export async function copilotChat(messages, systemPrompt, provider, model, apiKey) {
+  // messages: [{role: "user"|"assistant", content: string}]
+  // Trim to last 20 messages to keep context window manageable
+  const trimmed = messages.length > 20 ? messages.slice(-20) : messages;
+
+  const text = await callAI({
+    provider,
+    model,
+    apiKey,
+    systemPrompt,
+    messages: trimmed,
+    maxTokens: 4096,
+  });
+
+  return text;
+}
+
+// ═══════════════════════════════════════════
+// Habit Analysis (Life v3, Phase 3) — AI intelligence layer
+// ═══════════════════════════════════════════
+
+/**
+ * Daily evening analysis of habit patterns.
+ * @returns { insight, suggestion, flag: "ok"|"attention"|"concern" }
+ */
+export async function analyzeDailyHabits(habitLog7Days, todayLog, activeHabits, provider, model, apiKey, lang = "en") {
+  const systemPrompt = `You are a habit analysis assistant for ADHD self-management.
+The user is in a medication adjustment period (Adderall). Rules:
+- Be brief: 2-3 sentences insight + 1 actionable suggestion.
+- Never guilt-trip. Skipping = data, not failure.
+- Focus on TRENDS (≥3 days), not single-day misses.
+- A declining Layer-1 (Core) habit is the highest-priority concern.
+- Language: ${lang === "zh" ? "Chinese (中文)" : "English"}.
+Return ONLY a JSON object: { "insight": string, "suggestion": string, "flag": "ok"|"attention"|"concern" }`;
+
+  const payload = {
+    today: todayLog,
+    last7Days: habitLog7Days,
+    activeHabits: activeHabits.map((h) => ({ id: h.habitId, layer: h.layer })),
+  };
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt,
+    messages: [{ role: "user", content: JSON.stringify(payload) }],
+    maxTokens: 512,
+  });
+
+  const result = extractJsonObject(text);
+  return {
+    insight: String(result.insight || "").trim(),
+    suggestion: String(result.suggestion || "").trim(),
+    flag: ["ok", "attention", "concern"].includes(result.flag) ? result.flag : "ok",
+  };
+}
+
+/**
+ * Weekly habit review analysis.
+ * @returns { trackBalance, graduationAdvice, weekFocus }
+ */
+export async function analyzeWeeklyHabits(habitLog7Days, activeHabits, graduationCandidates, provider, model, apiKey, lang = "en") {
+  const systemPrompt = `You are a weekly habit review assistant for ADHD self-management.
+Generate a structured weekly review. Rules:
+- Max 5 sentences total across all fields.
+- Don't suggest more than 1 graduation per week.
+- During medication adjustment: be conservative with promotions.
+- Language: ${lang === "zh" ? "Chinese (中文)" : "English"}.
+Return ONLY a JSON object: { "trackBalance": string, "graduationAdvice": string, "weekFocus": string }`;
+
+  const payload = {
+    last7Days: habitLog7Days,
+    activeHabits: activeHabits.map((h) => ({ id: h.habitId, layer: h.layer })),
+    graduationCandidates: graduationCandidates.map((g) => g.habitId),
+  };
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt,
+    messages: [{ role: "user", content: JSON.stringify(payload) }],
+    maxTokens: 640,
+  });
+
+  const result = extractJsonObject(text);
+  return {
+    trackBalance: String(result.trackBalance || "").trim(),
+    graduationAdvice: String(result.graduationAdvice || "").trim(),
+    weekFocus: String(result.weekFocus || "").trim(),
+  };
+}
+
+/**
+ * Generate a short, warm morning briefing (1-2 sentences).
+ * @returns string
+ */
+export async function generateMorningBriefing(context, provider, model, apiKey, lang = "en") {
+  const systemPrompt = `You are a warm, concise morning companion for someone with ADHD.
+Write a SINGLE short briefing (1-2 sentences, max ~40 words) for today, ${lang === "zh" ? "in Chinese (中文)" : "in English"}.
+Acknowledge yesterday briefly if notable, reflect today's energy forecast, and suggest ONE tiny first action.
+Be encouraging and non-judgmental. No lists, no markdown — just the sentence(s).`;
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt,
+    messages: [{ role: "user", content: JSON.stringify(context) }],
+    maxTokens: 160,
+  });
+  return String(text || "").trim();
+}
+
+/**
+ * Suggest L/M/H tiers for a habit.
+ * @returns { L, M, H }  (plain strings)
+ */
+export async function suggestHabitTiers(habitName, category, provider, model, apiKey, lang = "en") {
+  const systemPrompt = `Suggest 3 tiers for a daily habit:
+- L (Low): completable in ≤1 minute, embarrassingly easy, near-impossible to skip.
+- M (Medium): standard daily version.
+- H (High): only on high-energy days.
+Context: user has ADHD, in medication adjustment.
+Language: ${lang === "zh" ? "Chinese (中文)" : "English"}.
+Return ONLY a JSON object: { "L": string, "M": string, "H": string }`;
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt,
+    messages: [{ role: "user", content: `Habit: ${habitName}\nCategory: ${category}` }],
+    maxTokens: 256,
+  });
+
+  const result = extractJsonObject(text);
+  return {
+    L: String(result.L || "").trim(),
+    M: String(result.M || "").trim(),
+    H: String(result.H || "").trim(),
+  };
+}

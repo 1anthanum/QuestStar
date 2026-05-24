@@ -442,3 +442,10 @@
   0%   { transform: translateX(-10px); opacity: 0.5; }
   100% { transform: translateX(0); opacity: 1; }
 }
+
+/* ── Hide scrollbar (horizontal chip rows) ── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── SVG path draw (weekly replay) ── */
+@keyframes qt-draw { to { stroke-dashoffset: 0; } }
