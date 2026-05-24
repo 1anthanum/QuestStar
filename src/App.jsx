@@ -40,8 +40,18 @@ import ParallelTracks from "./components/ParallelTracks";
 import EnergyDashboard from "./components/EnergyDashboard";
 import AuthModal from "./components/AuthModal";
 import { XpPopup, LevelUpOverlay, QuestCompleteOverlay } from "./components/Celebrations";
-import { getNextRecommendations } from "./utils/guidanceEngine";
 import { APP_MODES } from "./utils/constants";
+import { useStepCompletionChain } from "./hooks/useStepCompletionChain";
+import { useModalManager } from "./hooks/useModalManager";
+import ErrorBoundary from "./components/ErrorBoundary";
+import { lazy, Suspense } from "react";
+import { useHabitSystem } from "./hooks/useHabitSystem";
+
+// Life v3 habit dashboard — lazy-loaded (only when flag on + Life mode)
+const HabitDashboard = lazy(() => import("./components/habit/HabitDashboard"));
+const MorningPlanningModal = lazy(() => import("./components/habit/MorningPlanningModal"));
+const EveningCheckInModal = lazy(() => import("./components/habit/EveningCheckInModal"));
+const HabitBrowser = lazy(() => import("./components/habit/HabitBrowser"));
 import { useDeadlineReminder } from "./hooks/useDeadlineReminder";
 import { useSmartLauncher } from "./hooks/useSmartLauncher";
 import { useFrictionCalibrator } from "./hooks/useFrictionCalibrator";
@@ -49,14 +59,16 @@ import { useEnergyProfile } from "./hooks/useEnergyProfile";
 import { useGhostRace } from "./hooks/useGhostRace";
 import { useRewardSystem } from "./hooks/useRewardSystem";
 import { useKnowledgeLore } from "./hooks/useKnowledgeLore";
-import useBlossomMode from "./hooks/useBlossomMode";
-import useAccountabilityPact from "./hooks/useAccountabilityPact";
-import useParallelTracks from "./hooks/useParallelTracks";
+import { useBlossomMode } from "./hooks/useBlossomMode";
+import { useAccountabilityPact } from "./hooks/useAccountabilityPact";
+import { useParallelTracks } from "./hooks/useParallelTracks";
 import { useBudgetTracker } from "./hooks/useBudgetTracker";
 import BudgetDashboard from "./components/BudgetDashboard";
 import { useVEMSync } from "./hooks/useVEMSync";
 import VEMQuickPanel from "./components/VEMQuickPanel";
 import MicroFeedbackChip from "./components/MicroFeedbackChip";
+import { useCopilot } from "./hooks/useCopilot";
+import AICopilotPanel from "./components/AICopilotPanel";
 
 export default function App() {
   const auth = useAuth();
@@ -73,18 +85,18 @@ export default function App() {
 
   const [onboardingDone, setOnboardingDone] = useLocalStorage("qt_onboarding_done", false);
   const [appMode, setAppMode] = useLocalStorage("qt_app_mode", "study");
+
+  // Life v3 habit system (feature-flagged via qt_life_v2)
+  const [lifeV2Flag] = useLocalStorage("qt_life_v2", "off");
+  const lifeV2 = lifeV2Flag === "on";
+  const habits = useHabitSystem({ game, medicationAdjustment: true });
+  const modals = useModalManager();
   const energy = useEnergyProfile();
   const budget = useBudgetTracker();
   const pact = useAccountabilityPact(rewards.wallet, rewards.addToWallet, rewards.spendFromWallet);
   const vem = useVEMSync();
+  const copilot = useCopilot({ game, rewards, energy, appMode, ai, lang });
 
-  const [showLauncher, setShowLauncher] = useState(false);
-  const [showEnergyPanel, setShowEnergyPanel] = useState(false);
-  const [showBossRush, setShowBossRush] = useState(false);
-  const [showPactPanel, setShowPactPanel] = useState(false);
-  const [showParallelTracks, setShowParallelTracks] = useState(false);
-  const [showEnergyDashboard, setShowEnergyDashboard] = useState(false);
-  const [showVEMPanel, setShowVEMPanel] = useState(false);
   const [microFeedback, setMicroFeedback] = useState(null);
 
   // ── Mode-based quest filtering ──
@@ -99,27 +111,10 @@ export default function App() {
 
   const [activeQuestId, setActiveQuestId] = useState(null);
   const [view, setView] = useState("board"); // "board" | "detail"
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showAIModal, setShowAIModal] = useState(false);
-  const [showFileModal, setShowFileModal] = useState(false);
-  const [showBatchModal, setShowBatchModal] = useState(false);
-  const [showSkillTree, setShowSkillTree] = useState(false);
-  const [showChallenge, setShowChallenge] = useState(false);
-  const [showReflection, setShowReflection] = useState(false);
-  const [showRoadmap, setShowRoadmap] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showTimeline, setShowTimeline] = useState(false);
-  const [showRewardPanel, setShowRewardPanel] = useState(false);
-  const [showLorePanel, setShowLorePanel] = useState(false);
-  const [showBlossomPanel, setShowBlossomPanel] = useState(false);
   const [loreDrop, setLoreDrop] = useState(null);
   const [surprisePopup, setSurprisePopup] = useState(null);
   const [stepGuide, setStepGuide] = useState(null);
-  const [showBackpackPanel, setShowBackpackPanel] = useState(false);
   const [hyperfocusQuest, setHyperfocusQuest] = useState(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showDailyPlanning, setShowDailyPlanning] = useState(false);
-  const [showCalendarPanel, setShowCalendarPanel] = useState(false);
   const [flyingXp, setFlyingXp] = useState(null);
 
   // Deadline reminder system
@@ -152,90 +147,14 @@ export default function App() {
     }
   }, []);
 
-  const handleToggleStep = useCallback(
-    (questId, stepId) => {
-      const result = game.toggleStep(questId, stepId);
-
-      if (result.earnedXp > 0) {
-        // Friction Calibrator: record step completion time
-        friction.completeStep(stepId);
-        // Ghost Race: record completion for timeline
-        ghostRace.recordCompletion(stepId, questId);
-        // Accountability Pact: record step + check win
-        pact.recordStepCompletion();
-        const pactResult = pact.checkPactWin();
-        if (pactResult) {
-          setTimeout(() => setSurprisePopup(pactResult.totalReturn), 1400);
-        }
-
-        // Delay XP popup to sync with FlyingXP arc animation (1s)
-        setTimeout(() => showXpGain(result.earnedXp), 1000);
-
-        // Reward system: random surprise + daily step tracking
-        const { surpriseAmount } = rewards.onStepComplete();
-        if (surpriseAmount > 0) {
-          setTimeout(() => {
-            setSurprisePopup(surpriseAmount);
-            setTimeout(() => setSurprisePopup(null), 2500);
-          }, 600);
-        }
-        // Check daily step bonus (5 steps → $2)
-        rewards.checkDailyStepBonus();
-        // Check daily all-clear ($10)
-        rewards.checkDailyAllClear(game.quests);
-
-        // Lore fragment drop
-        const quest = game.quests.find((q) => q.id === questId);
-        const drop = lore.tryDrop(quest?.questType || "daily");
-        if (drop) {
-          setTimeout(() => setLoreDrop(drop), 1200);
-        }
-
-        // Step completion guide — show after animations settle
-        if (quest) {
-          const step = quest.steps.find((s) => s.id === stepId);
-          setTimeout(() => {
-            const { recommendations, todayProgress, allClear } = getNextRecommendations(
-              step, quest, game.quests, blossom.todayRecommendations
-            );
-            setStepGuide({
-              completedStepText: step?.text || "",
-              questName: quest.name,
-              recommendations,
-              todayProgress,
-              allClear,
-            });
-          }, 1800);
-
-          // VEM: emit step completion + micro-feedback (30% chance)
-          vem.emit("quest.step_completed", {
-            questId,
-            stepId,
-            difficulty: step?.difficulty,
-            layer: step?.layer,
-            anchorStep: step?.anchorStep,
-            questCategory: quest.category,
-            questType: quest.questType,
-          });
-          if (Math.random() < 0.3) {
-            const fb = vem.getPendingFeedback();
-            if (fb) setTimeout(() => setMicroFeedback(fb), 2200);
-          }
-        }
-      }
-      if (result.didLevelUp) {
-        setTimeout(() => setLevelUpOverlay(result.didLevelUp), 400);
-      }
-      if (result.questJustCompleted) {
-        vem.emit("quest.quest_completed", {
-          category: result.questJustCompleted.category,
-          totalSteps: result.questJustCompleted.steps?.length,
-        });
-        setTimeout(() => setQuestCompleteOverlay(result.questJustCompleted), 800);
-      }
-    },
-    [game, rewards, lore, blossom, friction, ghostRace, pact, vem, showXpGain]
-  );
+  // Reward chain orchestration (extracted to dedicated hook for testability + clarity).
+  // Fires the 9-step animation/effect cascade when a step is completed.
+  const handleToggleStep = useStepCompletionChain({
+    game, rewards, lore, blossom, friction, ghostRace, pact, vem,
+    showXpGain,
+    setSurprisePopup, setLoreDrop, setStepGuide,
+    setMicroFeedback, setLevelUpOverlay, setQuestCompleteOverlay,
+  });
 
   const handleAddQuest = useCallback(
     (questData) => {
@@ -244,6 +163,32 @@ export default function App() {
       setView("detail");
     },
     [game]
+  );
+
+  // Copilot: create quest without navigating away (panel stays open)
+  const handleCopilotAddQuest = useCallback(
+    (questData) => {
+      return game.addQuest(questData);
+    },
+    [game]
+  );
+
+  // Copilot: save check-in to qt_reflections
+  const [reflections, setReflections] = useLocalStorage("qt_reflections", {});
+  const handleSaveCheckIn = useCallback(
+    (mood, moment) => {
+      const today = new Date().toISOString().slice(0, 10);
+      setReflections((prev) => ({
+        ...prev,
+        [today]: {
+          ...(prev[today] || {}),
+          mood,
+          okMoment: moment,
+          timestamp: Date.now(),
+        },
+      }));
+    },
+    [setReflections]
   );
 
   const handleDeleteQuest = useCallback(
@@ -305,7 +250,7 @@ export default function App() {
           }}
           onOpenBlossom={() => {
             setStepGuide(null);
-            setShowBlossomPanel(true);
+            modals.show("BlossomPanel");
           }}
           onDismiss={() => setStepGuide(null)}
         />
@@ -323,26 +268,42 @@ export default function App() {
         />
       )}
 
-      {/* Modals */}
-      {showAddModal && <AddQuestModal onAdd={handleAddQuest} onClose={() => setShowAddModal(false)} />}
-      {showAIModal && <AIDecomposeModal onAdd={handleAddQuest} onClose={() => setShowAIModal(false)} ai={ai} />}
-      {showFileModal && <FileImportModal onAdd={handleAddQuest} onClose={() => setShowFileModal(false)} ai={ai} theme={theme} />}
-      {showBatchModal && <BatchImportModal onAdd={handleAddQuest} onClose={() => setShowBatchModal(false)} theme={theme} />}
-      {showSkillTree && <SkillTree onClose={() => setShowSkillTree(false)} theme={theme} />}
-      {showChallenge && <ChallengeMode onClose={() => setShowChallenge(false)} theme={theme} />}
-      {showReflection && <DailyReflection onClose={() => setShowReflection(false)} theme={theme} appMode={appMode} />}
-      {showDailyPlanning && <DailyPlanningModal onAdd={handleAddQuest} onClose={() => setShowDailyPlanning(false)} ai={ai} theme={theme} />}
-      {showCalendarPanel && <CalendarPanel quests={displayQuests} onAdd={handleAddQuest} onClose={() => setShowCalendarPanel(false)} theme={theme} />}
-      {showPactPanel && <AccountabilityPact pact={pact} wallet={rewards.wallet} onClose={() => setShowPactPanel(false)} theme={theme} />}
-      {showParallelTracks && <ParallelTracks parallelTracks={parallelTracks} quests={displayQuests} onToggleStep={handleToggleStep} onClose={() => setShowParallelTracks(false)} theme={theme} />}
-      {showEnergyDashboard && <EnergyDashboard energy={energy} quests={displayQuests} onClose={() => setShowEnergyDashboard(false)} theme={theme} />}
-      {showRoadmap && <StudyRoadmap onClose={() => setShowRoadmap(false)} theme={theme} ai={ai} />}
-      {showTimeline && (
+      {/* Modals — wrapped in ErrorBoundary so a modal crash doesn't kill the page underneath */}
+      <ErrorBoundary name="Modals">
+      {modals.isOpen("MorningPlan") && (
+        <Suspense fallback={null}>
+          <MorningPlanningModal habits={habits} onClose={() => modals.hide("MorningPlan")} theme={theme} />
+        </Suspense>
+      )}
+      {modals.isOpen("EveningCheckIn") && (
+        <Suspense fallback={null}>
+          <EveningCheckInModal habits={habits} onClose={() => modals.hide("EveningCheckIn")} theme={theme} />
+        </Suspense>
+      )}
+      {modals.isOpen("HabitBrowser") && (
+        <Suspense fallback={null}>
+          <HabitBrowser habits={habits} onClose={() => modals.hide("HabitBrowser")} theme={theme} />
+        </Suspense>
+      )}
+      {modals.isOpen("AddModal") && <AddQuestModal onAdd={handleAddQuest} onClose={() => modals.hide("AddModal")} />}
+      {modals.isOpen("AIModal") && <AIDecomposeModal onAdd={handleAddQuest} onClose={() => modals.hide("AIModal")} ai={ai} />}
+      {modals.isOpen("FileModal") && <FileImportModal onAdd={handleAddQuest} onClose={() => modals.hide("FileModal")} ai={ai} theme={theme} />}
+      {modals.isOpen("BatchModal") && <BatchImportModal onAdd={handleAddQuest} onClose={() => modals.hide("BatchModal")} theme={theme} />}
+      {modals.isOpen("SkillTree") && <SkillTree onClose={() => modals.hide("SkillTree")} theme={theme} />}
+      {modals.isOpen("Challenge") && <ChallengeMode onClose={() => modals.hide("Challenge")} theme={theme} />}
+      {modals.isOpen("Reflection") && <DailyReflection onClose={() => modals.hide("Reflection")} theme={theme} appMode={appMode} />}
+      {modals.isOpen("DailyPlanning") && <DailyPlanningModal onAdd={handleAddQuest} onClose={() => modals.hide("DailyPlanning")} ai={ai} theme={theme} />}
+      {modals.isOpen("CalendarPanel") && <CalendarPanel quests={displayQuests} onAdd={handleAddQuest} onClose={() => modals.hide("CalendarPanel")} theme={theme} />}
+      {modals.isOpen("PactPanel") && <AccountabilityPact pact={pact} wallet={rewards.wallet} onClose={() => modals.hide("PactPanel")} theme={theme} />}
+      {modals.isOpen("ParallelTracks") && <ParallelTracks parallelTracks={parallelTracks} quests={displayQuests} onToggleStep={handleToggleStep} onClose={() => modals.hide("ParallelTracks")} theme={theme} />}
+      {modals.isOpen("EnergyDashboard") && <EnergyDashboard energy={energy} quests={displayQuests} onClose={() => modals.hide("EnergyDashboard")} theme={theme} />}
+      {modals.isOpen("Roadmap") && <StudyRoadmap onClose={() => modals.hide("Roadmap")} theme={theme} ai={ai} />}
+      {modals.isOpen("Timeline") && (
         <Timeline
           quests={displayQuests}
-          onSelectQuest={(id) => { setShowTimeline(false); handleSelectQuest(id); }}
+          onSelectQuest={(id) => { modals.hide("Timeline"); handleSelectQuest(id); }}
           onToggleStep={handleToggleStep}
-          onClose={() => setShowTimeline(false)}
+          onClose={() => modals.hide("Timeline")}
           theme={theme}
         />
       )}
@@ -355,17 +316,17 @@ export default function App() {
           onClose={() => { setLoreDrop(null); lore.clearRecentDrop(); }}
         />
       )}
-      {showLorePanel && (
+      {modals.isOpen("LorePanel") && (
         <LorePanel
           bookStats={lore.getBookStats()}
           hasFragment={lore.hasFragment}
           totalFragments={lore.totalFragments}
           collectedCount={lore.collectedCount}
-          onClose={() => setShowLorePanel(false)}
+          onClose={() => modals.hide("LorePanel")}
           theme={theme}
         />
       )}
-      {showBlossomPanel && (
+      {modals.isOpen("BlossomPanel") && (
         <BlossomPanel
           todayRecommendations={blossom.todayRecommendations}
           allNodesWithStatus={blossom.allNodesWithStatus}
@@ -375,10 +336,10 @@ export default function App() {
           onAdvance={blossom.advanceNode}
           onChooseFate={blossom.chooseFate}
           onWake={blossom.wakeNode}
-          onClose={() => setShowBlossomPanel(false)}
+          onClose={() => modals.hide("BlossomPanel")}
         />
       )}
-      {showRewardPanel && (
+      {modals.isOpen("RewardPanel") && (
         <RewardPanel
           wallet={rewards.wallet}
           walletLog={rewards.walletLog}
@@ -390,11 +351,11 @@ export default function App() {
           onClaimMilestone={rewards.claimMilestone}
           onUseShield={rewards.useShield}
           onSpend={rewards.spendFromWallet}
-          onClose={() => setShowRewardPanel(false)}
+          onClose={() => modals.hide("RewardPanel")}
           theme={theme}
         />
       )}
-      {showBackpackPanel && (
+      {modals.isOpen("BackpackPanel") && (
         <BackpackPanel
           allNodesWithStatus={blossom.allNodesWithStatus}
           bookStats={lore.getBookStats()}
@@ -402,9 +363,9 @@ export default function App() {
           wallet={rewards.wallet}
           claimedMilestones={rewards.claimedMilestones}
           streak={game.streak}
-          onClose={() => setShowBackpackPanel(false)}
+          onClose={() => modals.hide("BackpackPanel")}
           theme={theme}
-          onOpenBlossom={() => { setShowBackpackPanel(false); setShowBlossomPanel(true); }}
+          onOpenBlossom={() => { modals.hide("BackpackPanel"); modals.show("BlossomPanel"); }}
         />
       )}
       {hyperfocusQuest && (
@@ -414,41 +375,41 @@ export default function App() {
           onClose={() => setHyperfocusQuest(null)}
         />
       )}
-      {showBossRush && (
+      {modals.isOpen("BossRush") && (
         <BossRush
           quests={displayQuests}
           onToggleStep={handleToggleStep}
-          onNavigateQuest={(id) => { setShowBossRush(false); setActiveQuestId(id); setView("detail"); }}
-          onClose={() => setShowBossRush(false)}
+          onNavigateQuest={(id) => { modals.hide("BossRush"); setActiveQuestId(id); setView("detail"); }}
+          onClose={() => modals.hide("BossRush")}
           theme={theme}
         />
       )}
-      {showAuthModal && (
+      {modals.isOpen("AuthModal") && (
         <AuthModal
-          onClose={() => setShowAuthModal(false)}
+          onClose={() => modals.hide("AuthModal")}
           theme={theme}
           t={t}
         />
       )}
-      {showEnergyPanel && (
+      {modals.isOpen("EnergyPanel") && (
         <EnergyPanel
           weekProfile={energy.weekProfile}
           currentEnergy={energy.currentEnergy}
           recommendedDifficulty={energy.recommendedDifficulty}
           onSetEnergy={energy.setEnergy}
           onMarkCurrent={energy.markCurrentEnergy}
-          onClose={() => setShowEnergyPanel(false)}
+          onClose={() => modals.hide("EnergyPanel")}
           theme={theme}
         />
       )}
-      {showSettings && (
+      {modals.isOpen("Settings") && (
         <SettingsPanel
           ai={ai}
           themeCtx={themeCtx}
           onExport={game.exportData}
           onImport={game.importData}
           onReset={game.resetAll}
-          onClose={() => setShowSettings(false)}
+          onClose={() => modals.hide("Settings")}
           vemConfig={vem.config}
           onUpdateVEMConfig={vem.updateConfig}
           onTestVEM={vem.testConnection}
@@ -457,11 +418,11 @@ export default function App() {
           onFlushVEM={vem.manualFlush}
         />
       )}
-      {showVEMPanel && (
+      {modals.isOpen("VEMPanel") && (
         <VEMQuickPanel
           summary={vem.dailySummary}
           budget={vem.energyBudget}
-          onClose={() => setShowVEMPanel(false)}
+          onClose={() => modals.hide("VEMPanel")}
           theme={theme}
         />
       )}
@@ -477,6 +438,17 @@ export default function App() {
           theme={theme}
         />
       )}
+      {modals.isOpen("Copilot") && (
+        <AICopilotPanel
+          onClose={() => modals.hide("Copilot")}
+          theme={theme}
+          copilot={copilot}
+          onCreateQuest={handleCopilotAddQuest}
+          onSaveCheckIn={handleSaveCheckIn}
+          game={game}
+        />
+      )}
+      </ErrorBoundary>
 
       {/* Header */}
       <Header
@@ -485,14 +457,15 @@ export default function App() {
         streak={game.streak}
         completedSteps={game.completedSteps}
         theme={theme}
-        onOpenSettings={() => setShowSettings(true)}
+        onOpenSettings={() => modals.show("Settings")}
+        onOpenCopilot={() => modals.show("Copilot")}
         auth={auth}
         syncStatus={syncStatus}
         onForcePull={forcePull}
-        onOpenAuth={() => setShowAuthModal(true)}
+        onOpenAuth={() => modals.show("AuthModal")}
         vemSummary={vem.dailySummary}
         vemEnabled={vem.enabled}
-        onOpenVEMPanel={() => setShowVEMPanel(true)}
+        onOpenVEMPanel={() => modals.show("VEMPanel")}
       />
 
       {/* Content */}
@@ -521,7 +494,7 @@ export default function App() {
             {appMode === "study" && (
               <>
                 <button
-                  onClick={() => setShowBackpackPanel(true)}
+                  onClick={() => modals.show("BackpackPanel")}
                   className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
                   style={{ background: "linear-gradient(135deg, #7c3aed, #6366f1)" }}
                   title={t("backpack.title")}
@@ -529,7 +502,7 @@ export default function App() {
                   🎒
                 </button>
                 <button
-                  onClick={() => setShowBlossomPanel(true)}
+                  onClick={() => modals.show("BlossomPanel")}
                   className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
                   style={{ background: "linear-gradient(135deg, #ec4899, #f472b6)" }}
                   title={t("blossom.title")}
@@ -537,7 +510,7 @@ export default function App() {
                   🌸 <span className="font-mono">{blossom.stats.planted}/{blossom.stats.total}</span>
                 </button>
                 <button
-                  onClick={() => setShowLorePanel(true)}
+                  onClick={() => modals.show("LorePanel")}
                   className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
                   style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)" }}
                   title={t("lore.title")}
@@ -547,7 +520,7 @@ export default function App() {
               </>
             )}
             <button
-              onClick={() => setShowRewardPanel(true)}
+              onClick={() => modals.show("RewardPanel")}
               className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
               style={{ background: "linear-gradient(135deg, #f59e0b, #ef4444)" }}
               title={t("reward.title")}
@@ -560,7 +533,7 @@ export default function App() {
               )}
             </button>
             <button
-              onClick={() => setShowTimeline(true)}
+              onClick={() => modals.show("Timeline")}
               className="text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
               style={{ background: theme.btnGrad2 }}
               title={t("timeline.title")}
@@ -569,7 +542,7 @@ export default function App() {
             </button>
             {/* Energy Profile / VEM */}
             <button
-              onClick={() => vem.enabled ? setShowVEMPanel(true) : setShowEnergyPanel(true)}
+              onClick={() => vem.enabled ? modals.show("VEMPanel") : modals.show("EnergyPanel")}
               className="text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm"
               style={{ background: vem.enabled ? "linear-gradient(135deg, #f59e0b, #ef4444)" : "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
               title={lang === "zh" ? (vem.enabled ? "能量地图" : "能量曲线") : (vem.enabled ? "Energy Map" : "Energy Profile")}
@@ -578,7 +551,7 @@ export default function App() {
             </button>
             {/* Boss Rush */}
             <button
-              onClick={() => setShowBossRush(true)}
+              onClick={() => modals.show("BossRush")}
               className="text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm"
               style={{ background: "linear-gradient(135deg, #dc2626, #991b1b)" }}
               title={lang === "zh" ? "Boss 战" : "Boss Rush"}
@@ -587,10 +560,10 @@ export default function App() {
             </button>
             {/* Smart Launcher — "Just This One" */}
             <button
-              onClick={() => setShowLauncher((p) => !p)}
+              onClick={() => modals.toggle("Launcher")}
               className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
               style={{
-                background: showLauncher
+                background: modals.isOpen("Launcher")
                   ? "linear-gradient(135deg, #10b981, #059669)"
                   : "linear-gradient(135deg, #f59e0b, #ef4444)",
                 boxShadow: launcher.stagnantQuests.length > 0
@@ -608,7 +581,7 @@ export default function App() {
             </button>
             <button
               data-guide="ai-btn"
-              onClick={() => setShowAIModal(true)}
+              onClick={() => modals.show("AIModal")}
               className="relative text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
               style={{ background: theme.btnGrad, boxShadow: `0 4px 14px ${theme.accentGlow}` }}
             >
@@ -616,14 +589,14 @@ export default function App() {
               <div className="absolute inset-0 xp-bar-shimmer opacity-20" />
             </button>
             <button
-              onClick={() => setShowFileModal(true)}
+              onClick={() => modals.show("FileModal")}
               className="text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
               style={{ background: theme.btnGrad }}
             >
               {t("file.title")}
             </button>
             <button
-              onClick={() => setShowBatchModal(true)}
+              onClick={() => modals.show("BatchModal")}
               className="text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
               style={{ background: theme.btnGrad2 }}
             >
@@ -631,7 +604,7 @@ export default function App() {
             </button>
             <button
               data-guide="manual-btn"
-              onClick={() => setShowAddModal(true)}
+              onClick={() => modals.show("AddModal")}
               className="text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
               style={{ background: theme.btnGrad2 }}
             >
@@ -656,7 +629,7 @@ export default function App() {
         {/* Ghost Race indicator — now inline in TodayDashboard */}
 
         {/* Smart Launcher — anti-paralysis single-card picker */}
-        {showLauncher && view === "board" && appMode !== "budget" && (
+        {modals.isOpen("Launcher") && view === "board" && appMode !== "budget" && (
           <div className="mb-6 animate-fade-in">
             <SmartLauncher
               topPick={launcher.topPick}
@@ -664,7 +637,7 @@ export default function App() {
               stagnantQuests={launcher.stagnantQuests}
               onAccept={(questId, stepId) => {
                 launcher.recordPick(questId, stepId);
-                setShowLauncher(false);
+                modals.hide("Launcher");
                 setActiveQuestId(questId);
                 setView("detail");
               }}
@@ -673,7 +646,7 @@ export default function App() {
                 launcher.saveRescueSplit(questId, stepId, microSteps);
               }}
               onToggleStep={handleToggleStep}
-              onClose={() => setShowLauncher(false)}
+              onClose={() => modals.hide("Launcher")}
               theme={theme}
             />
           </div>
@@ -685,22 +658,38 @@ export default function App() {
             <BudgetDashboard budget={budget} theme={theme} />
           )}
 
-          {view === "board" && appMode !== "budget" && (
+          {/* Life v3 dashboard (feature-flagged) — replaces QuestBoard for Life mode */}
+          {view === "board" && appMode === "life" && lifeV2 && (
+            <ErrorBoundary name="HabitDashboard">
+              <Suspense fallback={<div className="text-center py-10 text-gray-400 text-sm">Loading…</div>}>
+                <HabitDashboard
+                  habits={habits}
+                  theme={theme}
+                  onPlanDay={() => modals.show("MorningPlan")}
+                  onEndDay={() => modals.show("EveningCheckIn")}
+                  onBrowse={() => modals.show("HabitBrowser")}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          )}
+
+          {view === "board" && appMode !== "budget" && !(appMode === "life" && lifeV2) && (
+            <ErrorBoundary name="QuestBoard">
             <QuestBoard
               quests={displayQuests}
               activeQuestId={activeQuestId}
               onSelectQuest={handleSelectQuest}
               onDeleteQuest={handleDeleteQuest}
               onAddQuest={handleAddQuest}
-              onOpenSkillTree={() => setShowSkillTree(true)}
-              onOpenChallenge={() => setShowChallenge(true)}
-              onOpenReflection={() => setShowReflection(true)}
-              onOpenDailyPlanning={() => setShowDailyPlanning(true)}
-              onOpenCalendar={() => setShowCalendarPanel(true)}
-              onOpenRoadmap={() => setShowRoadmap(true)}
-              onOpenPact={() => setShowPactPanel(true)}
-              onOpenParallelTracks={() => setShowParallelTracks(true)}
-              onOpenEnergyDashboard={() => setShowEnergyDashboard(true)}
+              onOpenSkillTree={() => modals.show("SkillTree")}
+              onOpenChallenge={() => modals.show("Challenge")}
+              onOpenReflection={() => modals.show("Reflection")}
+              onOpenDailyPlanning={() => modals.show("DailyPlanning")}
+              onOpenCalendar={() => modals.show("CalendarPanel")}
+              onOpenRoadmap={() => modals.show("Roadmap")}
+              onOpenPact={() => modals.show("PactPanel")}
+              onOpenParallelTracks={() => modals.show("ParallelTracks")}
+              onOpenEnergyDashboard={() => modals.show("EnergyDashboard")}
               pactProgress={pact.getPactProgress()}
               nextStep={nextStep}
               activeQuest={activeQuest}
@@ -719,21 +708,23 @@ export default function App() {
                 setActiveQuestId(questId);
                 setView("detail");
               }}
-              onOpenLauncher={() => setShowLauncher(true)}
+              onOpenLauncher={() => modals.show("Launcher")}
               weeklyTrend={ghostRace.weeklyTrend}
               raceStatus={ghostRace.raceStatus}
               // VEM
               vemEnabled={vem.enabled}
               vemSummary={vem.dailySummary}
               vemBudget={vem.energyBudget}
-              onExpandVEM={() => setShowVEMPanel(true)}
+              onExpandVEM={() => modals.show("VEMPanel")}
               // QuickAddTask
-              onOpenFullModal={() => setShowAddModal(true)}
-              onOpenAI={() => setShowAIModal(true)}
+              onOpenFullModal={() => modals.show("AddModal")}
+              onOpenAI={() => modals.show("AIModal")}
             />
+            </ErrorBoundary>
           )}
 
           {view === "detail" && activeQuest && (
+            <ErrorBoundary name="QuestDetail">
             <QuestDetail
               quest={activeQuest}
               streak={game.streak}
@@ -746,6 +737,7 @@ export default function App() {
               onStepBurst={handleStepBurst}
               onReorderSteps={(questId, newSteps) => game.updateQuest(questId, { steps: newSteps })}
             />
+            </ErrorBoundary>
           )}
         </div>
       </main>
