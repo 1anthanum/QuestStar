@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
+// ID-18: 本文件刻意用 .jsx 扩展名 —— 它包含 JSX（AuthProvider 组件）。
+// 约定：含 JSX 的 hook 文件用 .jsx，纯逻辑 hook 用 .js；hook 一律具名导出。
 const AuthContext = createContext(null);
 
 /**

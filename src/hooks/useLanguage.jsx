@@ -2,6 +2,8 @@ import { createContext, useContext, useCallback, useMemo } from "react";
 import { useLocalStorage } from "./useLocalStorage";
 import translations from "../utils/translations";
 
+// ID-18: 本文件刻意用 .jsx 扩展名 —— 它包含 JSX（LanguageProvider 组件）。
+// 约定：含 JSX 的 hook 文件用 .jsx，纯逻辑 hook 用 .js；hook 一律具名导出。
 const LanguageContext = createContext(null);
 
 /**

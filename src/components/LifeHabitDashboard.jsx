@@ -2,6 +2,9 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useLanguage } from "../hooks/useLanguage";
 
+// ID-18: 本文件刻意使用"具名导出"而非"组件→默认导出"惯例，因为它导出多个组件
+// （HabitDashboardCard、TimeBlockCard），无法用单一默认导出。
+
 // ═══════════════════════════════════════════
 // Life Habit Dashboard — Habit Execution Overview
 // Shows completion rates, current week progress,

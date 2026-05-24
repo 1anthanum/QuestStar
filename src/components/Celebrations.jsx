@@ -3,6 +3,9 @@ import { XP_CONFIG } from "../utils/constants";
 import MathText from "./MathText";
 import { useLanguage } from "../hooks/useLanguage";
 
+// ID-18: 本文件刻意使用"具名导出"而非"组件→默认导出"惯例，因为它导出多个庆祝组件
+// （XpPopup、LevelUpOverlay、QuestCompleteOverlay 等），无法用单一默认导出。
+
 // ═══════════════════════════════════════
 // Confetti burst — spawns particles at a point
 // ═══════════════════════════════════════

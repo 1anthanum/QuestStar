@@ -12,6 +12,8 @@
  */
 
 (function importLifeHabits() {
+  // ID-17: 与 src/utils/gameLogic.js 的 generateId() 等价。本脚本经浏览器控制台粘贴运行、
+  // 无法 import 项目模块，故刻意保留这份独立内联副本（非疏漏，勿"修复"为引用）。
   const ts = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
   const quests = [
