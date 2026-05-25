@@ -983,6 +983,8 @@ const translations = {
     "habit.browser.empty": "All habits in this category are active",
     "habit.browser.searchPlaceholder": "Search habits…",
     "habit.browser.noResults": "No habits match.",
+    "habit.browser.addAs": "Add as {layer}",
+    "habit.browser.intoSlot": "Adding into {slot}",
     // Do-now / suggestions / encouragement / chat
     "habit.doNow.title": "Do now",
     "habit.doNow.empty": "All caught up — rest easy 🌙",
@@ -1038,6 +1040,9 @@ const translations = {
     "habit.smartNudge.doL": "Do the L version",
     "habit.smartNudge.dismiss": "Got it",
     "habit.perfectDay.title": "Perfect day!",
+    "habit.restDay.title": "Rest day — everything's optional",
+    "habit.restDay.sub": "No streaks at risk. Do only what feels good. 🌿",
+    "habit.restDay.end": "End rest day",
     // Progress
     "habit.progress.title": "Progress",
     "habit.progress.timeline": "Graduation timeline",
@@ -1129,6 +1134,7 @@ const translations = {
     "habit.plan.empty": "No habits scheduled yet — add some from Browse.",
     "habit.plan.fixedOnly": "Fixed items only",
     // Quick intent chips
+    "habit.intent.justOne": "Just one thing",
     "habit.intent.stuck": "I'm stuck",
     "habit.intent.pickOne": "Pick one for me",
     "habit.intent.writeOff": "Today's rough",
@@ -1203,7 +1209,7 @@ const translations = {
     "habit.identity.becoming": "I'm becoming ",
     "habit.identity.placeholder": "someone who rests well",
     "habit.identity.prompt": "Who are you becoming? Tap to set an identity →",
-    "habit.identity.fuel": "{n} actions this week back it up",
+    "habit.identity.fuel": "powered by {n} this week",
     "habit.letter.title": "Letter to future you",
     "habit.letter.intro": "A note your future self will receive.",
     "habit.letter.placeholder": "Dear me, …",
@@ -1224,6 +1230,7 @@ const translations = {
     "habit.detail.tierMix": "Tier mix",
     "habit.combo.label": "Combo ×{n}!",
     "habit.block.all": "All",
+    "habit.block.allConfirm": "Tap again to confirm",
     "habit.block.upcoming": "upcoming",
     "habit.energyTag.high": "⚡ high-energy",
     "habit.energyTag.low": "🌙 low-energy",
@@ -2250,6 +2257,8 @@ const translations = {
     "habit.browser.empty": "此分类的 habit 都已激活",
     "habit.browser.searchPlaceholder": "搜索 habit…",
     "habit.browser.noResults": "没有匹配的 habit。",
+    "habit.browser.addAs": "添加为{layer}",
+    "habit.browser.intoSlot": "添加到{slot}",
     // Do-now / suggestions / encouragement / chat
     "habit.doNow.title": "现在可以做",
     "habit.doNow.empty": "全部完成了 — 好好休息 🌙",
@@ -2305,6 +2314,9 @@ const translations = {
     "habit.smartNudge.doL": "做 L 版",
     "habit.smartNudge.dismiss": "知道了",
     "habit.perfectDay.title": "完美的一天！",
+    "habit.restDay.title": "休息日 —— 一切都是可选的",
+    "habit.restDay.sub": "连签不会断，只做让你舒服的事。🌿",
+    "habit.restDay.end": "结束休息日",
     // Progress
     "habit.progress.title": "进度",
     "habit.progress.timeline": "晋级时间线",
@@ -2396,6 +2408,7 @@ const translations = {
     "habit.plan.empty": "还没有安排习惯 —— 去浏览里添加。",
     "habit.plan.fixedOnly": "仅固定项",
     // Quick intent chips
+    "habit.intent.justOne": "只做一件事",
     "habit.intent.stuck": "我卡住了",
     "habit.intent.pickOne": "帮我选一件",
     "habit.intent.writeOff": "今天很糟",
@@ -2491,6 +2504,7 @@ const translations = {
     "habit.detail.tierMix": "强度分布",
     "habit.combo.label": "连击 ×{n}！",
     "habit.block.all": "全部",
+    "habit.block.allConfirm": "再点一次确认",
     "habit.block.upcoming": "待开始",
     "habit.energyTag.high": "⚡ 高能量",
     "habit.energyTag.low": "🌙 低能量",

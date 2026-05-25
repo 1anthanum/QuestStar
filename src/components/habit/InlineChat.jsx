@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLanguage } from "../../hooks/useLanguage";
 import Icon from "../Icon";
+import MarkdownLite from "../MarkdownLite";
 
 // ═══════════════════════════════════════════════════════════
 // InlineChat — lightweight, embedded AI chat box (web-Claude style)
@@ -109,12 +110,12 @@ export default function InlineChat({ copilot, theme, onExpand }) {
             return (
               <div key={i} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`max-w-[85%] rounded-2xl px-3 py-2 text-[12.5px] leading-relaxed whitespace-pre-wrap ${
-                    isUser ? "rounded-br-sm text-white" : "rounded-bl-sm text-gray-700 bg-white border border-gray-100"
+                  className={`max-w-[85%] rounded-2xl px-3 py-2 text-[12.5px] leading-relaxed ${
+                    isUser ? "rounded-br-sm text-white whitespace-pre-wrap" : "rounded-bl-sm text-gray-700 bg-white border border-gray-100"
                   }`}
                   style={isUser ? { background: accent } : undefined}
                 >
-                  {text}
+                  {isUser ? text : <MarkdownLite text={text} />}
                   {/* Habit action confirmation chip */}
                   {m.habitResult && (
                     <div className="mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full inline-block" style={{ background: `${accent}18`, color: accent }}>

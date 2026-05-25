@@ -116,6 +116,7 @@ export default function App() {
   const parallelTracks = useParallelTracks(displayQuests);
 
   const [activeQuestId, setActiveQuestId] = useState(null);
+  const [browseSlot, setBrowseSlot] = useState(null); // time slot to drop a habit into (Life browse)
   const [view, setView] = useState("board"); // "board" | "detail"
   const [loreDrop, setLoreDrop] = useState(null);
   const [surprisePopup, setSurprisePopup] = useState(null);
@@ -306,7 +307,7 @@ export default function App() {
       )}
       {modals.isOpen("HabitBrowser") && (
         <Suspense fallback={null}>
-          <HabitBrowser habits={habits} onClose={() => modals.hide("HabitBrowser")} theme={theme} />
+          <HabitBrowser habits={habits} defaultTimeSlot={browseSlot} onClose={() => { modals.hide("HabitBrowser"); setBrowseSlot(null); }} theme={theme} />
         </Suspense>
       )}
       {modals.isOpen("AddModal") && <AddQuestModal onAdd={handleAddQuest} onClose={() => modals.hide("AddModal")} />}
@@ -694,7 +695,7 @@ export default function App() {
                   studyQuests={studyQuests}
                   onPlanDay={() => modals.show("MorningPlan")}
                   onEndDay={() => modals.show("EveningCheckIn")}
-                  onBrowse={() => modals.show("HabitBrowser")}
+                  onBrowse={(slot) => { setBrowseSlot(typeof slot === "string" ? slot : null); modals.show("HabitBrowser"); }}
                   onOpenCopilot={() => modals.show("Copilot")}
                   onGoStudy={() => setAppMode("study")}
                   onMakeQuest={handleHabitToQuest}

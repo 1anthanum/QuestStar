@@ -47,10 +47,11 @@ export default function TimeBlockSection({
   const isNow = status === "now";
   const isFuture = status === "future";
   const [expanded, setExpanded] = useState(defaultExpanded ?? (isNow || !allDone));
+  const [confirmAll, setConfirmAll] = useState(false);
 
-  // Color: done=emerald; now=block's signature color; else neutral
+  // Color: done=emerald; now=block's signature color; future=its color (muted); past-undone=slate
   const blockColor = BLOCK_COLOR[block.id] || "#f59e0b";
-  const dotColor = allDone ? "#10b981" : isNow ? blockColor : isFuture ? "#cbd5e1" : "#94a3b8";
+  const dotColor = allDone ? "#10b981" : isNow ? blockColor : isFuture ? `${blockColor}80` : "#94a3b8";
   const energyTag = ENERGY_TAG[block.id];
 
   const completeAll = () => {
@@ -181,16 +182,19 @@ export default function TimeBlockSection({
           <div className="flex gap-1 mt-1">
             {!allDone && totalCount > 0 && (
               <button
-                onClick={completeAll}
+                onClick={() => {
+                  if (confirmAll) { completeAll(); setConfirmAll(false); }
+                  else { setConfirmAll(true); setTimeout(() => setConfirmAll(false), 3000); }
+                }}
                 className="flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-colors"
-                style={{ background: `${accent}12`, color: accent }}
+                style={confirmAll ? { background: accent, color: "#fff" } : { background: `${accent}12`, color: accent }}
               >
-                ✓ {t("habit.block.all")}
+                {confirmAll ? t("habit.block.allConfirm") : `✓ ${t("habit.block.all")}`}
               </button>
             )}
             {onBrowse && (
               <button
-                onClick={onBrowse}
+                onClick={() => onBrowse(block.id)}
                 className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-gray-400 hover:bg-gray-50 transition-colors"
               >
                 + {t("habit.addHabit")}

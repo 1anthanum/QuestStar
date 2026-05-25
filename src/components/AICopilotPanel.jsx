@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLanguage } from "../hooks/useLanguage";
 import { ACCEPTED_MIME } from "../utils/fileExtractor";
+import MarkdownLite from "./MarkdownLite";
 
 // ═══════════════════════════════════════════
 // AI Copilot Panel — Conversational AI Interface
@@ -66,7 +67,7 @@ function ChatBubble({ role, content, file, theme, animate }) {
         {file && (
           <div className="text-xs opacity-60 mb-1">📎 {file.name}</div>
         )}
-        <div className="whitespace-pre-wrap">{content}</div>
+        {isUser ? <div className="whitespace-pre-wrap">{content}</div> : <MarkdownLite text={content} />}
       </div>
     </div>
   );

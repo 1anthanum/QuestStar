@@ -99,10 +99,9 @@ export default function HabitCheckCard({
   // ── Celebrating (transient: check fills + XP floats) ──
   if (celebrate) {
     return (
-      <div className="relative flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 overflow-visible">
+      <div className="relative flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
         <span className="w-6 h-6 rounded-full flex items-center justify-center text-white shrink-0 pact-win" style={{ background: "#10b981" }}><Icon name="check" size={14} strokeWidth={3} /></span>
         <span className="flex-1 text-[13px] font-bold text-emerald-700">{name}</span>
-        <span className="absolute right-4 top-1 text-[13px] font-black qt-xp-float" style={{ color: accent }}>+{celebrate.xp} XP</span>
       </div>
     );
   }

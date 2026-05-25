@@ -21,6 +21,7 @@ import InlineChat from "./InlineChat";
 import Icon from "../Icon";
 import ProgressRing from "../ProgressRing";
 import { timeOfDayPalette } from "../../utils/timeOfDay";
+import { HABIT_XP } from "../../utils/layerEngine";
 import { ENERGY_DIMENSIONS, energyColor, deriveEnergyMode, defaultEnergy, energyWeather, capTierByEnergy, socialAllowsInteraction, cognitiveAllowsDeep } from "../../utils/energyModel";
 
 // ═══════════════════════════════════════════════════════════
@@ -57,6 +58,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [comboBurst, setComboBurst] = useState(null);
   const [dismissedNudge, setDismissedNudge] = useState(null);
   const [undoToast, setUndoToast] = useState(null);
+  const [xpFloat, setXpFloat] = useState(null);
   const [chainPrompt, setChainPrompt] = useState(null);
   const [briefingDismissed, setBriefingDismissed] = useState(false);
   const [signalIdx, setSignalIdx] = useState(0);
@@ -96,6 +98,13 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     if (!habits.lastAction?.at) return undefined;
     setUndoToast(habits.lastAction);
     const tm = setTimeout(() => setUndoToast(null), 5000);
+    // #4 — floating "+N XP" on every completion (covers all entry points)
+    let xpTm;
+    if (habits.lastAction.type === "complete") {
+      const amt = HABIT_XP[habits.lastAction.tier] ?? HABIT_XP.M;
+      setXpFloat({ amt, at: habits.lastAction.at });
+      xpTm = setTimeout(() => setXpFloat(null), 950);
+    }
     // #4 chain — if the completed habit links to a next one that's still pending, prompt it
     let chainTm;
     if (habits.lastAction.type === "complete") {
@@ -109,7 +118,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         }
       }
     }
-    return () => { clearTimeout(tm); if (chainTm) clearTimeout(chainTm); };
+    return () => { clearTimeout(tm); if (chainTm) clearTimeout(chainTm); if (xpTm) clearTimeout(xpTm); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [habits.lastAction?.at]);
 
@@ -401,25 +410,18 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         </div>
       ))}
 
-      {/* Quick intent chips — low-friction "I need help right now" */}
+      {/* Quick intent — two distinct anti-paralysis entries */}
       <div className="flex gap-2">
         <button
           onClick={() => setOneThing("normal")}
-          className="flex-1 py-2 rounded-xl text-[12px] font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5"
+          className="flex-1 py-2.5 rounded-xl text-[12.5px] font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5"
           style={{ background: `${accent}1f`, color: accent }}
         >
-          <Icon name="sos" size={15} /> {t("habit.intent.stuck")}
-        </button>
-        <button
-          onClick={() => setOneThing("normal")}
-          className="flex-1 py-2 rounded-xl text-[12px] font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5"
-          style={{ background: `${accent}1f`, color: accent }}
-        >
-          <Icon name="target" size={15} /> {t("habit.intent.pickOne")}
+          <Icon name="target" size={15} /> {t("habit.intent.justOne")}
         </button>
         <button
           onClick={() => { habits.setEnergyMode("low"); setOneThing("gentle"); }}
-          className="flex-1 py-2 rounded-xl text-[12px] font-bold transition-all active:scale-95 bg-gray-200 text-gray-600"
+          className="flex-1 py-2.5 rounded-xl text-[12.5px] font-bold transition-all active:scale-95 bg-gray-200 text-gray-600 flex items-center justify-center gap-1.5"
         >
           🌧️ {t("habit.intent.writeOff")}
         </button>
@@ -638,10 +640,10 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       ))}
 
       {/* Layer summary */}
-      <div className="rounded-xl px-4 py-2.5 bg-gray-50 border border-gray-100 flex items-center gap-3 text-[11px] font-semibold text-gray-600">
-        <span>◆ {progress.byLayer[1].done}/{progress.byLayer[1].total}</span>
-        <span>◇ {progress.byLayer[2].done}/{progress.byLayer[2].total}</span>
-        <span>✦ {progress.byLayer[3].done}/{progress.byLayer[3].total}</span>
+      <div className="rounded-xl px-4 py-2.5 bg-gray-50 border border-gray-100 flex items-center gap-4 text-[11px] font-semibold text-gray-600">
+        <span title={t("habit.layerCore")}>◆ {t("habit.layerCore")} {progress.byLayer[1].done}/{progress.byLayer[1].total}</span>
+        <span title={t("habit.layerForming")}>◇ {t("habit.layerForming")} {progress.byLayer[2].done}/{progress.byLayer[2].total}</span>
+        <span title={t("habit.layerExplore")}>✦ {t("habit.layerExplore")} {progress.byLayer[3].done}/{progress.byLayer[3].total}</span>
       </div>
     </>
   );
@@ -764,6 +766,13 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
               ↩ {t("habit.undoToast.undo")}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Floating "+N XP" on completion (#4) */}
+      {xpFloat && (
+        <div key={xpFloat.at} className="fixed top-24 left-1/2 -translate-x-1/2 z-[58] pointer-events-none">
+          <span className="text-[22px] font-black qt-xp-float" style={{ color: accent }}>+{xpFloat.amt} XP</span>
         </div>
       )}
 
@@ -940,7 +949,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           {[
             { icon: "sunrise", color: "#f59e0b", label: t("habit.planMyDay"), onClick: onPlanDay },
             { icon: "moon", color: "#8b5cf6", label: t("habit.endDay"), onClick: onEndDay },
-            { icon: "bed", color: "#10b981", label: t("habit.restDay"), onClick: habits.declareRestDay, active: !!habits.todayMeta.restDay },
+            { icon: "bed", color: "#10b981", label: t("habit.restDay"), onClick: habits.toggleRestDay, active: !!habits.todayMeta.restDay },
             { icon: "chat", color: "#ec4899", label: t("habit.tab.ai"), onClick: () => onOpenCopilot?.() },
           ].map((a) => (
             <button
@@ -958,6 +967,18 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         </div>
       </div>
 
+
+      {/* Rest-day calm banner (#16) */}
+      {habits.todayMeta.restDay && (
+        <div className="rounded-2xl px-4 py-3 flex items-center gap-3" style={{ background: "linear-gradient(135deg,#e0e7ff,#ede9fe)" }}>
+          <span className="text-xl">🛌</span>
+          <div className="flex-1">
+            <div className="text-[13px] font-black text-indigo-700">{t("habit.restDay.title")}</div>
+            <div className="text-[11.5px] text-indigo-500/80">{t("habit.restDay.sub")}</div>
+          </div>
+          <button onClick={habits.toggleRestDay} className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-white/70 text-indigo-600">{t("habit.restDay.end")}</button>
+        </div>
+      )}
 
       {/* Body — arranged per the selected layout */}
       {layout === "split" ? (

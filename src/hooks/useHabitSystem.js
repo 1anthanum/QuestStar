@@ -311,6 +311,16 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     [setDayMeta]
   );
   const declareRestDay = useCallback(() => setDayMeta({ restDay: true }), [setDayMeta]);
+  const toggleRestDay = useCallback(() => {
+    const t = todayStr();
+    setHabitLog((prev) => {
+      const day = { ...(prev[t] || {}) };
+      const meta = { ...(day._meta || {}) };
+      meta.restDay = !meta.restDay;
+      day._meta = meta;
+      return { ...prev, [t]: day };
+    });
+  }, [setHabitLog]);
   const setBriefing = useCallback((text) => setDayMeta({ briefing: text }), [setDayMeta]);
   // #16 — manual mini-trackers (caffeine cups / weight / free-text symptom), merged into day meta
   const setMiniTracker = useCallback((patch) => {
@@ -861,6 +871,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     setEnergyMode,
     setEnergy,
     declareRestDay,
+    toggleRestDay,
     setBriefing,
     setMiniTracker,
     saveMorningPlan,

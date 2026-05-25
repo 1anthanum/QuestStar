@@ -54,20 +54,25 @@ export default function HabitBrowser({ habits, onClose, theme, defaultTimeSlot }
   }, [searchFiltered, catFilter]);
 
   const handleAdd = (habitId, layer) => {
-    const res = habits.activateHabit(habitId, layer);
-    if (!res.ok) {
-      // Surface limit via simple alert-ish inline (kept minimal)
-      return res;
-    }
+    // When opened from a time block, drop the new habit straight into that slot (#20)
+    const res = habits.activateHabit(habitId, layer, defaultTimeSlot ? { timeSlot: defaultTimeSlot } : {});
     return res;
   };
+
+  // Resolve the slot label for the contextual header note
+  const slotLabel = defaultTimeSlot
+    ? (() => { const b = habits.schedule.find((s) => s.id === defaultTimeSlot); return b ? (lang === "zh" ? b.label : b.labelEn || b.label) : null; })()
+    : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 p-4 animate-fade-in" onClick={onClose}>
       <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3">
-          <h3 className="text-lg font-black text-gray-800">{t("habit.browser.title")}</h3>
+          <div>
+            <h3 className="text-lg font-black text-gray-800">{t("habit.browser.title")}</h3>
+            {slotLabel && <div className="text-[11px] font-semibold mt-0.5" style={{ color: accent }}>→ {t("habit.browser.intoSlot", { slot: slotLabel })}</div>}
+          </div>
           <button onClick={onClose} className="text-gray-300 hover:text-gray-500 text-lg">✕</button>
         </div>
 
@@ -194,6 +199,7 @@ function HabitRow({ habit, isActive, lang, t, accent, activeHabits, exploreBudge
             onClick={() => tryAdd(habit.suggestedLayer || 3)}
             className="text-[10px] font-bold px-2 py-1 rounded-full text-white"
             style={{ background: accent }}
+            title={t("habit.browser.addAs", { layer: { 1: t("habit.layerCore"), 2: t("habit.layerForming"), 3: t("habit.layerExplore") }[habit.suggestedLayer || 3] })}
           >
             + {{ 1: t("habit.layerCore"), 2: t("habit.layerForming"), 3: t("habit.layerExplore") }[habit.suggestedLayer || 3]}
           </button>
@@ -201,7 +207,7 @@ function HabitRow({ habit, isActive, lang, t, accent, activeHabits, exploreBudge
             <button
               onClick={() => tryAdd(3)}
               className="text-[10px] font-semibold px-2 py-1 rounded-full bg-gray-200 text-gray-500"
-              title={t("habit.layerExplore")}
+              title={t("habit.browser.addAs", { layer: t("habit.layerExplore") })}
             >
               ✦
             </button>
