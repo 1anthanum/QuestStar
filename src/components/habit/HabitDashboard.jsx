@@ -11,6 +11,7 @@ import HabitProgress from "./HabitProgress";
 import PRNToolbox from "./PRNToolbox";
 import PastDaysModal from "./PastDaysModal";
 import JustOneThing from "./JustOneThing";
+import DailyBriefingModal from "./DailyBriefingModal";
 import ReminderSettings from "./ReminderSettings";
 import BodyScanModal from "./BodyScanModal";
 import BodyDoubling from "./BodyDoubling";
@@ -47,6 +48,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [editingIdentity, setEditingIdentity] = useState(false);
   const [identityDraft, setIdentityDraft] = useState("");
   const [oneThing, setOneThing] = useState(null); // null | "normal" | "gentle"
+  const [showBriefing, setShowBriefing] = useState(false); // first-login AI daily briefing
+  const briefingAutoTried = useRef(false);
   const [coreOnly, setCoreOnly] = useState(false);
   const [layout, setLayout] = useLocalStorage("qt_life_layout", "stacked"); // stacked | split | todoFirst | focus
   const [skin, setSkin] = useLocalStorage("qt_life_skin", "soft"); // soft | glass | aurora | vivid | outline
@@ -253,9 +256,20 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     ? { gentle: () => setOneThing("gentle"), almostDone: () => setOneThing("normal"), peak: () => onGoStudy?.(), slowStart: () => setOneThing("normal") }[nudge.type]
     : null;
 
-  // ── Morning AI briefing — generate once per day (morning hours, key present) ──
+  // ── First-login daily briefing — auto-open once per day when there's a plan ──
+  // The modal owns the rich AI briefing; this only fires for active users.
+  useEffect(() => {
+    if (briefingAutoTried.current) return;
+    briefingAutoTried.current = true;
+    if (!todayMeta.briefingSeen && progress.total > 0) setShowBriefing(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Inline morning briefing (1-liner) — only for the empty-state edge where
+  //    the full briefing modal doesn't show (no active habits) ──
   useEffect(() => {
     if (briefingTried.current || todayMeta.briefing || !ai?.hasApiKey) return;
+    if (progress.total > 0) return; // active users get the DailyBriefingModal instead
     if (new Date().getHours() >= 14) return; // morning only
     briefingTried.current = true;
     const ctx = {
@@ -847,6 +861,18 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         <JustOneThing habits={habits} theme={theme} energy={energy} gentle={oneThing === "gentle"} onClose={() => setOneThing(null)} />
       )}
 
+      {/* First-login AI daily briefing */}
+      {showBriefing && (
+        <DailyBriefingModal
+          habits={habits}
+          ai={ai}
+          theme={theme}
+          studyQuests={studyQuests}
+          onPlanDay={onPlanDay}
+          onClose={() => { setShowBriefing(false); habits.markBriefingSeen?.(); }}
+        />
+      )}
+
       {/* Energy re-assess modal */}
       {showEnergy && (
         <EnergyQuickModal
@@ -1047,6 +1073,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-2.5">
         {navOpen && [
           { id: "today", icon: "home", label: t("habit.tab.today"), onClick: () => window.scrollTo({ top: 0, behavior: "smooth" }) },
+          { id: "briefing", icon: "sunrise", label: t("briefing.navLabel"), onClick: () => setShowBriefing(true) },
           { id: "data", icon: "chart", label: t("habit.tab.data"), onClick: () => setShowProgress(true) },
           { id: "ai", icon: "chat", label: t("habit.tab.ai"), onClick: () => onOpenCopilot?.() },
           { id: "more", icon: "more", label: t("habit.tab.more"), onClick: () => setShowMore(true) },

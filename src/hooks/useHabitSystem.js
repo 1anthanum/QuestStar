@@ -322,6 +322,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     });
   }, [setHabitLog]);
   const setBriefing = useCallback((text) => setDayMeta({ briefing: text }), [setDayMeta]);
+  const markBriefingSeen = useCallback(() => setDayMeta({ briefingSeen: true }), [setDayMeta]);
   // #16 — manual mini-trackers (caffeine cups / weight / free-text symptom), merged into day meta
   const setMiniTracker = useCallback((patch) => {
     const t = todayStr();
@@ -412,6 +413,37 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     }
     return n;
   }, [habitLog]);
+
+  // ── New-habit suggestions (for the daily briefing) ──
+  // Catalog habits not yet active, ranked by affinity with the categories the
+  // user already engages — then de-duped by category so the picks feel varied.
+  const getNewHabitSuggestions = useCallback((n = 3) => {
+    const activeIds = new Set(activeHabits.map((h) => h.habitId));
+    const catWeight = {};
+    for (const h of activeHabits) {
+      const c = getHabitById(h.habitId);
+      if (c?.category) catWeight[c.category] = (catWeight[c.category] || 0) + 1;
+    }
+    const ranked = HABIT_CATALOG
+      .filter((c) => !activeIds.has(c.id) && !c.isPRN)
+      .map((c) => ({
+        habitId: c.id,
+        category: c.category,
+        suggestedLayer: c.suggestedLayer || 3,
+        timeSlot: c.timeSlot || "upper_morning",
+        score: (catWeight[c.category] || 0) * 2 + (c.suggestedLayer === 3 ? 1 : 0),
+      }))
+      .sort((a, b) => b.score - a.score);
+    const seen = new Set();
+    const out = [];
+    for (const c of ranked) {
+      if (seen.has(c.category)) continue;
+      seen.add(c.category); out.push(c);
+      if (out.length >= n) break;
+    }
+    for (const c of ranked) { if (out.length >= n) break; if (!out.includes(c)) out.push(c); }
+    return out;
+  }, [activeHabits]);
 
   // ── Queries ──
 
@@ -874,6 +906,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     declareRestDay,
     toggleRestDay,
     setBriefing,
+    markBriefingSeen,
     setMiniTracker,
     saveMorningPlan,
     saveEveningCheckIn,
@@ -890,6 +923,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     getDueLetters,
     markLetterDelivered,
     getWeekActionCount,
+    getNewHabitSuggestions,
     getWeekPlan,
     saveWeekPlan,
     // queries

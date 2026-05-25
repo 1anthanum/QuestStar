@@ -79,6 +79,32 @@ body {
   --orb-0: rgba(99,102,241,0.15);
   --orb-1: rgba(168,85,247,0.12);
   --orb-2: rgba(34,211,238,0.10);
+  /* Master motion knob — JS reads this (see useReducedMotion) so framer-motion
+     springs and CSS keyframes scale together. Zeroed under prefers-reduced-motion. */
+  --motion-duration: 240ms;
+}
+
+/* GPU-promoted, jank-free transforms for animated cards/rings */
+.transform-gpu { transform: translateZ(0); }
+.will-change-transform { will-change: transform; }
+
+/* Animatable ring progress (CSS @property) — falls back gracefully where unsupported */
+@property --ring-progress {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+/* Respect the OS motion preference — critical for motion-sensitive ADHD users.
+   Zero the knob and neutralize keyframe/transition animations app-wide. */
+@media (prefers-reduced-motion: reduce) {
+  :root { --motion-duration: 0ms; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ═══ Floating orb animation ═══ */

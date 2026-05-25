@@ -568,6 +568,48 @@ Be encouraging and non-judgmental. No lists, no markdown — just the sentence(s
 }
 
 /**
+ * Generate a structured "daily briefing" that combs through today's whole plan
+ * and frames the suggested new habits. Drives the first-login briefing modal.
+ *
+ * @param context {{
+ *   timeOfDay, weatherLabel, energyAvg, plan:[{block, items:[name]}],
+ *   completed, total, yesterday, identity, weekActions,
+ *   dueQuests:[{name, when}], suggestions:[{habitId, name, category}]
+ * }}
+ * @returns {{ headline:string, review:string[], suggestionNotes:Record<string,string>, firstStep:string }}
+ */
+export async function generateDailyBriefing(context, provider, model, apiKey, lang = "en") {
+  const systemPrompt = `You are a warm, sharp daily companion for someone with ADHD. ${lang === "zh" ? "Write ALL text fields in Chinese (中文). Keep JSON field names in English." : "Write in English."}
+You are given today's plan as JSON. Comb through it ("梳理") and return STRICT JSON only, no markdown:
+{
+  "headline": "one warm, specific sentence about today (max ~16 words)",
+  "review": ["2-4 short lines — each names a real detail from the data: today's shape, energy fit, momentum, or yesterday. No filler."],
+  "suggestionNotes": { "<habitId>": "one short, concrete reason this habit could help, tied to their pattern" },
+  "firstStep": "the single tiniest first action to start the day"
+}
+Rules: be encouraging and non-judgmental, never shaming. Reference actual numbers/names from the data. Only include suggestionNotes for habitIds present in context.suggestions. Keep every line tight.`;
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt,
+    messages: [{ role: "user", content: JSON.stringify(context) }],
+    maxTokens: 700,
+  });
+
+  const r = extractJsonObject(text);
+  const notes = {};
+  if (r.suggestionNotes && typeof r.suggestionNotes === "object") {
+    for (const [k, v] of Object.entries(r.suggestionNotes)) notes[k] = String(v || "").trim();
+  }
+  return {
+    headline: String(r.headline || "").trim(),
+    review: Array.isArray(r.review) ? r.review.map((s) => String(s || "").trim()).filter(Boolean).slice(0, 4) : [],
+    suggestionNotes: notes,
+    firstStep: String(r.firstStep || "").trim(),
+  };
+}
+
+/**
  * Generate a warm second-person monthly narrative from habit stats.
  * @returns string
  */
