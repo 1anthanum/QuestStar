@@ -1,7 +1,6 @@
 export default function ProgressRing({ progress, size = 60, stroke = 5, id = "grad", accentColor, children }) {
   const radius = (size - stroke) / 2;
   const circumference = radius * 2 * Math.PI;
-  const offset = circumference - progress * circumference;
 
   // Use accent color if provided, otherwise fall back to amber→emerald
   const colorStart = accentColor || "#f59e0b";
@@ -14,8 +13,15 @@ export default function ProgressRing({ progress, size = 60, stroke = 5, id = "gr
         <circle
           cx={size / 2} cy={size / 2} r={radius} fill="none"
           stroke={`url(#${id})`} strokeWidth={stroke} strokeLinecap="round"
-          strokeDasharray={circumference} strokeDashoffset={offset}
-          className="transition-all duration-700 ease-out"
+          strokeDasharray={circumference}
+          style={{
+            // @property --ring-progress (registered as <number>) interpolates
+            // smoothly and the calc offset follows; falls back to a plain
+            // stroke-dashoffset transition where @property is unsupported.
+            "--ring-progress": progress,
+            strokeDashoffset: `calc(${circumference} - var(--ring-progress) * ${circumference})`,
+            transition: "--ring-progress 0.7s cubic-bezier(0.22,1,0.36,1), stroke-dashoffset 0.7s cubic-bezier(0.22,1,0.36,1)",
+          }}
         />
         <defs>
           <linearGradient id={id} x1="0%" y1="0%" x2="100%" y2="0%">

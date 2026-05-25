@@ -1,20 +1,26 @@
-import { useRef, useState } from "react";
+import { useRef, useState, memo } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { useDrag } from "@use-gesture/react";
+import { useSpring, animated } from "@react-spring/web";
 import { useLanguage } from "../../hooks/useLanguage";
 import { getHabitById, HABIT_CATEGORIES } from "../../utils/habitCatalog";
 import { HABIT_XP } from "../../utils/layerEngine";
+import { SPRING_POP } from "../../utils/motion";
 import Icon from "../Icon";
 
 const SWIPE_THRESHOLD = 64;
 
 // ── HabitCheckCard — flexible habit ──
-// Completion ritual (A): tap the circle → inline L/M/H reveal → pick → check + "+N XP".
-// 7-day mini bars (B) on the right; ⋯ opens a detail popover (#6); swipe right=complete,
-// left=skip; energy-dependency soft-lock (#5).
-export default function HabitCheckCard({
+// Completion ritual (A): tap the circle → inline L/M/H reveal → pick → spring check + "+N XP".
+// 7-day mini bars (B) on the right; ⋯ opens a detail popover (#6). Direct manipulation:
+// swipe right=complete / left=skip (@use-gesture + react-spring), long-press = radial
+// quick-action menu (framer-motion burst); energy-dependency soft-lock (#5).
+function HabitCheckCard({
   habit, effectiveTiers, completionRate, energyMode, energy,
   onComplete, onUncomplete, onSkip, onCustomize, theme, habits,
 }) {
   const { t, lang } = useLanguage();
+  const reduce = useReducedMotion();
   const accent = theme?.accent || "#6366f1";
   const cat = getHabitById(habit.habitId);
   const name = lang === "zh" ? (cat?.name || habit.habitId) : (cat?.nameEn || cat?.name || habit.habitId);
@@ -35,40 +41,48 @@ export default function HabitCheckCard({
   const [celebrate, setCelebrate] = useState(null); // { tier, xp }
   const [confirmSkip, setConfirmSkip] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
-  const [dx, setDx] = useState(0);
-  const drag = useRef({ startX: null, moved: false, lpTimer: null });
+  const [radial, setRadial] = useState(false); // long-press quick-action menu
+  const [dx, setDx] = useState(0);              // live drag offset, for swipe hints
+  const lpTimer = useRef(null);
 
-  // Run the completion ritual: green check + float XP, then commit
+  // react-spring drives the swipe x (use-gesture feeds it)
+  const [{ x }, api] = useSpring(() => ({ x: 0 }));
+  const clearLP = () => { if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; } };
+
+  // Run the completion ritual: spring check + float XP, then commit
   const choose = (tier) => {
     setPicking(false);
     setCelebrate({ tier, xp: HABIT_XP[tier] ?? HABIT_XP.M });
     setTimeout(() => { setCelebrate(null); onComplete?.(habit.habitId, tier); }, 650);
   };
+  const doSkip = () => { if (habit.why) setConfirmSkip(true); else onSkip?.(habit.habitId); };
 
-  const endDrag = () => {
-    if (drag.current.lpTimer) clearTimeout(drag.current.lpTimer);
-    drag.current = { startX: null, moved: false, lpTimer: null };
-  };
-  const onDown = (e) => {
-    drag.current.startX = e.clientX;
-    drag.current.moved = false;
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* noop */ }
-    drag.current.lpTimer = setTimeout(() => {
-      if (!drag.current.moved) { setShowDetail(true); endDrag(); setDx(0); }
-    }, 500);
-  };
-  const onMove = (e) => {
-    if (drag.current.startX == null) return;
-    const d = e.clientX - drag.current.startX;
-    if (Math.abs(d) > 6) { drag.current.moved = true; if (drag.current.lpTimer) { clearTimeout(drag.current.lpTimer); drag.current.lpTimer = null; } }
-    setDx(Math.max(-120, Math.min(120, d)));
-  };
-  const onUp = () => {
-    const d = dx; endDrag();
-    if (d > SWIPE_THRESHOLD) choose(recTier);
-    else if (d < -SWIPE_THRESHOLD) { if (habit.why) setConfirmSkip(true); else onSkip?.(habit.habitId); }
-    setDx(0);
-  };
+  // Swipe right=complete / left=skip; hold (≈450ms, no movement) = radial menu
+  const bind = useDrag(
+    ({ first, last, active, tap, movement: [mx], cancel }) => {
+      if (tap) return; // taps fall through to child onClick
+      if (first) { clearLP(); lpTimer.current = setTimeout(() => { setRadial(true); api.start({ x: 0 }); setDx(0); cancel(); }, 450); }
+      if (Math.abs(mx) > 8) clearLP();
+      if (active) { const clamped = Math.max(-120, Math.min(120, mx)); api.start({ x: clamped, immediate: true }); setDx(clamped); }
+      else if (last) {
+        clearLP(); setDx(0); api.start({ x: 0 });
+        if (mx > SWIPE_THRESHOLD) choose(recTier);
+        else if (mx < -SWIPE_THRESHOLD) doSkip();
+      }
+    },
+    { filterTaps: true, axis: "x", pointer: { touch: true } }
+  );
+
+  // Radial quick-actions (long-press) — locked habits only allow L
+  const radialItems = [
+    ...(locked ? ["L"] : ["L", "M", "H"]).map((key) => ({
+      id: key, label: t(`habit.tier${key === "L" ? "Low" : key === "M" ? "Mid" : "High"}`),
+      bg: key === recTier ? accent : "#f1f5f9", color: key === recTier ? "#fff" : "#475569",
+      onClick: () => choose(key),
+    })),
+    { id: "skip", label: t("habit.swipe.skip"), bg: "#fff", color: "#94a3b8", onClick: doSkip },
+    { id: "detail", label: "···", bg: "#fff", color: "#94a3b8", onClick: () => setShowDetail(true) },
+  ];
 
   // ── Done ──
   if (habit.done) {
@@ -99,17 +113,23 @@ export default function HabitCheckCard({
     );
   }
 
-  // ── Celebrating (transient: check fills + XP floats) ──
+  // ── Celebrating (transient: check springs in + XP floats) ──
   if (celebrate) {
     return (
       <div className="relative flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
-        <span className="w-6 h-6 rounded-full flex items-center justify-center text-white shrink-0 pact-win" style={{ background: "#10b981" }}><Icon name="check" size={14} strokeWidth={3} /></span>
+        <motion.span
+          className="w-6 h-6 rounded-full flex items-center justify-center text-white shrink-0"
+          style={{ background: "#10b981" }}
+          initial={reduce ? { scale: 1 } : { scale: 0.4 }}
+          animate={reduce ? { scale: 1 } : { scale: [0.4, 1.25, 1] }}
+          transition={reduce ? { duration: 0 } : { ...SPRING_POP, times: [0, 0.6, 1] }}
+        >
+          <Icon name="check" size={14} strokeWidth={3} />
+        </motion.span>
         <span className="flex-1 text-[13px] font-bold text-emerald-700">{name}</span>
       </div>
     );
   }
-
-  const swiping = dx !== 0;
 
   return (
     <>
@@ -120,24 +140,23 @@ export default function HabitCheckCard({
           <span style={{ color: "#94a3b8", opacity: dx < -12 ? Math.min(1, -dx / SWIPE_THRESHOLD) : 0 }}>{t("habit.swipe.skip")} ⤫</span>
         </div>
 
-        <div
-          className="px-3 py-2.5 rounded-xl bg-white border border-gray-100"
-          style={{ transform: `translateX(${dx}px)`, transition: swiping ? "none" : "transform 0.2s ease" }}
+        <animated.div
+          {...bind()}
+          className="px-3 py-2.5 rounded-xl bg-white border border-gray-100 touch-pan-y select-none transform-gpu"
+          style={{ x, touchAction: "pan-y" }}
         >
-          <div
-            className="flex items-center gap-2.5 touch-pan-y select-none"
-            onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
-            onPointerCancel={() => { endDrag(); setDx(0); }}
-          >
-            {/* completion circle — tap to reveal tiers */}
-            <button
+          <div className="flex items-center gap-2.5">
+            {/* completion circle — tap to reveal tiers, springs on press */}
+            <motion.button
               onClick={() => !locked && setPicking((p) => !p)}
-              className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors"
+              whileTap={reduce || locked ? {} : { scale: 0.82 }}
+              transition={SPRING_POP}
+              className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0"
               style={{ borderColor: locked ? "#cbd5e1" : accent, color: accent }}
               title={locked ? t("habit.dep.locked", { n: req.min }) : t("habit.doNow.go")}
             >
               {locked ? <span className="text-[9px]">🔒</span> : picking ? <Icon name="close" size={12} /> : null}
-            </button>
+            </motion.button>
 
             <span className="text-sm shrink-0">{icon}</span>
             <div className="flex-1 min-w-0">
@@ -183,8 +202,36 @@ export default function HabitCheckCard({
               <button onClick={() => onCustomize?.(habit.habitId)} className="shrink-0 text-gray-300 hover:text-gray-500 px-1" title={t("habit.customize")}><Icon name="edit" size={13} /></button>
             </div>
           )}
-        </div>
+        </animated.div>
       </div>
+
+      {/* Long-press radial quick-action menu (framer-motion burst) */}
+      {radial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 animate-fade-in" onClick={() => setRadial(false)}>
+          <div className="relative w-48 h-48" onClick={(e) => e.stopPropagation()}>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-16 h-16 rounded-full bg-white shadow-lg flex items-center justify-center text-2xl">{icon}</div>
+            </div>
+            {radialItems.map((it, i) => {
+              const ang = (-90 + i * (360 / radialItems.length)) * (Math.PI / 180);
+              const R = 72;
+              return (
+                <motion.button
+                  key={it.id}
+                  initial={reduce ? { opacity: 0 } : { scale: 0, x: 0, y: 0 }}
+                  animate={reduce ? { opacity: 1 } : { scale: 1, x: Math.cos(ang) * R, y: Math.sin(ang) * R }}
+                  transition={reduce ? { duration: 0 } : { ...SPRING_POP, delay: i * 0.035 }}
+                  onClick={() => { setRadial(false); it.onClick(); }}
+                  className="absolute left-1/2 top-1/2 -ml-7 -mt-7 w-14 h-14 rounded-full shadow-md flex items-center justify-center text-[11px] font-black"
+                  style={{ background: it.bg, color: it.color, border: "1px solid rgba(0,0,0,0.04)" }}
+                >
+                  {it.label}
+                </motion.button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {showDetail && (
         <HabitDetailPopover habit={habit} name={name} icon={icon} layerLabel={layerLabel} streak={streak}
@@ -196,6 +243,9 @@ export default function HabitCheckCard({
     </>
   );
 }
+
+// React.memo isolates each card so a sibling's rhythm/ring re-render doesn't cascade
+export default memo(HabitCheckCard);
 
 // ── Detail popover (#6) — 7-day history, layer + graduation, tier mix, streak ──
 function HabitDetailPopover({ habit, name, icon, layerLabel, streak, history, dist, grad, accent, t, onEdit, onClose }) {
