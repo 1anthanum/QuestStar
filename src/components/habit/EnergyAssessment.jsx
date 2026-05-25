@@ -12,20 +12,27 @@ import {
 // Controlled: renders from `initial` (treated as the current value) and reports
 // every change via onChange — the parent owns the energy state.
 // Optional sleep-hours quick input (showSleep) suggests a physical level.
-export default function EnergyAssessment({ initial, onChange, theme, compact = false, showSleep = false, predictedBasis = null }) {
+export default function EnergyAssessment({ initial, onChange, theme, compact = false, showSleep = false, predictedBasis = null, untouched = false }) {
   const { t, lang } = useLanguage();
   const accent = theme?.accent || "#6366f1";
   const energy = initial && typeof initial === "object" ? { ...defaultEnergy(), ...initial } : defaultEnergy();
   const [expanded, setExpanded] = useState(null); // dimension id showing self-check
   const [sleep, setSleep] = useState("");
+  // Mo4: when starting from a bare default (no saved/predicted energy), show "—"
+  // until the user actually moves a slider, so they don't accept a fake "6/10".
+  const [touched, setTouched] = useState(() => new Set());
+  const isSet = (dim) => !untouched || touched.has(dim);
 
-  const update = (dim, val) => onChange?.({ ...energy, [dim]: val });
+  const update = (dim, val) => {
+    if (untouched && !touched.has(dim)) setTouched((s) => new Set(s).add(dim));
+    onChange?.({ ...energy, [dim]: val });
+  };
 
   const onSleep = (h) => {
     setSleep(h);
     const hours = parseFloat(h);
     const p = sleepToPhysical(hours);
-    if (p != null) onChange?.({ ...energy, physical: p });
+    if (p != null) { if (untouched) setTouched((s) => new Set(s).add("physical")); onChange?.({ ...energy, physical: p }); }
   };
 
   return (
@@ -58,8 +65,9 @@ export default function EnergyAssessment({ initial, onChange, theme, compact = f
 
       {ENERGY_DIMENSIONS.map((d) => {
         const val = energy[d.id];
+        const set = isSet(d.id);
         const anchor = anchorFor(d.id, val);
-        const color = energyColor(val);
+        const color = set ? energyColor(val) : "#cbd5e1";
         const anchorText = anchor ? (lang === "zh" ? anchor.zh : anchor.en) : "";
         return (
           <div key={d.id} className="rounded-2xl bg-gray-50 p-3">
@@ -68,18 +76,18 @@ export default function EnergyAssessment({ initial, onChange, theme, compact = f
               <span className="text-[13px] font-bold text-gray-700">{t(d.labelKey)}</span>
               <span className="text-[10px] text-gray-400">{t(d.descKey)}</span>
               <span className="flex-1" />
-              <span className="text-base font-black w-7 text-center" style={{ color }}>{val}</span>
+              <span className="text-base font-black w-7 text-center" style={{ color }}>{set ? val : "—"}</span>
             </div>
 
             <input
               type="range" min="1" max="10" value={val}
               onChange={(e) => update(d.id, Number(e.target.value))}
-              className="w-full" style={{ accentColor: color }}
+              className="w-full" style={{ accentColor: color, opacity: set ? 1 : 0.5 }}
             />
 
-            {/* Live anchor for current level */}
+            {/* Live anchor for current level (or a prompt until touched) */}
             <div className="text-[11px] text-gray-500 mt-1 leading-snug min-h-[28px]">
-              {anchorText}
+              {set ? anchorText : t("energy.untouched")}
             </div>
 
             {!compact && (

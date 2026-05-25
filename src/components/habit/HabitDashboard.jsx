@@ -286,7 +286,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   useEffect(() => {
     if (progress.total > 0 && progress.completed === progress.total) {
       const res = habits.awardPerfectDayIfDone?.();
-      if (res) { setPerfectFlash(res); setTimeout(() => setPerfectFlash(false), 2600); }
+      // Mo3: when Perfect Day fires, fold the per-habit "+N XP" into the gold overlay
+      if (res) { setXpFloat(null); setPerfectFlash(res); setTimeout(() => setPerfectFlash(false), 2600); }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progress.completed, progress.total]);
@@ -507,10 +508,15 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
             {suggestions.map((h) => {
               const name = lang === "zh" ? h.name : h.nameEn || h.name;
               const icon = HABIT_CATEGORIES[h.category]?.icon || "◆";
+              // Mi5: a short "because" — why this is suggested
+              const reasonKey = !socialOk && HABIT_CATEGORIES[h.category]?.track === "recovery"
+                ? "habit.suggest.becauseLowEnergy"
+                : (h.suggestedLayer || 3) === 1 ? "habit.suggest.becauseCore" : "habit.suggest.becauseStart";
               return (
                 <div key={h.id} className="shrink-0 w-40 rounded-xl bg-gray-50 p-3">
                   <div className="text-xl mb-1">{icon}</div>
-                  <div className="text-[12px] font-bold text-gray-700 mb-2 truncate">{name}</div>
+                  <div className="text-[12px] font-bold text-gray-700 truncate">{name}</div>
+                  <div className="text-[9.5px] text-gray-400 mb-2 leading-tight truncate">{t(reasonKey)}</div>
                   <button
                     onClick={() => setAddingSuggestion(h)}
                     className="w-full py-1.5 rounded-lg text-[11px] font-bold text-white"
@@ -845,6 +851,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       {showEnergy && (
         <EnergyQuickModal
           initial={energy || defaultEnergy()}
+          untouched={!energy}
           onSave={(e) => { habits.setEnergy(e); setShowEnergy(false); }}
           onClose={() => setShowEnergy(false)}
           theme={theme}
@@ -1103,7 +1110,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
 }
 
 // ── EnergyQuickModal — tap-to-update energy from the dashboard header ──
-function EnergyQuickModal({ initial, onSave, onClose, theme }) {
+function EnergyQuickModal({ initial, onSave, onClose, theme, untouched = false }) {
   const { t } = useLanguage();
   const accent = theme?.accent || "#6366f1";
   const [energy, setEnergy] = useState(initial);
@@ -1115,7 +1122,7 @@ function EnergyQuickModal({ initial, onSave, onClose, theme }) {
           <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">✕</button>
         </div>
         <div className="max-h-[55vh] overflow-y-auto pr-1">
-          <EnergyAssessment initial={energy} onChange={setEnergy} theme={theme} />
+          <EnergyAssessment initial={energy} onChange={setEnergy} theme={theme} untouched={untouched} />
         </div>
         <button
           onClick={() => onSave(energy)}

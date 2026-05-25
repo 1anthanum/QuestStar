@@ -88,6 +88,7 @@ export default function MorningPlanningModal({ habits, onClose, theme }) {
                 theme={theme}
                 showSleep
                 predictedBasis={habits.todayMeta.energy ? null : prediction?.basis}
+                untouched={!habits.todayMeta.energy && !prediction?.energy}
               />
             </div>
           </div>

@@ -1097,6 +1097,7 @@ const translations = {
     "energy.sleepHint": "Suggests physical energy ≈ {v}. Adjust below if it feels off.",
     "energy.predWeekday": "Pre-filled from past same-weekdays — tweak as needed.",
     "energy.predAll": "Pre-filled from your recent history — tweak as needed.",
+    "energy.untouched": "Slide to rate",
     // Inline chat
     "habit.chat.title": "AI Assistant",
     "habit.chat.placeholder": "Type a message… (plan, check off, reflect)",
@@ -1134,6 +1135,9 @@ const translations = {
     "habit.plan.empty": "No habits scheduled yet — add some from Browse.",
     "habit.plan.fixedOnly": "Fixed items only",
     // Quick intent chips
+    "habit.suggest.becauseLowEnergy": "gentle on a low day",
+    "habit.suggest.becauseCore": "a foundational habit",
+    "habit.suggest.becauseStart": "easy to start with",
     "habit.intent.justOne": "Just one thing",
     "habit.intent.stuck": "I'm stuck",
     "habit.intent.pickOne": "Pick one for me",
@@ -2373,6 +2377,7 @@ const translations = {
     "energy.sleepHint": "建议身体能量 ≈ {v}，下面可微调。",
     "energy.predWeekday": "已根据过往同一星期几预填，可微调。",
     "energy.predAll": "已根据近期记录预填，可微调。",
+    "energy.untouched": "滑动以评估",
     // Inline chat
     "habit.chat.title": "AI 助手",
     "habit.chat.placeholder": "输入消息…（规划 / 打卡 / 反思）",
@@ -2410,6 +2415,9 @@ const translations = {
     "habit.plan.empty": "还没有安排习惯 —— 去浏览里添加。",
     "habit.plan.fixedOnly": "仅固定项",
     // Quick intent chips
+    "habit.suggest.becauseLowEnergy": "低能量日也轻松",
+    "habit.suggest.becauseCore": "打基础的习惯",
+    "habit.suggest.becauseStart": "容易上手",
     "habit.intent.justOne": "只做一件事",
     "habit.intent.stuck": "我卡住了",
     "habit.intent.pickOne": "帮我选一件",

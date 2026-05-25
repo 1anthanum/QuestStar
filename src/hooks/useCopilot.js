@@ -153,18 +153,22 @@ export function useCopilot({ game, rewards, energy, appMode, ai, lang, habits = 
     const levelInfo = game.levelInfo || { level: 1, name: "Novice" };
     const currentEnergy = energy?.currentEnergy || null;
     const mode = appMode === "study" ? "Study" : "Life";
+    const isLife = appMode === "life";
+    const habitActive = habits ? habits.activeHabits.filter((h) => h.layer >= 1).length : 0;
+    const hp = habits?.getTodayProgress?.() || { completed: 0, total: 0 };
 
     // ── Habit context (Life mode only) ──
     const habitContext = buildHabitContext(habits, appMode, lang);
 
     if (lang === "zh") {
+      const stats = isLife
+        ? `- 活跃习惯: ${habitActive} 个\n- 今日习惯完成: ${hp.completed}/${hp.total}`
+        : `- 连续天数: ${game.streak || 0} 天\n- 活跃任务: ${activeQuests.length} 个\n- 今天完成: ${todaySteps} 步`;
       return `你是 QuestStar AI 助手，帮助有 ADHD 的人管理任务和反思。
 
 当前用户状态:
 - 等级: Lv.${levelInfo.level} ${levelInfo.name} (${game.xp || 0} XP)
-- 连续天数: ${game.streak || 0} 天
-- 活跃任务: ${activeQuests.length} 个
-- 今天完成: ${todaySteps} 步
+${stats}
 ${currentEnergy ? `- 当前能量: ${currentEnergy}` : ""}
 - 当前模式: ${mode === "Study" ? "学习" : "生活"}
 
@@ -204,13 +208,14 @@ ${habitContext}
 - 如果用户上传了文件，分析内容后建议合适的任务`;
     }
 
+    const statsEn = isLife
+      ? `- Active habits: ${habitActive}\n- Habits done today: ${hp.completed}/${hp.total}`
+      : `- Streak: ${game.streak || 0} days\n- Active quests: ${activeQuests.length}\n- Steps completed today: ${todaySteps}`;
     return `You are QuestStar AI, an assistant helping people with ADHD manage tasks and reflect.
 
 Current user state:
 - Level: Lv.${levelInfo.level} ${levelInfo.name} (${game.xp || 0} XP)
-- Streak: ${game.streak || 0} days
-- Active quests: ${activeQuests.length}
-- Steps completed today: ${todaySteps}
+${statsEn}
 ${currentEnergy ? `- Current energy: ${currentEnergy}` : ""}
 - Current mode: ${mode}
 
