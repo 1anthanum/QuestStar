@@ -1,26 +1,26 @@
-// Budget Tracker defaults — placeholder values for source code.
-// Real values are stored per-user in localStorage / Supabase.
+// Budget Tracker defaults — GENERIC placeholders only (no personal data in source).
+// Real per-user values live in localStorage (qt_budget_config) / Supabase, like the
+// owner's daily_habits. New users start from these neutral round numbers and rename
+// categories to taste.
 
 export const BUDGET_DEFAULTS = {
-  income: 3500,
-  rent: 1230,
-  savingsTarget: 1000,
+  income: 3000,
+  rent: 1000,
+  savingsTarget: 500,
 
   variable: {
-    Grocery: 405,
-    "Delivery A": 80,
-    "Delivery B": 50,
-    Uber: 30,
+    Groceries: 300,
+    Dining: 100,
+    Transport: 50,
     Medical: 30,
-    "Household / Amazon": 50,
+    Household: 50,
     Buffer: 50,
-    "Social Fund": 30,
+    Fun: 30,
   },
 
   subs: {
-    "Claude Pro": 200,
-    "Anthropic API": 80,
-    "Apple One": 1,
+    "Subscription 1": 10,
+    "Subscription 2": 10,
   },
 };
 

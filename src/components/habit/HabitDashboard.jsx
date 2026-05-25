@@ -52,6 +52,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [skin, setSkin] = useLocalStorage("qt_life_skin", "soft"); // soft | glass | aurora | vivid | outline
   const [dismissedInvisible, setDismissedInvisible] = useState(false);
   const [slotNudgeDismissed, setSlotNudgeDismissed] = useState(null);
+  const [doNowPick, setDoNowPick] = useState(null); // habitId whose tier picker is open in "Do now"
   const [addingSuggestion, setAddingSuggestion] = useState(null); // catalog habit pending slot pick
   const [suggestion, setSuggestion] = useState(null);
   const [dismissedSuggestion, setDismissedSuggestion] = useState(false);
@@ -602,17 +603,34 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
               const name = cat ? (lang === "zh" ? cat.name : cat.nameEn || cat.name) : h.habitId;
               const icon = HABIT_CATEGORIES[cat?.category]?.icon || "◆";
               const recTier = capTierByEnergy(h.recommendedTier || "M", energy);
+              const open = doNowPick === h.habitId;
               return (
                 <div key={h.habitId} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-gray-50">
                   <span className="text-base">{icon}</span>
-                  <span className="flex-1 text-[13px] font-semibold text-gray-700">{name}</span>
-                  <button
-                    onClick={() => habits.completeHabit(h.habitId, recTier)}
-                    className="text-[11px] font-bold px-3 py-1.5 rounded-full text-white"
-                    style={{ background: theme?.btnGrad || accent }}
-                  >
-                    {t("habit.doNow.go")} · {recTier}
-                  </button>
+                  <span className="flex-1 text-[13px] font-semibold text-gray-700 truncate">{name}</span>
+                  {open ? (
+                    <div className="flex items-center gap-1 shrink-0">
+                      {["L", "M", "H"].map((k) => (
+                        <button
+                          key={k}
+                          onClick={() => { habits.completeHabit(h.habitId, k); setDoNowPick(null); }}
+                          className="text-[11px] font-black w-7 h-7 rounded-full transition-all"
+                          style={k === recTier ? { background: theme?.btnGrad || accent, color: "#fff" } : { background: "#fff", color: accent, border: `1px solid ${accent}40` }}
+                        >
+                          {k}
+                        </button>
+                      ))}
+                      <button onClick={() => setDoNowPick(null)} className="text-gray-300 hover:text-gray-500 ml-0.5"><Icon name="close" size={13} /></button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setDoNowPick(h.habitId)}
+                      className="text-[11px] font-bold px-3 py-1.5 rounded-full text-white shrink-0"
+                      style={{ background: theme?.btnGrad || accent }}
+                    >
+                      {t("habit.doNow.go")} · {recTier}
+                    </button>
+                  )}
                 </div>
               );
             })}

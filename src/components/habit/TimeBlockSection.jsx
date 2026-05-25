@@ -46,7 +46,8 @@ export default function TimeBlockSection({
 
   const isNow = status === "now";
   const isFuture = status === "future";
-  const [expanded, setExpanded] = useState(defaultExpanded ?? (isNow || !allDone));
+  const missed = status === "past" && !allDone && totalCount > 0; // #26
+  const [expanded, setExpanded] = useState(defaultExpanded ?? (isNow || (!allDone && !missed)));
   const [confirmAll, setConfirmAll] = useState(false);
 
   // Color: done=emerald; now=block's signature color; future=its color (muted); past-undone=slate
@@ -62,7 +63,7 @@ export default function TimeBlockSection({
   return (
     <div
       className="qt-card overflow-hidden"
-      style={isNow ? { border: `2px solid ${blockColor}`, boxShadow: `0 8px 24px -10px ${blockColor}80` } : undefined}
+      style={isNow ? { border: `2px solid ${blockColor}`, boxShadow: `0 8px 24px -10px ${blockColor}80` } : missed ? { opacity: 0.72, borderLeft: "3px solid #fca5a5" } : undefined}
     >
       {/* Header */}
       <button
@@ -82,6 +83,8 @@ export default function TimeBlockSection({
         {/* completion pill */}
         {allDone ? (
           <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">✓ {doneCount}/{totalCount}</span>
+        ) : missed ? (
+          <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-500">{totalCount - doneCount} {t("habit.block.missed")}</span>
         ) : isFuture && doneCount === 0 ? (
           <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">{totalCount} {t("habit.block.upcoming")}</span>
         ) : (
