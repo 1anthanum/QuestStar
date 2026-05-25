@@ -414,6 +414,24 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     return n;
   }, [habitLog]);
 
+  // #8 — individual completion events this week (fuels the identity-hero dots,
+  // each dot = one completion; completedAt powers the hover-reveal times)
+  const getWeekActions = useCallback(() => {
+    const base = new Date();
+    const out = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(base); d.setDate(base.getDate() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const day = habitLog[key];
+      if (!day) continue;
+      for (const [hid, v] of Object.entries(day)) {
+        if (hid.startsWith("_")) continue;
+        out.push({ habitId: hid, date: key, completedAt: v?.completedAt || null, tier: v?.tier || null });
+      }
+    }
+    return out.sort((a, b) => (a.completedAt || 0) - (b.completedAt || 0));
+  }, [habitLog]);
+
   // ── New-habit suggestions (for the daily briefing) ──
   // Catalog habits not yet active, ranked by affinity with the categories the
   // user already engages — then de-duped by category so the picks feel varied.
@@ -923,6 +941,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     getDueLetters,
     markLetterDelivered,
     getWeekActionCount,
+    getWeekActions,
     getNewHabitSuggestions,
     getWeekPlan,
     saveWeekPlan,

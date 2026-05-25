@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { motion } from "framer-motion";
+import { SPRING_POP } from "../../utils/motion";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { generateMorningBriefing } from "../../utils/aiService";
@@ -354,10 +356,25 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const signalCount = signals.length;
 
   // Identity strip (#8) — extracted so it can also appear in Focus view (M2)
+  // ── Identity hero (the user's personal flag) — large serif + completion dots ──
+  const weekActionList = habits.getWeekActions?.() || [];
+  const DOT_CAP = 21;
+  const nameOfHabit = (id) => { const c = getHabitById(id); return c ? (lang === "zh" ? c.name : c.nameEn || c.name) : id; };
+  const fmtActionTime = (ms) => (ms ? new Date(ms).toLocaleTimeString(lang === "zh" ? "zh-CN" : "en-US", { hour: "2-digit", minute: "2-digit" }) : "");
+  const identityGrad = theme?.btnGrad || `linear-gradient(135deg, ${accent}, ${theme?.accentHover || accent})`;
+
   const identityStrip = (
-    <div className="rounded-2xl px-4 py-2.5 flex items-center gap-2" style={{ background: `${accent}08` }}>
+    <div
+      className="relative overflow-hidden rounded-3xl px-5 py-4"
+      style={{ background: `linear-gradient(135deg, ${accent}1f, ${accent}08 55%, transparent), radial-gradient(120% 130% at 0% 0%, ${accent}16, transparent 55%)` }}
+    >
+      {/* subtle dotted texture */}
+      <div
+        className="absolute inset-0 opacity-[0.05] pointer-events-none"
+        style={{ backgroundImage: "radial-gradient(currentColor 1px, transparent 1px)", backgroundSize: "13px 13px", color: accent }}
+      />
       {editingIdentity ? (
-        <>
+        <div className="relative flex items-center gap-2">
           <span className="text-[12px] text-gray-600 shrink-0">{t("habit.identity.becoming")}</span>
           <input
             autoFocus
@@ -365,26 +382,48 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
             onChange={(e) => setIdentityDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { habits.setIdentity(identityDraft.trim()); setEditingIdentity(false); } }}
             placeholder={t("habit.identity.placeholder")}
-            className="flex-1 bg-white rounded-lg px-2 py-1 text-[12.5px] outline-none border border-gray-200"
+            className="flex-1 bg-white/85 rounded-lg px-2.5 py-1.5 text-[15px] font-display outline-none border border-gray-200"
           />
-          <button onClick={() => { habits.setIdentity(identityDraft.trim()); setEditingIdentity(false); }} className="text-[11px] font-bold shrink-0" style={{ color: accent }}>✓</button>
-        </>
+          <button onClick={() => { habits.setIdentity(identityDraft.trim()); setEditingIdentity(false); }} className="text-[13px] font-bold shrink-0" style={{ color: accent }}>✓</button>
+        </div>
       ) : (
-        <button
-          onClick={() => { setIdentityDraft(habits.identity || ""); setEditingIdentity(true); }}
-          className="flex items-center gap-2 w-full text-left"
-        >
-          <span className="text-base">🌟</span>
-          {habits.identity ? (
-            <span className="flex-1 text-[12.5px] text-gray-700">
-              {t("habit.identity.becoming")}<span className="font-black" style={{ color: accent }}>{habits.identity}</span>
-              {weekActions > 0 && <span className="text-[10.5px] text-gray-500"> · {t("habit.identity.fuel", { n: weekActions })}</span>}
-            </span>
-          ) : (
-            <span className="flex-1 text-[12px] text-gray-500">{t("habit.identity.prompt")}</span>
+        <div className="relative">
+          <button onClick={() => { setIdentityDraft(habits.identity || ""); setEditingIdentity(true); }} className="block w-full text-left group">
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">{t("habit.identity.becomingLabel")}</span>
+              <span className="text-[10px] text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity">✎</span>
+            </div>
+            {habits.identity ? (
+              <div
+                className="font-display font-semibold text-[26px] leading-[1.15]"
+                style={{ backgroundImage: identityGrad, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
+              >
+                {habits.identity}
+              </div>
+            ) : (
+              <div className="font-display italic text-[20px] leading-snug text-gray-400">{t("habit.identity.prompt")}</div>
+            )}
+          </button>
+
+          {/* Completion dots — each filled dot is one completion this week; hover reveals the time */}
+          {habits.identity && weekActionList.length > 0 && (
+            <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+              {weekActionList.slice(-DOT_CAP).map((a, i) => (
+                <motion.span
+                  key={`${a.date}-${a.habitId}-${i}`}
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ ...SPRING_POP, delay: Math.min(i * 0.018, 0.5) }}
+                  title={`${nameOfHabit(a.habitId)} · ${a.date}${a.completedAt ? " " + fmtActionTime(a.completedAt) : ""}`}
+                  className="w-2.5 h-2.5 rounded-full cursor-default"
+                  style={{ backgroundImage: identityGrad, boxShadow: `0 1px 4px ${accent}55` }}
+                />
+              ))}
+              {weekActionList.length > DOT_CAP && <span className="text-[10px] font-bold text-gray-400">+{weekActionList.length - DOT_CAP}</span>}
+              <span className="text-[10.5px] text-gray-400 ml-1">{t("habit.identity.thisWeek", { n: weekActionList.length })}</span>
+            </div>
           )}
-          <span className="text-[11px] text-gray-400">✎</span>
-        </button>
+        </div>
       )}
     </div>
   );

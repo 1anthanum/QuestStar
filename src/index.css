@@ -88,6 +88,15 @@ body {
 .transform-gpu { transform: translateZ(0); }
 .will-change-transform { will-change: transform; }
 
+/* Display serif for the identity "hero" — deliberately distinct from the
+   sans-serif body so the personal flag reads as a flag, not a label. Uses
+   high-quality system serifs (Palatino/Iowan on Apple, Georgia elsewhere). */
+.font-display {
+  font-family: "Iowan Old Style", "Palatino Linotype", "Palatino", "Georgia",
+    "Songti SC", "STSong", serif;
+  letter-spacing: 0.01em;
+}
+
 /* Animatable ring progress (CSS @property) — falls back gracefully where unsupported */
 @property --ring-progress {
   syntax: "<number>";
