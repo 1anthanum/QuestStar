@@ -3,7 +3,6 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { generateMorningBriefing } from "../../utils/aiService";
 import TimeBlockSection from "./TimeBlockSection";
-import RestDayButton from "./RestDayButton";
 import HabitTierEditor from "./HabitTierEditor";
 import { HABIT_CATALOG, HABIT_CATEGORIES, getHabitById } from "../../utils/habitCatalog";
 import HabitSuggestionCard from "./HabitSuggestionCard";
@@ -19,6 +18,9 @@ import LetterModal from "./LetterModal";
 import MiniTrackerModal from "./MiniTrackerModal";
 import EnergyAssessment from "./EnergyAssessment";
 import InlineChat from "./InlineChat";
+import Icon from "../Icon";
+import ProgressRing from "../ProgressRing";
+import { timeOfDayPalette } from "../../utils/timeOfDay";
 import { ENERGY_DIMENSIONS, energyColor, deriveEnergyMode, defaultEnergy, energyWeather, capTierByEnergy, socialAllowsInteraction, cognitiveAllowsDeep } from "../../utils/energyModel";
 
 // ═══════════════════════════════════════════════════════════
@@ -46,7 +48,9 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [oneThing, setOneThing] = useState(null); // null | "normal" | "gentle"
   const [coreOnly, setCoreOnly] = useState(false);
   const [layout, setLayout] = useLocalStorage("qt_life_layout", "stacked"); // stacked | split | todoFirst | focus
+  const [skin, setSkin] = useLocalStorage("qt_life_skin", "soft"); // soft | glass | aurora | vivid | outline
   const [dismissedInvisible, setDismissedInvisible] = useState(false);
+  const [slotNudgeDismissed, setSlotNudgeDismissed] = useState(null);
   const [addingSuggestion, setAddingSuggestion] = useState(null); // catalog habit pending slot pick
   const [suggestion, setSuggestion] = useState(null);
   const [dismissedSuggestion, setDismissedSuggestion] = useState(false);
@@ -55,6 +59,10 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [undoToast, setUndoToast] = useState(null);
   const [chainPrompt, setChainPrompt] = useState(null);
   const [briefingDismissed, setBriefingDismissed] = useState(false);
+  const [signalIdx, setSignalIdx] = useState(0);
+  const [showMore, setShowMore] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+  const [perfectFlash, setPerfectFlash] = useState(false);
   const briefingTried = useRef(false);
 
   // On mount: reconcile iOS check-offs + auto-archive stale + smart-defer past-slot habits
@@ -173,6 +181,13 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     return best;
   }, []);
 
+  // Block status relative to "now" — drives the timeline dots / NOW ring
+  const SLOT_ORDER = ["morning_prep", "upper_morning", "noon", "peak_cognitive", "evening", "sleep_prep"];
+  const blockStatus = (id) => {
+    const oi = SLOT_ORDER.indexOf(id), ci = SLOT_ORDER.indexOf(currentBlockId);
+    return oi < ci ? "past" : oi === ci ? "now" : "future";
+  };
+
   const totalPct = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
 
   // ── Encouragement message by progress tier ──
@@ -234,6 +249,25 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // C: weekly rhythm heatmap
+  const weekRates = habits.getWeekDailyRates?.() || [];
+  const DOW_SHORT = lang === "zh" ? ["日", "一", "二", "三", "四", "五", "六"] : ["S", "M", "T", "W", "T", "F", "S"];
+  const rateColor = (r) => {
+    if (r == null) return "#f1f5f9";
+    if (r === 0) return "#eef2f7";
+    const a = Math.round((0.25 + r * 0.75) * 255).toString(16).padStart(2, "0");
+    return `${accent}${a}`;
+  };
+
+  // #2 Perfect Day — all flexible done → one-time +20 XP + gold flash
+  useEffect(() => {
+    if (progress.total > 0 && progress.completed === progress.total) {
+      const res = habits.awardPerfectDayIfDone?.();
+      if (res) { setPerfectFlash(true); setTimeout(() => setPerfectFlash(false), 2600); }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progress.completed, progress.total]);
+
   // #8 identity + #9 due letters + #12 week plan
   const dueLetters = habits.getDueLetters?.() || [];
   const weekActions = habits.getWeekActionCount?.() || 0;
@@ -248,28 +282,66 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const focusIcon = HABIT_CATEGORIES[focusCat?.category]?.icon || "◆";
   const focusTier = focus ? capTierByEnergy(focus.recommendedTier || "M", energy) : "M";
 
+  // ── Consolidated "signals" — transient info banners → one rotating strip ──
+  const dimMeta = (id) => ENERGY_DIMENSIONS.find((d) => d.id === id);
+  const signals = [];
+  if (todayMeta.briefing && !briefingDismissed) signals.push({ key: "briefing", icon: "☀️", text: todayMeta.briefing, tone: accent });
+  if (adaptNoteKey) signals.push({ key: "adapt", icon: "🧭", text: t(adaptNoteKey), tone: "#b45309" });
+  if (anomalies.length > 0) signals.push({ key: "anomaly", icon: "📉", text: t("habit.anomaly.msg", { dim: t(dimMeta(anomalies[0].dim)?.labelKey || "") }), tone: "#c2410c" });
+  if (invisible && !dismissedInvisible) {
+    const c = getHabitById(invisible.habitId);
+    signals.push({ key: "invisible", icon: "📈", text: t("habit.invisible.msg", { name: c ? (lang === "zh" ? c.name : c.nameEn || c.name) : invisible.habitId, pct: invisible.delta }), tone: "#047857" });
+  }
+  if (baselineDelta) signals.push({ key: "baseline", icon: dimMeta(baselineDelta.id)?.icon || "•", text: t(baselineDelta.delta > 0 ? "habit.baseline.higher" : "habit.baseline.lower", { dim: t(dimMeta(baselineDelta.id)?.labelKey || ""), n: Math.abs(baselineDelta.delta) }), tone: "#475569" });
+  if (deferCount > 0) signals.push({ key: "defer", icon: "↪", text: t("habit.defer.note", { n: deferCount }), tone: "#0369a1" });
+
+  const insightStrip = signals.length > 0 ? (() => {
+    const i = signalIdx % signals.length;
+    const s = signals[i];
+    return (
+      <div className="rounded-2xl px-4 py-2.5 flex items-center gap-2.5 animate-fade-in" key={s.key} style={{ background: `${accent}0c`, border: `1px solid ${accent}1f` }}>
+        <span className="text-base shrink-0">{s.icon}</span>
+        <span className="flex-1 text-[12px] font-semibold leading-snug" style={{ color: s.tone }}>{s.text}</span>
+        {signals.length > 1 && (
+          <div className="flex items-center gap-1 shrink-0">
+            <button onClick={() => setSignalIdx((n) => (n - 1 + signals.length) % signals.length)} className="text-gray-400 hover:text-gray-600 px-1 text-sm">‹</button>
+            <span className="text-[10px] tabular-nums text-gray-400">{i + 1}/{signals.length}</span>
+            <button onClick={() => setSignalIdx((n) => (n + 1) % signals.length)} className="text-gray-400 hover:text-gray-600 px-1 text-sm">›</button>
+          </div>
+        )}
+      </div>
+    );
+  })() : null;
+  const signalCount = signals.length;
+
+  // Auto-advance the consolidated insight strip
+  useEffect(() => {
+    if (signalCount <= 1) return undefined;
+    const id = setInterval(() => setSignalIdx((n) => n + 1), 6000);
+    return () => clearInterval(id);
+  }, [signalCount]);
+
   // ── Layout presets ──
   const LAYOUTS = [
-    { id: "stacked", icon: "▤", labelKey: "habit.layout.stacked" },
-    { id: "split", icon: "▥", labelKey: "habit.layout.split" },
-    { id: "todoFirst", icon: "▦", labelKey: "habit.layout.todoFirst" },
-    { id: "focus", icon: "◎", labelKey: "habit.layout.focus" },
+    { id: "stacked", icon: "layoutStack", labelKey: "habit.layout.stacked" },
+    { id: "split", icon: "layoutSplit", labelKey: "habit.layout.split" },
+    { id: "todoFirst", icon: "layoutTodo", labelKey: "habit.layout.todoFirst" },
+    { id: "timeline", icon: "layoutTimeline", labelKey: "habit.layout.timeline" },
+    { id: "focus", icon: "layoutFocus", labelKey: "habit.layout.focus" },
+  ];
+  const SKINS = [
+    { id: "soft", labelKey: "habit.skin.soft", sw: { background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 2px rgba(2,6,23,.12)" } },
+    { id: "glass", labelKey: "habit.skin.glass", sw: { background: "rgba(255,255,255,.45)", backdropFilter: "blur(4px)", border: "1px solid rgba(255,255,255,.8)" } },
+    { id: "aurora", labelKey: "habit.skin.aurora", sw: { background: "linear-gradient(135deg,#6366f1,#22d3ee 50%,#a855f7)" } },
+    { id: "vivid", labelKey: "habit.skin.vivid", sw: { background: `linear-gradient(160deg,#fff,${accent})` } },
+    { id: "outline", labelKey: "habit.skin.outline", sw: { background: "#fff", border: "1.5px solid #cbd5e1" } },
   ];
 
   // ── Content buckets (arranged differently per layout) ──
   const widgets = (
     <>
-      {/* Morning AI briefing */}
-      {todayMeta.briefing && !briefingDismissed && (
-        <div
-          className="rounded-2xl p-3.5 flex items-start gap-2.5 animate-fade-in"
-          style={{ background: `linear-gradient(135deg, ${accent}16, ${accent}05)`, border: `1px solid ${accent}22` }}
-        >
-          <span className="text-lg">☀️</span>
-          <span className="flex-1 text-[12.5px] text-gray-700 leading-relaxed">{todayMeta.briefing}</span>
-          <button onClick={() => setBriefingDismissed(true)} className="text-gray-400 hover:text-gray-600 text-sm shrink-0">✕</button>
-        </div>
-      )}
+      {/* Consolidated insight strip (rotating) */}
+      {insightStrip}
 
       {/* Identity strip (#8) */}
       <div className="rounded-2xl px-4 py-2.5 flex items-center gap-2" style={{ background: `${accent}08` }}>
@@ -308,7 +380,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       {/* This week's focus + intention (#12) */}
       {(weekPlan?.intention || focusHabitName) && (
         <div className="rounded-2xl px-4 py-2.5 flex items-center gap-2" style={{ background: `${accent}0c` }}>
-          <span className="text-base">🗓️</span>
+          <span style={{ color: accent }}><Icon name="calendar" size={16} /></span>
           <div className="flex-1 min-w-0">
             {weekPlan?.intention && <div className="text-[12.5px] font-semibold text-gray-700 truncate">{weekPlan.intention}</div>}
             {focusHabitName && <div className="text-[10.5px] text-gray-500">⭐ {t("habit.weekPlan.thisWeekFocus")}: {focusHabitName}</div>}
@@ -320,7 +392,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       {dueLetters.map((l) => (
         <div key={l.id} className="rounded-2xl p-3.5 animate-fade-in" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-base">✉️</span>
+            <span className="text-amber-600"><Icon name="mail" size={15} /></span>
             <span className="text-[11px] font-bold text-amber-700">{t("habit.letter.received", { date: l.createdAt })}</span>
             <span className="flex-1" />
             <button onClick={() => habits.markLetterDelivered(l.id)} className="text-[11px] font-bold text-amber-600">{t("habit.letter.read")}</button>
@@ -333,17 +405,17 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       <div className="flex gap-2">
         <button
           onClick={() => setOneThing("normal")}
-          className="flex-1 py-2 rounded-xl text-[12px] font-bold transition-all active:scale-95"
+          className="flex-1 py-2 rounded-xl text-[12px] font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5"
           style={{ background: `${accent}1f`, color: accent }}
         >
-          🆘 {t("habit.intent.stuck")}
+          <Icon name="sos" size={15} /> {t("habit.intent.stuck")}
         </button>
         <button
           onClick={() => setOneThing("normal")}
-          className="flex-1 py-2 rounded-xl text-[12px] font-bold transition-all active:scale-95"
+          className="flex-1 py-2 rounded-xl text-[12px] font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5"
           style={{ background: `${accent}1f`, color: accent }}
         >
-          🎯 {t("habit.intent.pickOne")}
+          <Icon name="target" size={15} /> {t("habit.intent.pickOne")}
         </button>
         <button
           onClick={() => { habits.setEnergyMode("low"); setOneThing("gentle"); }}
@@ -360,53 +432,6 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       >
         <span className="text-[13px] font-medium italic text-gray-700">{t(encourageKey)}</span>
       </div>
-
-      {/* Energy-adaptive note */}
-      {adaptNoteKey && (
-        <div className="rounded-xl px-3.5 py-2 text-[11.5px] font-semibold text-amber-800 bg-amber-50 border border-amber-200">
-          {t(adaptNoteKey)}
-        </div>
-      )}
-
-      {/* Energy anomaly warning (#2) */}
-      {anomalies.length > 0 && (
-        <div className="rounded-xl px-3.5 py-2.5 text-[12px] font-semibold text-orange-800 bg-orange-50 border border-orange-200 flex items-center gap-2">
-          <span>📉</span>
-          <span className="flex-1">{t("habit.anomaly.msg", { dim: t(ENERGY_DIMENSIONS.find((d) => d.id === anomalies[0].dim)?.labelKey || "") })}</span>
-        </div>
-      )}
-
-      {/* Invisible progress (#3) */}
-      {invisible && !dismissedInvisible && (
-        <div className="rounded-2xl px-4 py-2.5 flex items-center gap-2 animate-fade-in" style={{ background: "#ecfdf5", border: "1px solid #a7f3d0" }}>
-          <span className="text-base">📈</span>
-          <span className="flex-1 text-[12px] font-semibold text-emerald-800">
-            {t("habit.invisible.msg", {
-              name: (() => { const c = getHabitById(invisible.habitId); return c ? (lang === "zh" ? c.name : c.nameEn || c.name) : invisible.habitId; })(),
-              pct: invisible.delta,
-            })}
-          </span>
-          <button onClick={() => setDismissedInvisible(true)} className="text-emerald-400 hover:text-emerald-600 text-sm">✕</button>
-        </div>
-      )}
-
-      {/* Today vs baseline (#8) */}
-      {baselineDelta && (
-        <div className="rounded-xl px-3.5 py-1.5 text-[11px] font-semibold text-gray-600 bg-gray-100 flex items-center gap-1.5">
-          <span>{ENERGY_DIMENSIONS.find((d) => d.id === baselineDelta.id)?.icon}</span>
-          {t(baselineDelta.delta > 0 ? "habit.baseline.higher" : "habit.baseline.lower", {
-            dim: t(ENERGY_DIMENSIONS.find((d) => d.id === baselineDelta.id)?.labelKey || ""),
-            n: Math.abs(baselineDelta.delta),
-          })}
-        </div>
-      )}
-
-      {/* Smart auto-defer note */}
-      {deferCount > 0 && (
-        <div className="rounded-xl px-3.5 py-2 text-[11.5px] font-semibold text-sky-800 bg-sky-50 border border-sky-200">
-          ↪ {t("habit.defer.note", { n: deferCount })}
-        </div>
-      )}
 
       {/* Low physical energy → offer a body scan */}
       {lowPhysical && (
@@ -446,11 +471,14 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
 
       {/* Suggested habits */}
       {!coreOnly && suggestions.length > 0 && (
-        <div className="rounded-2xl p-4 bg-white/80 border border-white/60 shadow-sm">
+        <div className="qt-card p-4">
           <div className="flex items-center justify-between mb-2.5">
-            <span className="text-[13px] font-black text-gray-800">💡 {t("habit.suggest.title")}</span>
-            <button onClick={onBrowse} className="text-[11px] font-bold" style={{ color: accent }}>
-              {t("habit.browse")} →
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: `${accent}1f`, color: accent }}><Icon name="bulb" size={14} /></span>
+              <span className="text-[13px] font-black text-gray-800">{t("habit.suggest.title")}</span>
+            </div>
+            <button onClick={onBrowse} className="text-[11px] font-bold flex items-center gap-1" style={{ color: accent }}>
+              {t("habit.browse")} <Icon name="arrowRight" size={13} />
             </button>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
@@ -479,15 +507,81 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       {copilot && (
         <InlineChat copilot={copilot} theme={theme} onExpand={onOpenCopilot} />
       )}
+
+      {/* Weekly rhythm heatmap (C) */}
+      {weekRates.length > 0 && (
+        <div className="qt-card p-3.5">
+          <div className="text-[10.5px] font-bold text-gray-400 uppercase tracking-wide mb-2">📅 {t("habit.weekRhythm")}</div>
+          <div className="flex gap-1.5">
+            {weekRates.map((d, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                <span
+                  className="w-full rounded-md"
+                  style={{ aspectRatio: "1", background: d.future ? "#f1f5f9" : rateColor(d.rate), outline: d.isToday ? `2px solid ${accent}` : "none", outlineOffset: -1 }}
+                  title={d.rate != null ? `${Math.round(d.rate * 100)}%` : ""}
+                />
+                <span className="text-[9px] text-gray-400">{DOW_SHORT[i]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 
+  // #1 Smart nudge — current slot ending soon with incomplete habits
+  const slotNudge = habits.getSlotEndingNudge?.();
   const todoCol = (
     <>
+      {/* Smart nudge (#1) — gentle, with an L-tier downgrade offer */}
+      {slotNudge && slotNudgeDismissed !== slotNudge.blockId && (() => {
+        const c = getHabitById(slotNudge.habitId);
+        const nm = c ? (lang === "zh" ? c.name : c.nameEn || c.name) : slotNudge.habitId;
+        const b = schedule.find((x) => x.id === slotNudge.blockId);
+        const blockLabel = b ? (lang === "zh" ? b.label : b.labelEn || b.label) : "";
+        return (
+          <div className="qt-card p-3.5" style={{ borderLeft: "3px solid #f59e0b" }}>
+            <div className="flex items-start gap-2.5">
+              <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "#f59e0b1f", color: "#d97706" }}><Icon name="zap" size={15} /></span>
+              <div className="flex-1 min-w-0">
+                <div className="text-[12.5px] font-bold text-gray-800">{t("habit.smartNudge.title", { block: blockLabel, min: slotNudge.minutesLeft })}</div>
+                <div className="text-[11.5px] text-gray-500 mt-0.5">{t("habit.smartNudge.body", { name: nm })}</div>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-2.5">
+              <button onClick={() => { habits.completeHabit(slotNudge.habitId, "L"); }} className="flex-1 py-2 rounded-xl text-[12px] font-bold text-white" style={{ background: theme?.btnGrad || accent }}>
+                {t("habit.smartNudge.doL")}
+              </button>
+              <button onClick={() => setSlotNudgeDismissed(slotNudge.blockId)} className="px-3 py-2 rounded-xl text-[12px] font-semibold text-gray-400 bg-gray-100">{t("habit.smartNudge.dismiss")}</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Day progress with a NOW marker */}
+      {(() => {
+        const now = new Date();
+        const mins = now.getHours() * 60 + now.getMinutes();
+        const dayStart = 7 * 60, dayEnd = 23 * 60;
+        const pct = Math.max(0, Math.min(100, ((mins - dayStart) / (dayEnd - dayStart)) * 100));
+        return (
+          <div className="flex items-center gap-2 px-1 pt-1">
+            <div className="flex-1 h-1.5 rounded-full bg-gray-200/80 overflow-hidden relative">
+              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#34d399,#10b981)" }} />
+              <span className="absolute top-1/2 -translate-y-1/2 w-1 h-3 rounded-full shadow" style={{ left: `calc(${pct}% - 2px)`, background: "#f59e0b" }} />
+            </div>
+            <span className="text-[11px] font-bold text-gray-400 tabular-nums shrink-0">
+              {String(now.getHours()).padStart(2, "0")}:{String(now.getMinutes()).padStart(2, "0")}
+            </span>
+          </div>
+        );
+      })()}
+
       {/* Do now — what's left right now */}
-      <div className="rounded-2xl p-4 bg-white/80 border border-white/60 shadow-sm">
+      <div className="qt-card p-4">
         <div className="flex items-center gap-2 mb-2.5">
-          <span className="text-[13px] font-black text-gray-800">⚡ {t("habit.doNow.title")}</span>
+          <span className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "#f59e0b1f", color: "#d97706" }}><Icon name="zap" size={14} /></span>
+          <span className="text-[13px] font-black text-gray-800">{t("habit.doNow.title")}</span>
           <span className="flex-1" />
           <button
             onClick={() => setCoreOnly((c) => !c)}
@@ -534,6 +628,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           habits={habits}
           energyMode={energyMode}
           energy={energy}
+          status={blockStatus(block.id)}
           defaultExpanded={block.id === currentBlockId}
           theme={theme}
           onBrowse={onBrowse}
@@ -542,23 +637,46 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         />
       ))}
 
-      {/* Layer summary + toolbar footer */}
+      {/* Layer summary */}
       <div className="rounded-xl px-4 py-2.5 bg-gray-50 border border-gray-100 flex items-center gap-3 text-[11px] font-semibold text-gray-600">
         <span>◆ {progress.byLayer[1].done}/{progress.byLayer[1].total}</span>
         <span>◇ {progress.byLayer[2].done}/{progress.byLayer[2].total}</span>
         <span>✦ {progress.byLayer[3].done}/{progress.byLayer[3].total}</span>
-        <span className="flex-1" />
-        <button onClick={onBrowse} className="font-bold" style={{ color: accent }} title={t("habit.browse")}>📋</button>
-        <button onClick={() => setShowPRN(true)} className="font-bold" style={{ color: accent }} title={t("habit.prn")}>🔧</button>
-        <button onClick={() => setShowBodyDouble(true)} className="font-bold" style={{ color: accent }} title={t("habit.bodyDouble.title")}>👥</button>
-        <button onClick={() => setShowMini(true)} className="font-bold" style={{ color: accent }} title={t("habit.mini.title")}>🩺</button>
-        <button onClick={() => setShowPast(true)} className="font-bold" style={{ color: accent }} title={t("habit.past.title")}>📜</button>
-        <button onClick={() => setShowProgress(true)} className="font-bold" style={{ color: accent }} title={t("habit.progress")}>📊</button>
-        <button onClick={() => setShowReview(true)} className="font-bold" style={{ color: accent }} title={t("habit.review")}>📅</button>
-        <button onClick={() => setShowLetter(true)} className="font-bold" style={{ color: accent }} title={t("habit.letter.title")}>✉️</button>
-        <button onClick={() => setShowReminders(true)} className="font-bold" style={{ color: accent }} title={t("habit.notify.title")}>🔔</button>
       </div>
     </>
+  );
+
+  // ── Timeline-spine: the day as a vertical "now-marker" thread ──
+  const timelineCol = (
+    <div className="relative pl-6">
+      <div className="absolute left-[9px] top-2 bottom-2 w-0.5" style={{ background: `${accent}33` }} />
+      {schedule.map((block) => {
+        const state = blockStatus(block.id);
+        return (
+          <div key={block.id} className="relative mb-2.5">
+            {state === "now" && <span className="absolute -left-[24px] top-2 text-[10px] font-black" style={{ color: accent }}>▶</span>}
+            <span
+              className="absolute -left-[18px] top-2.5 w-3.5 h-3.5 rounded-full border-2"
+              style={{ borderColor: accent, background: state === "future" ? "#fff" : accent }}
+            />
+            <TimeBlockSection
+              block={block}
+              fixedDone={fixedDone}
+              habitsInBlock={habitsBySlot[block.id] || []}
+              habits={habits}
+              energyMode={energyMode}
+              energy={energy}
+              status={state}
+              defaultExpanded={state === "now"}
+              theme={theme}
+              onBrowse={onBrowse}
+              studyQuests={studyQuests}
+              onGoStudy={onGoStudy}
+            />
+          </div>
+        );
+      })}
+    </div>
   );
 
   const overlays = (
@@ -616,7 +734,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         return (
           <div className="fixed left-1/2 -translate-x-1/2 bottom-20 z-[55] animate-fade-in">
             <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white shadow-xl border border-gray-100">
-              <span className="text-base">🔗</span>
+              <span style={{ color: accent }}><Icon name="link" size={15} /></span>
               <span className="text-[12.5px] font-semibold text-gray-700">{t("habit.chain.next")}: {nm}</span>
               <button
                 onClick={() => { habits.completeHabit(chainPrompt.habitId, chainPrompt.tier); setChainPrompt(null); }}
@@ -645,6 +763,17 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
             >
               ↩ {t("habit.undoToast.undo")}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Perfect Day celebration (#2) */}
+      {perfectFlash && (
+        <div className="fixed inset-0 z-[58] flex items-center justify-center pointer-events-none">
+          <div className="pact-win px-7 py-5 rounded-3xl text-center shadow-2xl" style={{ background: "linear-gradient(135deg,#fbbf24,#f59e0b)" }}>
+            <div className="text-4xl mb-1">✨</div>
+            <div className="text-[17px] font-black text-white">{t("habit.perfectDay.title")}</div>
+            <div className="text-[13px] font-bold text-white/90 mt-0.5">+20 XP</div>
           </div>
         </div>
       )}
@@ -704,7 +833,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   );
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 pb-24" data-skin={skin}>
       {/* Pinned current-focus bar — stays visible while scrolling */}
       {focus && (
         <div className="sticky top-2 z-30 -mx-1">
@@ -723,34 +852,60 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         </div>
       )}
 
-      {/* Layout switcher */}
-      <div className="flex items-center gap-1 justify-end">
-        {LAYOUTS.map((l) => (
-          <button
-            key={l.id}
-            onClick={() => setLayout(l.id)}
-            title={t(l.labelKey)}
-            className="text-[12px] font-bold px-2.5 py-1 rounded-lg transition-colors"
-            style={layout === l.id ? { background: accent, color: "#fff" } : { background: "#eef2f7", color: "#64748b" }}
-          >
-            {l.icon}
-          </button>
-        ))}
+      {/* Skin + layout switchers */}
+      <div className="flex items-center gap-2 justify-between flex-wrap">
+        {/* Skin swatches */}
+        <div className="flex items-center gap-1.5">
+          {SKINS.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setSkin(s.id)}
+              title={t(s.labelKey)}
+              className="w-6 h-6 rounded-full transition-transform active:scale-90"
+              style={{ ...s.sw, outline: skin === s.id ? `2px solid ${accent}` : "2px solid transparent", outlineOffset: 1 }}
+            />
+          ))}
+        </div>
+        {/* Layout icons */}
+        <div className="flex items-center gap-1">
+          {LAYOUTS.map((l) => (
+            <button
+              key={l.id}
+              onClick={() => setLayout(l.id)}
+              title={t(l.labelKey)}
+              className="px-2 py-1.5 rounded-lg transition-colors"
+              style={layout === l.id ? { background: accent, color: "#fff" } : { background: "#eef2f7", color: "#64748b" }}
+            >
+              <Icon name={l.icon} size={15} />
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Header bar */}
-      <div className="rounded-2xl p-4 bg-white/80 border border-white/60 shadow-sm">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-base font-black text-gray-800">🌱 Life</span>
-          <span className="flex-1" />
-          {/* Emotion weather — overall energy at a glance */}
-          <button onClick={() => setShowEnergy(true)} className="flex items-center gap-1 mr-2" title={t("energy.update")}>
-            <span className="text-base">{weather.icon}</span>
-            <span className="text-[11px] font-bold text-gray-500">{t(weather.labelKey)}</span>
-          </button>
-          {habits.todayMeta.restDay && (
-            <span className="text-[11px] font-bold text-indigo-400">🛌 {t("habit.restDay")}</span>
-          )}
+      {/* Header bar — hero ring + time-of-day wash */}
+      <div className="rounded-2xl p-4 border border-white/60 shadow-sm" style={{ background: timeOfDayPalette().headerBg }}>
+        {/* Hero row: progress ring + day status */}
+        <div className="flex items-center gap-4 mb-3">
+          <ProgressRing progress={totalPct / 100} size={72} stroke={5} accentColor={accent} id="lifeHeroRing">
+            <div className="text-center leading-none">
+              <div className="text-[16px] font-black text-gray-800">{totalPct}%</div>
+            </div>
+          </ProgressRing>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[17px] font-black text-gray-800 tracking-tight">{t("habit.todayRhythm")}</span>
+              {habits.todayMeta.restDay && (
+                <span className="text-[10.5px] font-bold text-indigo-500 px-1.5 py-0.5 rounded-full bg-indigo-50">🛌 {t("habit.restDay")}</span>
+              )}
+            </div>
+            <div className="text-[12.5px] text-gray-500 font-medium mt-0.5">
+              {t("habit.habitsDone", { done: progress.completed, total: progress.total })}
+            </div>
+            <button onClick={() => setShowEnergy(true)} className="flex items-center gap-1 mt-1.5" title={t("energy.update")}>
+              <span className="text-[15px]">{weather.icon}</span>
+              <span className="text-[11px] font-bold text-gray-500">{t(weather.labelKey)}</span>
+            </button>
+          </div>
         </div>
 
         {/* Energy chips — tap to (re)assess the 4 dimensions */}
@@ -774,43 +929,32 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
             );
           })}
           <span className="flex-1" />
-          <span className="text-[10px] text-gray-400 font-semibold">
-            {energy ? `✎ ${t("energy.update")}` : `+ ${t("energy.assessTitle")}`}
+          <span className="text-[10px] text-gray-500 font-semibold flex items-center gap-1">
+            <Icon name={energy ? "edit" : "plus"} size={12} />
+            {energy ? t("energy.update") : t("energy.assessTitle")}
           </span>
         </button>
 
-        {/* Progress bar */}
-        <div className="h-2.5 rounded-full bg-gray-100 overflow-hidden mb-1">
-          <div
-            className="h-full rounded-full transition-all duration-700"
-            style={{ width: `${totalPct}%`, background: totalPct >= 100 ? "linear-gradient(90deg,#10b981,#059669)" : accent }}
-          />
-        </div>
-        <div className="flex items-center justify-between text-[10px] text-gray-400 mb-3">
-          <span>{progress.completed}/{progress.total} {t("habit.done")}</span>
-          <span>{totalPct}%</span>
-        </div>
-
-        {/* Action buttons */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onPlanDay}
-            className="flex-1 py-2 rounded-xl text-[12px] font-bold text-white"
-            style={{ background: theme?.btnGrad || accent }}
-          >
-            🌅 {t("habit.planMyDay")}
-          </button>
-          <button
-            onClick={onEndDay}
-            className="flex-1 py-2 rounded-xl text-[12px] font-bold text-gray-500 bg-gray-100"
-          >
-            🌙 {t("habit.endDay")}
-          </button>
-          <RestDayButton
-            isRestDay={!!habits.todayMeta.restDay}
-            onDeclare={habits.declareRestDay}
-            theme={theme}
-          />
+        {/* Quick actions — 2×2 grid */}
+        <div className="grid grid-cols-2 gap-2 mt-3">
+          {[
+            { icon: "sunrise", color: "#f59e0b", label: t("habit.planMyDay"), onClick: onPlanDay },
+            { icon: "moon", color: "#8b5cf6", label: t("habit.endDay"), onClick: onEndDay },
+            { icon: "bed", color: "#10b981", label: t("habit.restDay"), onClick: habits.declareRestDay, active: !!habits.todayMeta.restDay },
+            { icon: "chat", color: "#ec4899", label: t("habit.tab.ai"), onClick: () => onOpenCopilot?.() },
+          ].map((a) => (
+            <button
+              key={a.icon}
+              onClick={a.onClick}
+              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white/70 hover:bg-white transition-colors active:scale-[0.98]"
+              style={a.active ? { boxShadow: `inset 0 0 0 1.5px ${a.color}` } : undefined}
+            >
+              <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${a.color}1f`, color: a.color }}>
+                <Icon name={a.icon} size={17} />
+              </span>
+              <span className="text-[12.5px] font-bold text-gray-700 text-left">{a.label}</span>
+            </button>
+          ))}
         </div>
       </div>
 
@@ -823,6 +967,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         </div>
       ) : layout === "todoFirst" ? (
         <div className="space-y-3">{todoCol}{widgets}</div>
+      ) : layout === "timeline" ? (
+        <div className="space-y-3">{timelineCol}</div>
       ) : layout === "focus" ? (
         <div className="space-y-3">{todoCol}</div>
       ) : (
@@ -830,6 +976,70 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       )}
 
       {overlays}
+
+      {/* Floating nav — one button that expands into actions */}
+      {navOpen && <div className="fixed inset-0 z-40" onClick={() => setNavOpen(false)} />}
+      <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-2.5">
+        {navOpen && [
+          { id: "today", icon: "home", label: t("habit.tab.today"), onClick: () => window.scrollTo({ top: 0, behavior: "smooth" }) },
+          { id: "data", icon: "chart", label: t("habit.tab.data"), onClick: () => setShowProgress(true) },
+          { id: "ai", icon: "chat", label: t("habit.tab.ai"), onClick: () => onOpenCopilot?.() },
+          { id: "more", icon: "more", label: t("habit.tab.more"), onClick: () => setShowMore(true) },
+        ].map((a, i) => (
+          <button
+            key={a.id}
+            onClick={() => { setNavOpen(false); a.onClick(); }}
+            className="flex items-center gap-2 animate-fade-in"
+            style={{ animationDelay: `${i * 40}ms`, animationFillMode: "both" }}
+          >
+            <span className="text-[12px] font-bold px-2.5 py-1 rounded-full bg-white shadow-md text-gray-700">{a.label}</span>
+            <span className="w-11 h-11 rounded-full bg-white shadow-md flex items-center justify-center" style={{ color: accent }}>
+              <Icon name={a.icon} size={19} strokeWidth={a.id === "more" ? 3 : 2} />
+            </span>
+          </button>
+        ))}
+        <button
+          onClick={() => setNavOpen((o) => !o)}
+          className="w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-white active:scale-95 transition-transform"
+          style={{ background: theme?.btnGrad || accent }}
+          title={t("habit.tab.more")}
+        >
+          <Icon name={navOpen ? "close" : "more"} size={24} strokeWidth={navOpen ? 2.5 : 3.5} />
+        </button>
+      </div>
+
+      {/* More sheet — the full tool drawer */}
+      {showMore && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 animate-fade-in" onClick={() => setShowMore(false)}>
+          <div className="w-full max-w-md bg-white rounded-t-3xl p-5 shadow-2xl" onClick={(e) => e.stopPropagation()} style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-black text-gray-800">{t("habit.tab.more")}</h3>
+              <button onClick={() => setShowMore(false)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500"><Icon name="close" size={16} /></button>
+            </div>
+            <div className="grid grid-cols-4 gap-3">
+              {[
+                { icon: "browse", label: t("habit.browse"), act: onBrowse },
+                { icon: "tools", label: t("habit.prn"), act: () => setShowPRN(true) },
+                { icon: "users", label: t("habit.bodyDouble.title"), act: () => setShowBodyDouble(true) },
+                { icon: "health", label: t("habit.mini.title"), act: () => setShowMini(true) },
+                { icon: "scroll", label: t("habit.past.title"), act: () => setShowPast(true) },
+                { icon: "calendar", label: t("habit.review"), act: () => setShowReview(true) },
+                { icon: "mail", label: t("habit.letter.title"), act: () => setShowLetter(true) },
+                { icon: "bell", label: t("habit.notify.title"), act: () => setShowReminders(true) },
+              ].map((it) => (
+                <button
+                  key={it.icon}
+                  onClick={() => { setShowMore(false); it.act?.(); }}
+                  className="flex flex-col items-center gap-1.5 py-3 rounded-2xl bg-gray-50 active:scale-95 transition-transform"
+                >
+                  <span style={{ color: accent }}><Icon name={it.icon} size={22} /></span>
+                  <span className="text-[10.5px] font-semibold text-gray-600 text-center leading-tight">{it.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   todayKey,
   getCompletionRate,
   getDailyView,
+  getHabitStreak,
   checkGraduation,
   checkDemotion,
   validateLayerLimits,
@@ -557,6 +558,95 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     return out;
   }, [activeHabits, habitLog]);
 
+  // ── Per-habit history / distribution / graduation progress (B, #3, #6) ──
+  const getHabitHistory = useCallback((habitId, days = 7) => {
+    const base = new Date();
+    const out = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(base); d.setDate(base.getDate() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const rec = habitLog[key]?.[habitId];
+      const skipped = habitLog[key]?._meta?.skippedHabits?.includes?.(habitId);
+      out.push({ date: key, dow: d.getDay(), done: !!rec, tier: rec?.tier || null, skipped: !!skipped });
+    }
+    return out;
+  }, [habitLog]);
+
+  const getTierDistribution = useCallback((habitId) => {
+    const counts = { L: 0, M: 0, H: 0 };
+    for (const day of Object.values(habitLog)) {
+      const tr = day?.[habitId]?.tier;
+      if (tr && counts[tr] != null) counts[tr]++;
+    }
+    const total = counts.L + counts.M + counts.H;
+    return { counts, total, pct: total ? { L: Math.round(counts.L / total * 100), M: Math.round(counts.M / total * 100), H: Math.round(counts.H / total * 100) } : null };
+  }, [habitLog]);
+
+  const getHabitStreakCount = useCallback((habitId) => getHabitStreak(habitId, habitLog), [habitLog]);
+
+  // Progress toward the next layer (#3) → { to, pct, eligible, have, need, kind }
+  const getGraduationProgress = useCallback((habitId) => {
+    const h = activeHabits.find((x) => x.habitId === habitId);
+    if (!h || h.layer < 1 || h.layer > 3) return null;
+    if (h.layer === 3) {
+      const { completed } = getCompletionRate(habitId, habitLog, 28);
+      return { to: 2, pct: Math.min(1, completed / 3), eligible: completed >= 3, have: completed, need: 3, kind: "count" };
+    }
+    if (h.layer === 2) {
+      const { rate, total } = getCompletionRate(habitId, habitLog, 28);
+      return { to: 1, pct: Math.min(1, (rate || 0) / 0.7), eligible: total >= 14 && rate >= 0.7, have: Math.round((rate || 0) * 100), need: 70, kind: "rate" };
+    }
+    const { rate, total } = getCompletionRate(habitId, habitLog, 84);
+    return { to: 0, pct: Math.min(1, (rate || 0) / 0.85), eligible: total >= 42 && rate >= 0.85, have: Math.round((rate || 0) * 100), need: 85, kind: "rate" };
+  }, [activeHabits, habitLog]);
+
+  // ── Weekly rhythm heatmap (C): Sun..Sat completion rates for this week ──
+  const getWeekDailyRates = useCallback(() => {
+    const denom = Math.max(1, activeHabits.filter((h) => h.layer >= 1).length);
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    const sun = new Date(now); sun.setDate(now.getDate() - now.getDay());
+    const out = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(sun); d.setDate(sun.getDate() + i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (d > now) { out.push({ dow: i, rate: null, future: true }); continue; }
+      const day = habitLog[key];
+      let done = 0;
+      if (day) for (const k of Object.keys(day)) if (!k.startsWith("_")) done++;
+      out.push({ dow: i, rate: Math.min(1, done / denom), future: false, isToday: +d === +now });
+    }
+    return out;
+  }, [habitLog, activeHabits]);
+
+  // ── Smart nudge (#1): current slot ending soon with incomplete habits ──
+  const getSlotEndingNudge = useCallback(() => {
+    const now = new Date();
+    const mins = now.getHours() * 60 + now.getMinutes();
+    const ranges = { morning_prep: [7, 8], upper_morning: [8, 12], noon: [12, 14], peak_cognitive: [15, 17], evening: [17, 22], sleep_prep: [22, 24] };
+    let curId = null, endMin = null;
+    for (const [id, [s, e]] of Object.entries(ranges)) {
+      if (now.getHours() >= s && now.getHours() < e) { curId = id; endMin = e * 60; }
+    }
+    if (!curId) return null;
+    const left = endMin - mins;
+    if (left <= 0 || left > 45) return null;
+    const view = getDailyView(activeHabits, todayLogEntry, todayMeta.energyMode || "normal");
+    const deferrals = todayMeta.deferrals || {};
+    const inSlot = view.filter((v) => !v.done && (deferrals[v.habitId] || v.timeSlot || "upper_morning") === curId);
+    if (inSlot.length === 0) return null;
+    return { blockId: curId, minutesLeft: left, habitId: inSlot[0].habitId, count: inSlot.length };
+  }, [activeHabits, todayLogEntry, todayMeta]);
+
+  // ── Perfect Day (#2): all flexible done → one-time +20 XP ──
+  const awardPerfectDayIfDone = useCallback(() => {
+    const view = getDailyView(activeHabits, todayLogEntry, todayMeta.energyMode || "normal");
+    if (view.length === 0 || !view.every((v) => v.done)) return null;
+    if (todayMeta.perfectDayAwarded) return null;
+    game?.addXP?.(20, "habit");
+    setDayMeta({ perfectDayAwarded: true });
+    return { xp: 20 };
+  }, [activeHabits, todayLogEntry, todayMeta, game, setDayMeta]);
+
   // #8 — personal energy baseline (avg per dimension, excluding today)
   const getEnergyBaseline = useCallback(() => {
     const dims = ["physical", "cognitive", "emotional", "social"];
@@ -806,6 +896,13 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     getEnergyBaseline,
     getEnergyAnomalies,
     getInvisibleProgress,
+    getHabitHistory,
+    getTierDistribution,
+    getHabitStreakCount,
+    getGraduationProgress,
+    getWeekDailyRates,
+    getSlotEndingNudge,
+    awardPerfectDayIfDone,
     getTopSuggestion,
     getCompletionRate: (id, days) => getCompletionRate(id, habitLog, days),
     getMonthlyTrajectory: () => graduations,

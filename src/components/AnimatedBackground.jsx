@@ -1,4 +1,5 @@
-import { useMemo, useEffect, useRef, useCallback } from "react";
+import { useMemo, useEffect, useRef, useCallback, useState } from "react";
+import { timeOfDayPalette } from "../utils/timeOfDay";
 
 /**
  * 多层动态背景
@@ -10,6 +11,13 @@ import { useMemo, useEffect, useRef, useCallback } from "react";
  * Layer 6: 顶部/底部渐隐
  */
 export default function AnimatedBackground({ theme }) {
+  // Ambient background follows the local clock (re-checks every 5 min); theme drives accents
+  const [palette, setPalette] = useState(() => timeOfDayPalette());
+  useEffect(() => {
+    const id = setInterval(() => setPalette(timeOfDayPalette()), 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
   const cursorRef = useRef(null);
   const trailRefs = useRef([]);
   const mousePos = useRef({ x: -200, y: -200 });
@@ -82,7 +90,7 @@ export default function AnimatedBackground({ theme }) {
   return (
     <div
       className="fixed inset-0 -z-10 overflow-hidden transition-all duration-1000"
-      style={{ background: theme.pageBg }}
+      style={{ background: palette.pageBg }}
     >
       {/* Layer 2: Dot grid */}
       <div
@@ -100,7 +108,7 @@ export default function AnimatedBackground({ theme }) {
           className="absolute rounded-full blur-3xl animate-orb-float transition-colors duration-1000 pointer-events-none"
           style={{
             ...pos,
-            background: `radial-gradient(circle, ${theme.orbs[i] || "transparent"} 0%, transparent 70%)`,
+            background: `radial-gradient(circle, ${palette.orbs[i] || "transparent"} 0%, transparent 70%)`,
           }}
         />
       ))}
@@ -132,7 +140,7 @@ export default function AnimatedBackground({ theme }) {
           style={{
             width: 220 + i * 60,
             height: 220 + i * 60,
-            background: `radial-gradient(circle, ${theme.accentGlow} 0%, transparent 70%)`,
+            background: `radial-gradient(circle, ${palette.glow} 0%, transparent 70%)`,
             opacity: 0.25 - i * 0.06,
             filter: `blur(${40 + i * 20}px)`,
             willChange: "transform",
@@ -145,7 +153,7 @@ export default function AnimatedBackground({ theme }) {
         style={{
           width: 320,
           height: 320,
-          background: `radial-gradient(circle, ${theme.accentGlow} 0%, transparent 60%)`,
+          background: `radial-gradient(circle, ${palette.glow} 0%, transparent 60%)`,
           opacity: 0.35,
           filter: "blur(30px)",
           willChange: "transform",
@@ -155,7 +163,7 @@ export default function AnimatedBackground({ theme }) {
       {/* Layer 6: Edge fades */}
       <div
         className="absolute top-0 left-0 right-0 h-60 pointer-events-none opacity-40 transition-all duration-1000"
-        style={{ background: `linear-gradient(180deg, ${theme.accentGlow} 0%, transparent 100%)` }}
+        style={{ background: `linear-gradient(180deg, ${palette.glow} 0%, transparent 100%)` }}
       />
       <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none bg-gradient-to-t from-white/30 to-transparent" />
     </div>

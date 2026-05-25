@@ -320,6 +320,40 @@ describe("useHabitSystem — energy intelligence", () => {
   });
 });
 
+describe("useHabitSystem — analytics for the redesign", () => {
+  it("getHabitHistory returns N day entries with done flags", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.activateHabit("squat", 2));
+    act(() => result.current.completeHabit("squat", "M"));
+    const hist = result.current.getHabitHistory("squat", 7);
+    expect(hist).toHaveLength(7);
+    expect(hist[hist.length - 1]).toMatchObject({ done: true, tier: "M" });
+  });
+
+  it("awardPerfectDayIfDone grants +20 once when all flexible are done", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.activateHabit("squat", 1));
+    act(() => result.current.completeHabit("squat", "M"));
+    let first, second;
+    act(() => { first = result.current.awardPerfectDayIfDone(); });
+    expect(first).toMatchObject({ xp: 20 });
+    expect(game.calls).toContainEqual({ amount: 20, source: "habit" });
+    act(() => { second = result.current.awardPerfectDayIfDone(); });
+    expect(second).toBeNull(); // idempotent for the day
+  });
+
+  it("getWeekDailyRates returns 7 days with future days flagged", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.activateHabit("squat", 1));
+    const week = result.current.getWeekDailyRates();
+    expect(week).toHaveLength(7);
+    expect(week.every((d) => "rate" in d)).toBe(true);
+  });
+});
+
 describe("useHabitSystem — getBestTimeSuggestions", () => {
   it("suggests the slot where a habit is actually completed", () => {
     const game = makeGame();

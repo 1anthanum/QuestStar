@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLanguage } from "../../hooks/useLanguage";
+import Icon from "../Icon";
 
 // ═══════════════════════════════════════════════════════════
 // InlineChat — lightweight, embedded AI chat box (web-Claude style)
@@ -69,31 +70,31 @@ export default function InlineChat({ copilot, theme, onExpand }) {
   const starters = STARTERS[lang === "zh" ? "zh" : "en"];
 
   return (
-    <div className="rounded-2xl bg-white/85 border border-white/60 shadow-sm overflow-hidden">
+    <div className="qt-card overflow-hidden">
       {/* Header */}
       <div
         className="flex items-center gap-2 px-4 py-2.5"
         style={{ background: `linear-gradient(135deg, ${accent}14, ${accent}04)` }}
       >
-        <span className="text-base">💬</span>
+        <span className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: `${accent}22`, color: accent }}><Icon name="chat" size={14} /></span>
         <span className="text-[13px] font-black text-gray-800">{t("habit.chat.title")}</span>
         <span className="flex-1" />
         {hasChat && (
           <button
             onClick={() => setCollapsed((c) => !c)}
-            className="text-[11px] font-bold text-gray-400 hover:text-gray-600"
+            className="text-[11px] font-bold text-gray-500 hover:text-gray-700"
           >
-            {collapsed ? `▸ ${t("habit.chat.show")}` : `▾ ${t("habit.chat.hide")}`}
+            {collapsed ? t("habit.chat.show") : t("habit.chat.hide")}
           </button>
         )}
         {onExpand && (
           <button
             onClick={onExpand}
-            className="text-[11px] font-bold ml-2"
+            className="ml-2"
             style={{ color: accent }}
             title={t("habit.chat.expand")}
           >
-            ⛶
+            <Icon name="expand" size={15} />
           </button>
         )}
       </div>

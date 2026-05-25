@@ -3,6 +3,19 @@ import { useLanguage } from "../../hooks/useLanguage";
 import FixedItemRow from "./FixedItemRow";
 import HabitCheckCard from "./HabitCheckCard";
 
+// Per-block signature color (shown only when the block is "now") — D
+const BLOCK_COLOR = {
+  morning_prep: "#f59e0b", upper_morning: "#eab308", noon: "#10b981",
+  peak_cognitive: "#ea580c", evening: "#8b5cf6", sleep_prep: "#6366f1",
+};
+// Energy character of a block — #7
+const ENERGY_TAG = {
+  peak_cognitive: { key: "habit.energyTag.high", color: "#ea580c" },
+  upper_morning: { key: "habit.energyTag.high", color: "#d97706" },
+  evening: { key: "habit.energyTag.low", color: "#8b5cf6" },
+  sleep_prep: { key: "habit.energyTag.low", color: "#6366f1" },
+};
+
 // ── TimeBlockSection — one time block: fixed items + flexible habits ──
 // Auto-collapses when fully complete; current block expands by default.
 export default function TimeBlockSection({
@@ -12,6 +25,7 @@ export default function TimeBlockSection({
   habits,           // useHabitSystem instance (for tier/rate lookups + actions)
   energyMode,
   energy,           // full 4-dim energy object (for dependency gating)
+  status = "future", // "past" | "now" | "future" relative to the clock
   defaultExpanded,
   theme,
   onBrowse,
@@ -30,46 +44,57 @@ export default function TimeBlockSection({
   const doneCount = fixedDoneCount + habitDoneCount;
   const allDone = totalCount > 0 && doneCount === totalCount;
 
-  const [expanded, setExpanded] = useState(defaultExpanded ?? !allDone);
+  const isNow = status === "now";
+  const isFuture = status === "future";
+  const [expanded, setExpanded] = useState(defaultExpanded ?? (isNow || !allDone));
 
-  const completeAll = (e) => {
-    e.stopPropagation(); // don't toggle the collapse
+  // Color: done=emerald; now=block's signature color; else neutral
+  const blockColor = BLOCK_COLOR[block.id] || "#f59e0b";
+  const dotColor = allDone ? "#10b981" : isNow ? blockColor : isFuture ? "#cbd5e1" : "#94a3b8";
+  const energyTag = ENERGY_TAG[block.id];
+
+  const completeAll = () => {
     block.fixedItems.forEach((it) => { if (!fixedDone[it.id]) habits.toggleFixedItem(it); });
     habitsInBlock.forEach((h) => { if (!h.done) habits.completeHabit(h.habitId, energyMode === "low" ? "L" : (h.recommendedTier || "M")); });
   };
 
   return (
-    <div className="rounded-2xl bg-white/70 border border-white/60 overflow-hidden">
+    <div
+      className="qt-card overflow-hidden"
+      style={isNow ? { border: `2px solid ${blockColor}`, boxShadow: `0 8px 24px -10px ${blockColor}80` } : undefined}
+    >
       {/* Header */}
       <button
         onClick={() => setExpanded((e) => !e)}
-        className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50/50 transition-colors"
+        className="w-full flex items-center gap-2.5 px-3.5 py-3 hover:bg-gray-50/40 transition-colors"
       >
-        <span className="text-base">{block.icon}</span>
-        <span className="text-[13px] font-bold text-gray-700">{label}</span>
-        <span className="text-[10px] text-gray-300">{block.timeRange}</span>
-        <span className="flex-1" />
-        {!allDone && totalCount > 0 && (
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={completeAll}
-            onKeyDown={(e) => { if (e.key === "Enter") completeAll(e); }}
-            className="text-[10px] font-bold px-2 py-0.5 rounded-full mr-1"
-            style={{ background: `${accent}14`, color: accent }}
-          >
-            ✓ {t("habit.block.all")}
-          </span>
+        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: dotColor }} />
+        <span className={`text-[13.5px] font-bold ${allDone ? "text-gray-500" : "text-gray-800"}`}>{label}</span>
+        <span className="text-[10.5px] text-gray-400">{block.timeRange}</span>
+        {isNow && energyTag && (
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${energyTag.color}18`, color: energyTag.color }}>{t(energyTag.key)}</span>
         )}
-        <span className={`text-[11px] font-bold ${allDone ? "text-green-500" : "text-gray-400"}`}>
-          {allDone ? "✅ " : ""}{doneCount}/{totalCount}
-        </span>
+        <span className="flex-1" />
+        {isNow && (
+          <span className="text-[9.5px] font-black px-2 py-0.5 rounded-full" style={{ background: blockColor, color: "#fff" }}>NOW</span>
+        )}
+        {/* completion pill */}
+        {allDone ? (
+          <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">✓ {doneCount}/{totalCount}</span>
+        ) : isFuture && doneCount === 0 ? (
+          <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">{totalCount} {t("habit.block.upcoming")}</span>
+        ) : (
+          <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#fff7ed", color: "#d97706" }}>{doneCount}/{totalCount}</span>
+        )}
         <span className="text-[10px] text-gray-300">{expanded ? "▾" : "▸"}</span>
       </button>
 
       {/* Body */}
       {expanded && (
         <div className="px-2 pb-2 space-y-0.5">
+          {block.fixedItems.length > 0 && (
+            <div className="text-[9px] font-bold text-gray-300 uppercase tracking-wide px-1.5 pt-1 pb-0.5">{t("habit.group.fixed")}</div>
+          )}
           {block.fixedItems.map((item) => (
             <FixedItemRow
               key={item.id}
@@ -81,7 +106,10 @@ export default function TimeBlockSection({
           ))}
 
           {habitsInBlock.length > 0 && (
-            <div className="pt-1.5 mt-1 border-t border-dashed border-gray-100 space-y-1.5">
+            <div className={`space-y-1.5 ${block.fixedItems.length > 0 ? "pt-1.5 mt-1 border-t border-dashed border-gray-100" : ""}`}>
+              {block.fixedItems.length > 0 && (
+                <div className="text-[9px] font-bold text-gray-300 uppercase tracking-wide px-1.5 pt-0.5">{t("habit.group.flexible")}</div>
+              )}
               {habitsInBlock.map((h) => (
                 <HabitCheckCard
                   key={h.habitId}
@@ -94,6 +122,7 @@ export default function TimeBlockSection({
                   onUncomplete={habits.uncompleteHabit}
                   onSkip={habits.skipHabit}
                   onCustomize={(id) => habits._onCustomize?.(id)}
+                  habits={habits}
                   theme={theme}
                 />
               ))}
@@ -149,14 +178,25 @@ export default function TimeBlockSection({
             <p className="text-[11px] text-gray-300 text-center py-2">{t("habit.emptyBlock")}</p>
           )}
 
-          {onBrowse && (
-            <button
-              onClick={onBrowse}
-              className="w-full mt-1 py-1.5 rounded-lg text-[11px] font-semibold text-gray-400 hover:bg-gray-50 transition-colors"
-            >
-              + {t("habit.addHabit")}
-            </button>
-          )}
+          <div className="flex gap-1 mt-1">
+            {!allDone && totalCount > 0 && (
+              <button
+                onClick={completeAll}
+                className="flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-colors"
+                style={{ background: `${accent}12`, color: accent }}
+              >
+                ✓ {t("habit.block.all")}
+              </button>
+            )}
+            {onBrowse && (
+              <button
+                onClick={onBrowse}
+                className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-gray-400 hover:bg-gray-50 transition-colors"
+              >
+                + {t("habit.addHabit")}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

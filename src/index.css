@@ -2,6 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══ Typography — Inter for Latin, native CJK for Chinese ═══ */
+html {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "Noto Sans SC",
+    "Hiragino Sans GB", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+body {
+  color: #1e293b; /* slate-800 base — stronger default than browser black-on-white */
+  letter-spacing: -0.003em;
+}
+
+/* ═══ Card skins — switchable surface styles for the Life panel ═══ */
+/* .qt-card is the shared surface; the active skin (data-skin on the wrapper)
+   restyles every card at once so the user can compare looks live. */
+.qt-card {
+  border-radius: 1rem;
+  transition: background 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease;
+}
+/* soft (default) — clean white, gentle shadow */
+[data-skin="soft"] .qt-card {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 1px 3px rgba(2, 6, 23, 0.06);
+}
+/* glass — frosted, translucent, blurred over the colorful background */
+[data-skin="glass"] .qt-card {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 8px 32px rgba(2, 6, 23, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+/* vivid — branded gradient surface + accent glow */
+[data-skin="vivid"] .qt-card {
+  background: linear-gradient(160deg, #ffffff 0%, var(--accent-light) 100%);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: 0 10px 30px -8px var(--accent-glow);
+}
+/* outline — flat editorial, crisp borders, no shadow */
+[data-skin="outline"] .qt-card {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1.5px solid #e2e8f0;
+  box-shadow: none;
+}
+/* aurora — gradient border ring + soft inner glow (the "cool" one) */
+[data-skin="aurora"] .qt-card {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.82), rgba(255,255,255,0.82)),
+    linear-gradient(135deg, var(--accent), #22d3ee 50%, #a855f7);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: 0 8px 28px -10px var(--accent-glow);
+}
+
 /* ═══ KaTeX inline fixes ═══ */
 .katex { font-size: 1em !important; }
 .katex-display { margin: 0.5em 0 !important; }
@@ -452,3 +513,11 @@
 
 /* ── Body-doubling companion bob ── */
 @keyframes qt-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+/* ── XP float (completion ritual) ── */
+@keyframes qt-xp-float {
+  0%   { opacity: 0; transform: translateY(6px) scale(0.8); }
+  20%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-22px) scale(1.05); }
+}
+.qt-xp-float { animation: qt-xp-float 0.8s ease-out forwards; }
