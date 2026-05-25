@@ -197,7 +197,7 @@ export function getDailyView(activeHabits, todayLog, energyMode = "normal") {
     .map((h) => {
       const done = !!log[h.habitId];
       const recommendedTier = energyMode === "low" ? "L" : "M";
-      return { ...h, done, doneTier: done ? log[h.habitId].tier : null, recommendedTier };
+      return { ...h, done, doneTier: done ? log[h.habitId].tier : null, doneSource: done ? (log[h.habitId].source || null) : null, recommendedTier };
     })
     .sort((a, b) => {
       if (a.done !== b.done) return a.done ? 1 : -1; // incomplete first

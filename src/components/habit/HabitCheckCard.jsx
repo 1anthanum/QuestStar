@@ -75,7 +75,10 @@ export default function HabitCheckCard({
     return (
       <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50/70 border border-emerald-100">
         <span className="w-5 h-5 rounded-full flex items-center justify-center text-white shrink-0" style={{ background: "#10b981" }}><Icon name="check" size={12} strokeWidth={3} /></span>
-        <span className="flex-1 text-[13px] font-medium text-gray-500 line-through">{name}</span>
+        <span className="flex-1 text-[13px] font-medium text-gray-500 line-through truncate">{name}</span>
+        {habit.doneSource === "ios" && (
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-600 shrink-0" title={t("habit.syncedTip")}>📱 {t("habit.syncedVia")}</span>
+        )}
         <span className="text-[10px] font-bold text-emerald-600">{habit.doneTier}</span>
         <button onClick={() => onUncomplete(habit.habitId)} className="text-[10px] text-gray-400 hover:text-gray-600">{t("habit.undo")}</button>
       </div>

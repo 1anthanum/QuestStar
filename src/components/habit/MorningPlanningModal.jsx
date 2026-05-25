@@ -10,6 +10,14 @@ export default function MorningPlanningModal({ habits, onClose, theme }) {
   const accent = theme?.accent || "#6366f1";
 
   const [step, setStep] = useState(0);
+  // M3: greeting matches the actual time of day, not always "Good morning"
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 6) return t("today.greetLateNight");
+    if (h < 12) return t("today.greetMorning");
+    if (h < 18) return t("today.greetNoon");
+    return t("today.greetEvening");
+  })();
   // Prefill: saved energy → predicted-from-history → default
   const prediction = habits.todayMeta.energy ? null : predictEnergyFromLog(habits.habitLog, new Date().getUTCDay());
   const [energy, setEnergy] = useState(habits.todayMeta.energy || prediction?.energy || defaultEnergy());
@@ -78,7 +86,7 @@ export default function MorningPlanningModal({ habits, onClose, theme }) {
           <div className="space-y-3">
             <div className="text-center">
               <div className="text-3xl mb-1">💭</div>
-              <h3 className="text-lg font-black text-gray-800">{t("habit.morning.title")}</h3>
+              <h3 className="text-lg font-black text-gray-800">{greeting}</h3>
               <p className="text-sm text-gray-500">{t("energy.assessTitle")}</p>
             </div>
             <div className="max-h-[50vh] overflow-y-auto pr-1">
@@ -88,7 +96,7 @@ export default function MorningPlanningModal({ habits, onClose, theme }) {
                 theme={theme}
                 showSleep
                 predictedBasis={habits.todayMeta.energy ? null : prediction?.basis}
-                untouched={!habits.todayMeta.energy && !prediction?.energy}
+                untouched={!habits.todayMeta.energy}
               />
             </div>
           </div>

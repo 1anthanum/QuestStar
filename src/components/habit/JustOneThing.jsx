@@ -58,10 +58,10 @@ export default function JustOneThing({ habits, theme, energy, gentle = false, on
           <div className="text-center max-w-xs">
             <div className="text-6xl mb-4 pact-win">{justDone ? "🎉" : "🌙"}</div>
             <h2 className="text-2xl font-black text-gray-800 mb-2">
-              {justDone ? t("habit.one.didIt") : t("habit.one.allClear")}
+              {justDone ? t("habit.one.didIt") : t(gentle ? "habit.one.allClearGentle" : "habit.one.allClear")}
             </h2>
             <p className="text-[14px] text-gray-500 mb-7 leading-relaxed">
-              {justDone ? t("habit.one.didItSub") : t("habit.one.allClearSub")}
+              {justDone ? t("habit.one.didItSub") : t(gentle ? "habit.one.allClearGentleSub" : "habit.one.allClearSub")}
             </p>
             <div className="flex flex-col gap-2.5">
               {justDone && candidates.length > 0 && (

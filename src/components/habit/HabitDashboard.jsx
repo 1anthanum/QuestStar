@@ -57,7 +57,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [suggestion, setSuggestion] = useState(null);
   const [dismissedSuggestion, setDismissedSuggestion] = useState(false);
   const [comboBurst, setComboBurst] = useState(null);
-  const [dismissedNudge, setDismissedNudge] = useState(null);
+  const [dismissedNudges, setDismissedNudges] = useState(() => new Set()); // N3: every dismissed id stays dismissed this session
   const [undoToast, setUndoToast] = useState(null);
   const [xpFloat, setXpFloat] = useState(null);
   const [chainPrompt, setChainPrompt] = useState(null);
@@ -470,7 +470,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       )}
 
       {/* Proactive companion nudge */}
-      {nudge && dismissedNudge !== nudge.id && (
+      {nudge && !dismissedNudges.has(nudge.id) && (
         <div
           className="rounded-2xl p-3.5 flex items-center gap-3 animate-fade-in"
           style={{ background: `linear-gradient(135deg, ${accent}1c, ${accent}06)`, border: `1px solid ${accent}25` }}
@@ -488,7 +488,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
               {t(`habit.nudge.${nudge.type}.cta`)}
             </button>
           )}
-          <button onClick={() => setDismissedNudge(nudge.id)} className="shrink-0 text-gray-400 hover:text-gray-600 text-sm">✕</button>
+          <button onClick={() => setDismissedNudges((s) => new Set(s).add(nudge.id))} className="shrink-0 text-gray-400 hover:text-gray-600 text-sm">✕</button>
         </div>
       )}
 
@@ -1033,7 +1033,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       ) : layout === "todoFirst" ? (
         <div className="space-y-3">{todoCol}{widgets}</div>
       ) : layout === "timeline" ? (
-        <div className="space-y-3">{timelineCol}</div>
+        <div className="space-y-3">{identityStrip}{timelineCol}</div>
       ) : layout === "focus" ? (
         <div className="space-y-3">{identityStrip}{todoCol}</div>
       ) : (
@@ -1142,8 +1142,8 @@ function SuggestionAddModal({ habit, schedule, theme, onConfirm, onClose }) {
   const accent = theme?.accent || "#6366f1";
   const name = lang === "zh" ? habit.name : habit.nameEn || habit.name;
   const icon = HABIT_CATEGORIES[habit.category]?.icon || "◆";
-  // Offer flexible blocks (skip the fixed sleep-prep wind-down)
-  const slots = schedule.filter((b) => b.id !== "sleep_prep");
+  // N2: offer every time block, including sleep-prep (wind-down habits belong there too)
+  const slots = schedule;
   const [slot, setSlot] = useState(habit.timeSlot && slots.some((s) => s.id === habit.timeSlot) ? habit.timeSlot : (slots[1]?.id || slots[0]?.id));
   const [retry, setRetry] = useState(true);
 
