@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { useLocalStorage } from "./useLocalStorage";
 import {
   HABIT_CATALOG,
@@ -6,8 +6,10 @@ import {
   getHabitById,
   getMirrorId,
 } from "../utils/habitCatalog";
+import { resolveHabitColor } from "../utils/habitColors";
 import {
   todayKey,
+  dayDiff,
   getCompletionRate,
   getDailyView,
   getHabitStreak,
@@ -45,6 +47,8 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
   const [identity, setIdentity] = useLocalStorage("qt_habit_identity", ""); // #8 identity statement
   const [letters, setLetters] = useLocalStorage("qt_habit_letters", []);    // #9 letters to future self
   const [weekPlans, setWeekPlans] = useLocalStorage("qt_habit_week_plan", {}); // #12 weekly intentions
+  const [habitColors, setHabitColors] = useLocalStorage("qt_habit_colors", {}); // per-habit hue overrides (local-only; base hue is deterministic)
+  const [, setStreakCache] = useLocalStorage("qt_habit_streaks", {}); // denormalized streak snapshot (derived cache; refreshed daily)
 
   const effectiveSchedule = schedule || DEFAULT_SCHEDULE;
   const today = todayStr();
@@ -644,6 +648,37 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
 
   const getHabitStreakCount = useCallback((habitId) => getHabitStreak(habitId, habitLog), [habitLog]);
 
+  // Per-habit color (deterministic base hue + optional override)
+  const getHabitColor = useCallback((habitId) => resolveHabitColor(habitId, habitColors), [habitColors]);
+  const setHabitColor = useCallback((habitId, color) => setHabitColors((p) => ({ ...p, [habitId]: color })), [setHabitColors]);
+
+  // Streak stats for a habit → { last10Days:[bool], totalDone, longestStreak, current }
+  const getStreakStats = useCallback((habitId) => {
+    const last10Days = getHabitHistory(habitId, 10).map((d) => d.done);
+    const dates = Object.keys(habitLog).filter((k) => !k.startsWith("_")).sort();
+    let totalDone = 0, longest = 0, run = 0, prevDone = null;
+    for (const k of dates) {
+      if (!habitLog[k]?.[habitId]) continue;
+      totalDone++;
+      run = prevDone && dayDiff(prevDone, k) === 1 ? run + 1 : 1;
+      if (run > longest) longest = run;
+      prevDone = k;
+    }
+    return { last10Days, totalDone, longestStreak: longest, current: getHabitStreak(habitId, habitLog) };
+  }, [habitLog, getHabitHistory]);
+
+  // Refresh the persisted streak snapshot once per session (≈daily). Source of
+  // truth stays habitLog; this denormalized cache feeds cross-surface reads.
+  useEffect(() => {
+    const snap = {};
+    for (const h of activeHabits) {
+      const s = getStreakStats(h.habitId);
+      snap[h.habitId] = { last10Days: s.last10Days, totalDone: s.totalDone, longestStreak: s.longestStreak };
+    }
+    setStreakCache(snap);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Progress toward the next layer (#3) → { to, pct, eligible, have, need, kind }
   const getGraduationProgress = useCallback((habitId) => {
     const h = activeHabits.find((x) => x.habitId === habitId);
@@ -964,6 +999,9 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     getHabitHistory,
     getTierDistribution,
     getHabitStreakCount,
+    getStreakStats,
+    getHabitColor,
+    setHabitColor,
     getGraduationProgress,
     getWeekDailyRates,
     getSlotEndingNudge,

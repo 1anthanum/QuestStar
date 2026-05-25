@@ -22,6 +22,7 @@ function HabitCheckCard({
   const { t, lang } = useLanguage();
   const reduce = useReducedMotion();
   const accent = theme?.accent || "#6366f1";
+  const hColor = habits?.getHabitColor?.(habit.habitId) || accent; // per-habit identity hue
   const cat = getHabitById(habit.habitId);
   const name = lang === "zh" ? (cat?.name || habit.habitId) : (cat?.nameEn || cat?.name || habit.habitId);
   const icon = HABIT_CATEGORIES[cat?.category]?.icon || "◆";
@@ -152,7 +153,7 @@ function HabitCheckCard({
               whileTap={reduce || locked ? {} : { scale: 0.82 }}
               transition={SPRING_POP}
               className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0"
-              style={{ borderColor: locked ? "#cbd5e1" : accent, color: accent }}
+              style={{ borderColor: locked ? "#cbd5e1" : hColor, color: hColor }}
               title={locked ? t("habit.dep.locked", { n: req.min }) : t("habit.doNow.go")}
             >
               {locked ? <span className="text-[9px]">🔒</span> : picking ? <Icon name="close" size={12} /> : null}
@@ -172,7 +173,7 @@ function HabitCheckCard({
                 <span
                   key={i}
                   className="w-1 rounded-sm"
-                  style={{ height: d.done ? "100%" : d.skipped ? "45%" : "28%", background: d.done ? "#10b981" : d.skipped ? "#fca5a5" : "#e5e7eb", outline: d.dow != null && i === history.length - 1 ? `1px solid ${accent}` : "none" }}
+                  style={{ height: d.done ? "100%" : d.skipped ? "45%" : "28%", background: d.done ? hColor : d.skipped ? "#fca5a5" : "#e5e7eb", outline: d.dow != null && i === history.length - 1 ? `1px solid ${hColor}` : "none" }}
                   title={`${d.date}: ${d.done ? d.tier : d.skipped ? "skip" : "—"}`}
                 />
               ))}
@@ -238,6 +239,7 @@ function HabitCheckCard({
           history={habits?.getHabitHistory?.(habit.habitId, 7) || history}
           dist={habits?.getTierDistribution?.(habit.habitId)}
           grad={habits?.getGraduationProgress?.(habit.habitId)}
+          stats={habits?.getStreakStats?.(habit.habitId)}
           accent={accent} t={t} onEdit={() => { setShowDetail(false); onCustomize?.(habit.habitId); }} onClose={() => setShowDetail(false)} />
       )}
     </>
@@ -248,7 +250,7 @@ function HabitCheckCard({
 export default memo(HabitCheckCard);
 
 // ── Detail popover (#6) — 7-day history, layer + graduation, tier mix, streak ──
-function HabitDetailPopover({ habit, name, icon, layerLabel, streak, history, dist, grad, accent, t, onEdit, onClose }) {
+function HabitDetailPopover({ habit, name, icon, layerLabel, streak, history, dist, grad, stats, accent, t, onEdit, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 animate-fade-in" onClick={onClose}>
       <div className="w-full max-w-xs bg-white rounded-3xl p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -259,9 +261,11 @@ function HabitDetailPopover({ habit, name, icon, layerLabel, streak, history, di
           <button onClick={onClose} className="text-gray-400"><Icon name="close" size={15} /></button>
         </div>
 
-        <div className="flex items-center gap-3 mb-3 text-[11px]">
+        <div className="flex items-center gap-3 mb-3 text-[11px] flex-wrap">
           <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-500 font-bold">{layerLabel}</span>
           {streak > 0 && <span className="font-bold text-gray-600">🔥 {t("habit.streakDays", { n: streak })}</span>}
+          {stats?.longestStreak > 0 && <span className="text-gray-500">🏆 {t("habit.detail.best", { n: stats.longestStreak })}</span>}
+          {stats?.totalDone > 0 && <span className="text-gray-500">✓ {t("habit.detail.total", { n: stats.totalDone })}</span>}
         </div>
 
         {/* 7-day bars (bigger) */}

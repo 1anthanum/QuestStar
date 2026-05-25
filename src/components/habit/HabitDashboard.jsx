@@ -408,17 +408,20 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           {/* Completion dots — each filled dot is one completion this week; hover reveals the time */}
           {habits.identity && weekActionList.length > 0 && (
             <div className="flex items-center gap-1.5 mt-3 flex-wrap">
-              {weekActionList.slice(-DOT_CAP).map((a, i) => (
-                <motion.span
-                  key={`${a.date}-${a.habitId}-${i}`}
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ ...SPRING_POP, delay: Math.min(i * 0.018, 0.5) }}
-                  title={`${nameOfHabit(a.habitId)} · ${a.date}${a.completedAt ? " " + fmtActionTime(a.completedAt) : ""}`}
-                  className="w-2.5 h-2.5 rounded-full cursor-default"
-                  style={{ backgroundImage: identityGrad, boxShadow: `0 1px 4px ${accent}55` }}
-                />
-              ))}
+              {weekActionList.slice(-DOT_CAP).map((a, i) => {
+                const dotColor = habits.getHabitColor?.(a.habitId) || accent;
+                return (
+                  <motion.span
+                    key={`${a.date}-${a.habitId}-${i}`}
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ ...SPRING_POP, delay: Math.min(i * 0.018, 0.5) }}
+                    title={`${nameOfHabit(a.habitId)} · ${a.date}${a.completedAt ? " " + fmtActionTime(a.completedAt) : ""}`}
+                    className="w-2.5 h-2.5 rounded-full cursor-default"
+                    style={{ background: dotColor, boxShadow: `0 1px 4px ${dotColor}66` }}
+                  />
+                );
+              })}
               {weekActionList.length > DOT_CAP && <span className="text-[10px] font-bold text-gray-400">+{weekActionList.length - DOT_CAP}</span>}
               <span className="text-[10.5px] text-gray-400 ml-1">{t("habit.identity.thisWeek", { n: weekActionList.length })}</span>
             </div>
