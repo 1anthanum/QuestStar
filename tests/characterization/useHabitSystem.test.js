@@ -267,3 +267,74 @@ describe("useHabitSystem — getPastDays", () => {
     expect(result.current.getPastDays(7)).toHaveLength(0);
   });
 });
+
+describe("useHabitSystem — letters & week plan", () => {
+  it("addLetter + getDueLetters surfaces a past-dated letter; markLetterDelivered clears it", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.addLetter("hi future me", "2000-01-01")); // already due
+    let due = result.current.getDueLetters();
+    expect(due).toHaveLength(1);
+    expect(due[0].text).toBe("hi future me");
+    act(() => result.current.markLetterDelivered(due[0].id));
+    expect(result.current.getDueLetters()).toHaveLength(0);
+  });
+
+  it("a future-dated letter is not yet due", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.addLetter("later", "2999-01-01"));
+    expect(result.current.getDueLetters()).toHaveLength(0);
+  });
+
+  it("saveWeekPlan + getWeekPlan round-trips this week's plan", () => {
+    const game = makeGame();
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    act(() => result.current.saveWeekPlan({ intention: "rest more", focusHabitId: "squat" }));
+    expect(result.current.getWeekPlan()).toMatchObject({ intention: "rest more", focusHabitId: "squat" });
+  });
+});
+
+describe("useHabitSystem — energy intelligence", () => {
+  const dayKeyAgo = (n) => {
+    const d = new Date(); d.setDate(d.getDate() - n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+
+  it("getEnergyBaseline averages each dimension over past days", () => {
+    const game = makeGame();
+    const log = {};
+    [1, 2, 3].forEach((n) => { log[dayKeyAgo(n)] = { _meta: { energy: { physical: 6, cognitive: 8, emotional: 4, social: 6 } } }; });
+    window.localStorage.setItem("qt_habit_log", JSON.stringify(log));
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    expect(result.current.getEnergyBaseline()).toMatchObject({ physical: 6, cognitive: 8 });
+  });
+
+  it("getEnergyAnomalies flags a dimension low across the last 3 recorded days", () => {
+    const game = makeGame();
+    const log = {};
+    [1, 2, 3].forEach((n) => { log[dayKeyAgo(n)] = { _meta: { energy: { physical: 3, cognitive: 7, emotional: 6, social: 6 } } }; });
+    window.localStorage.setItem("qt_habit_log", JSON.stringify(log));
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    expect(result.current.getEnergyAnomalies()).toContainEqual({ dim: "physical" });
+  });
+});
+
+describe("useHabitSystem — getBestTimeSuggestions", () => {
+  it("suggests the slot where a habit is actually completed", () => {
+    const game = makeGame();
+    // 5 evening completions (19:00) for a habit assigned to the morning
+    const log = {};
+    for (let i = 1; i <= 5; i++) {
+      const d = new Date(2026, 0, i, 19, 0, 0).getTime();
+      log[`2026-01-0${i}`] = { draw: { tier: "M", completedAt: d } };
+    }
+    window.localStorage.setItem("qt_habit_log", JSON.stringify(log));
+    window.localStorage.setItem("qt_habit_active", JSON.stringify([
+      { habitId: "draw", layer: 2, assignedAt: today, timeSlot: "upper_morning" },
+    ]));
+    const { result } = renderHook(() => useHabitSystem({ game }));
+    const s = result.current.getBestTimeSuggestions();
+    expect(s).toContainEqual(expect.objectContaining({ habitId: "draw", bestSlot: "evening" }));
+  });
+});

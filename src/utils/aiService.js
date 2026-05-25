@@ -568,6 +568,24 @@ Be encouraging and non-judgmental. No lists, no markdown — just the sentence(s
 }
 
 /**
+ * Generate a warm second-person monthly narrative from habit stats.
+ * @returns string
+ */
+export async function generateMonthlyNarrative(stats, provider, model, apiKey, lang = "en") {
+  const systemPrompt = `You are a reflective narrator for someone with ADHD.
+Write a short second-person story (3-5 sentences, ${lang === "zh" ? "in Chinese (中文)" : "in English"}) about their past month of habits.
+Tell it like a gentle story ("This month, you…"). Highlight resilience and quiet wins, name a real pattern from the data, end with warmth. No lists, no markdown.`;
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt,
+    messages: [{ role: "user", content: JSON.stringify(stats) }],
+    maxTokens: 320,
+  });
+  return String(text || "").trim();
+}
+
+/**
  * Suggest L/M/H tiers for a habit.
  * @returns { L, M, H }  (plain strings)
  */

@@ -22,3 +22,12 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     </ErrorBoundary>
   </React.StrictMode>
 );
+
+// ── PWA: register the service worker (production only, to avoid dev-cache staleness) ──
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      /* SW registration failed — app still works online */
+    });
+  });
+}

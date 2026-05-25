@@ -13,6 +13,18 @@ export default function WeeklyReviewModal({ habits, onClose, theme, onGraduate, 
   const [candidates] = useState(() => habits.getGraduationCandidates());
   const [handled, setHandled] = useState({}); // { habitId: "graduated" | "skipped" }
 
+  // ── #12 Weekly planning: intention + focus habit ──
+  const existingPlan = habits.getWeekPlan?.() || null;
+  const [intention, setIntention] = useState(existingPlan?.intention || "");
+  const [focusHabit, setFocusHabit] = useState(existingPlan?.focusHabitId || "");
+  const [planSaved, setPlanSaved] = useState(false);
+  const activeForFocus = habits.activeHabits.filter((h) => h.layer >= 1);
+  const savePlan = () => {
+    habits.saveWeekPlan?.({ intention: intention.trim(), focusHabitId: focusHabit });
+    setPlanSaved(true);
+    setTimeout(() => setPlanSaved(false), 2000);
+  };
+
   // ── AI weekly review (conversational summary) ──
   const [review, setReview] = useState(null);
   const [reviewLoading, setReviewLoading] = useState(false);
@@ -53,6 +65,36 @@ export default function WeeklyReviewModal({ habits, onClose, theme, onGraduate, 
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-black text-gray-800">📅 {t("habit.review.title")}</h3>
           <button onClick={onClose} className="text-gray-300 hover:text-gray-500 text-lg">✕</button>
+        </div>
+
+        {/* Weekly planning (#12) */}
+        <div className="rounded-2xl p-4 mb-5" style={{ background: `${accent}0c` }}>
+          <div className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>🗓️ {t("habit.weekPlan.title")}</div>
+          <input
+            value={intention}
+            onChange={(e) => setIntention(e.target.value)}
+            placeholder={t("habit.weekPlan.intentionPlaceholder")}
+            className="w-full bg-white rounded-xl px-3 py-2 text-[13px] text-gray-700 outline-none mb-2 border border-gray-200"
+          />
+          <div className="text-[11px] text-gray-500 mb-1.5">{t("habit.weekPlan.focusLabel")}</div>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {activeForFocus.slice(0, 8).map((h) => {
+              const active = focusHabit === h.habitId;
+              return (
+                <button
+                  key={h.habitId}
+                  onClick={() => setFocusHabit(active ? "" : h.habitId)}
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-full transition-all"
+                  style={active ? { background: accent, color: "#fff" } : { background: "#fff", color: "#64748b", border: "1px solid #e5e7eb" }}
+                >
+                  {nameOf(h.habitId)}
+                </button>
+              );
+            })}
+          </div>
+          <button onClick={savePlan} className="w-full py-2 rounded-xl text-[12px] font-bold text-white" style={{ background: theme?.btnGrad || accent }}>
+            {planSaved ? `✓ ${t("habit.weekPlan.saved")}` : t("habit.weekPlan.save")}
+          </button>
         </div>
 
         {/* Week aggregate */}

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLanguage } from "../../hooks/useLanguage";
 import { getHabitById, HABIT_CATEGORIES } from "../../utils/habitCatalog";
 import { analyzeDailyHabits } from "../../utils/aiService";
+import { EMOTION_QUADRANTS } from "../../utils/emotionVocab";
 
 // ── EveningCheckInModal — daily summary + unfinished + AI insight + mood ──
 export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
@@ -12,6 +13,8 @@ export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
   const todayView = habits.getTodayView();
   const unfinished = todayView.filter((h) => !h.done);
   const [mood, setMood] = useState(habits.todayMeta.mood || 7);
+  const [emotions, setEmotions] = useState(habits.todayMeta.emotions || []);
+  const toggleEmotion = (id) => setEmotions((prev) => (prev.includes(id) ? prev.filter((e) => e !== id) : [...prev, id]));
 
   // ── Today replay — completions ordered by time, animated in sequence ──
   const todayKey = new Date().toISOString().split("T")[0];
@@ -56,7 +59,7 @@ export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
   };
 
   const save = () => {
-    habits.saveEveningCheckIn(mood, insight);
+    habits.saveEveningCheckIn(mood, insight, emotions);
     onClose();
   };
 
@@ -197,6 +200,31 @@ export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
             </div>
           );
         })()}
+
+        {/* Emotion vocabulary (#7) */}
+        <div className="mb-5">
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-2">🎨 {t("habit.emo.q")}</p>
+          <div className="space-y-2">
+            {EMOTION_QUADRANTS.map((q) => (
+              <div key={q.id} className="flex flex-wrap gap-1.5 items-center">
+                <span className="text-[13px] mr-0.5">{q.icon}</span>
+                {q.words.map((w) => {
+                  const on = emotions.includes(w.id);
+                  return (
+                    <button
+                      key={w.id}
+                      onClick={() => toggleEmotion(w.id)}
+                      className="text-[11px] font-semibold px-2 py-0.5 rounded-full transition-all"
+                      style={on ? { background: q.color, color: "#fff" } : { background: `${q.color}14`, color: q.color }}
+                    >
+                      {lang === "zh" ? w.zh : w.en}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Mood */}
         <div className="mb-5">

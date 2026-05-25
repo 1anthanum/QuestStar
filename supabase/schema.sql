@@ -173,6 +173,9 @@ create table public.extra_state (
   habit_graduations jsonb default '[]'::jsonb,
   habit_explore_budget jsonb default '{}'::jsonb,
   habit_schedule jsonb,
+  habit_identity text default '',
+  habit_letters jsonb default '[]'::jsonb,
+  habit_week_plan jsonb default '{}'::jsonb,
   updated_at timestamptz default now()
 );
 
@@ -185,7 +188,10 @@ create table public.extra_state (
 --   add column if not exists habit_log jsonb default '{}'::jsonb,
 --   add column if not exists habit_graduations jsonb default '[]'::jsonb,
 --   add column if not exists habit_explore_budget jsonb default '{}'::jsonb,
---   add column if not exists habit_schedule jsonb;
+--   add column if not exists habit_schedule jsonb,
+--   add column if not exists habit_identity text default '',
+--   add column if not exists habit_letters jsonb default '[]'::jsonb,
+--   add column if not exists habit_week_plan jsonb default '{}'::jsonb;
 
 alter table public.extra_state enable row level security;
 

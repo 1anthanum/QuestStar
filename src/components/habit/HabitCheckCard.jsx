@@ -12,6 +12,7 @@ export default function HabitCheckCard({
   effectiveTiers, // { L, M, H } resolved (custom or catalog)
   completionRate, // 0..1 or null
   energyMode,     // "normal" | "low"
+  energy,         // full 4-dim energy (for dependency gating)
   onComplete,     // (habitId, tier) => void
   onUncomplete,   // (habitId) => void
   onSkip,         // (habitId) => void
@@ -23,10 +24,14 @@ export default function HabitCheckCard({
   const cat = getHabitById(habit.habitId);
   const name = lang === "zh" ? (cat?.name || habit.habitId) : (cat?.nameEn || cat?.name || habit.habitId);
   const icon = HABIT_CATEGORIES[cat?.category]?.icon || "◆";
-  const recTier = energyMode === "low" ? "L" : (habit.recommendedTier || "M");
+  // #5 dependency: gentle lock when a required energy dimension is below threshold
+  const req = habit.requiresEnergy;
+  const locked = req && energy && typeof energy[req.dim] === "number" && energy[req.dim] < req.min;
+  const recTier = locked || energyMode === "low" ? "L" : (habit.recommendedTier || "M");
 
   // ── Swipe / long-press state ──
   const [dx, setDx] = useState(0);
+  const [confirmSkip, setConfirmSkip] = useState(false);
   const drag = useRef({ startX: null, moved: false, lpTimer: null });
   const endDrag = () => {
     if (drag.current.lpTimer) clearTimeout(drag.current.lpTimer);
@@ -53,7 +58,10 @@ export default function HabitCheckCard({
     const d = dx;
     endDrag();
     if (d > SWIPE_THRESHOLD) onComplete?.(habit.habitId, recTier);
-    else if (d < -SWIPE_THRESHOLD) onSkip?.(habit.habitId);
+    else if (d < -SWIPE_THRESHOLD) {
+      if (habit.why) setConfirmSkip(true); // pause: remind them why
+      else onSkip?.(habit.habitId);
+    }
     setDx(0);
   };
 
@@ -79,6 +87,31 @@ export default function HabitCheckCard({
   }
 
   const swiping = dx !== 0;
+
+  if (confirmSkip) {
+    return (
+      <div className="px-3 py-2.5 rounded-xl border" style={{ background: `${accent}08`, borderColor: `${accent}30` }}>
+        <div className="text-[11px] text-gray-500 mb-1">{t("habit.why.remember")}</div>
+        <div className="text-[12.5px] font-semibold text-gray-700 italic mb-2">“{habit.why}”</div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setConfirmSkip(false); onComplete?.(habit.habitId, recTier); }}
+            className="flex-1 py-1.5 rounded-lg text-[12px] font-bold text-white"
+            style={{ background: theme?.btnGrad || accent }}
+          >
+            {t("habit.why.doIt")}
+          </button>
+          <button
+            onClick={() => { setConfirmSkip(false); onSkip?.(habit.habitId); }}
+            className="py-1.5 px-3 rounded-lg text-[12px] font-semibold text-gray-400 bg-gray-100"
+          >
+            {t("habit.why.stillSkip")}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative rounded-xl overflow-hidden">
       {/* Swipe hints behind the card */}
@@ -100,14 +133,19 @@ export default function HabitCheckCard({
         >
           <span className="text-sm">{icon}</span>
           <span className="flex-1 text-[13px] font-semibold text-gray-700">{name}</span>
+          {locked && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-400" title={t("habit.dep.locked", { n: req.min })}>
+              🔒 {req.min}
+            </span>
+          )}
           {completionRate != null && (
             <span className="text-[9px] text-gray-300">{Math.round(completionRate * 100)}%</span>
           )}
           <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-400">{layerLabel}</span>
         </div>
       <div className="flex items-center gap-1.5">
-        {["L", "M", "H"].map((key) => {
-          const isRec = energyMode === "low" ? key === "L" : key === habit.recommendedTier;
+        {["L", "M", "H"].filter((key) => !locked || key === "L").map((key) => {
+          const isRec = locked ? key === "L" : energyMode === "low" ? key === "L" : key === habit.recommendedTier;
           return (
             <button
               key={key}

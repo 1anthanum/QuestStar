@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useLanguage } from "../../hooks/useLanguage";
 import { getHabitById } from "../../utils/habitCatalog";
-import { energyWeather } from "../../utils/energyModel";
+import { energyWeather, ENERGY_DIMENSIONS } from "../../utils/energyModel";
+import { generateMonthlyNarrative } from "../../utils/aiService";
 
 const dateKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const dayCount = (day) => {
@@ -12,9 +13,33 @@ const dayCount = (day) => {
 };
 
 // ── HabitProgress — Layer trajectory + heatmap + weekly replay + share snapshot ──
-export default function HabitProgress({ habits, onClose, theme }) {
+export default function HabitProgress({ habits, onClose, theme, ai, onMakeQuest }) {
   const { t, lang } = useLanguage();
   const accent = theme?.accent || "#6366f1";
+  const [bridged, setBridged] = useState({}); // habitId → true (converted to quest)
+
+  // #1 — monthly AI narrative
+  const [narrative, setNarrative] = useState(null);
+  const [narrativeLoading, setNarrativeLoading] = useState(false);
+  const runNarrative = async () => {
+    if (!ai?.hasApiKey || narrativeLoading) return;
+    setNarrativeLoading(true);
+    try {
+      const wk = habits.getWeeklyReport?.() || {};
+      const stats = {
+        graduations: (habits.getMonthlyTrajectory?.() || []).length,
+        weekRate: Math.round((wk.rate || 0) * 100),
+        activeHabits: habits.activeHabits.filter((h) => h.layer >= 1).length,
+        recentDays: habits.getPastDays?.(30)?.map((d) => ({ date: d.date, done: d.completed.length, energy: d.energy })) || [],
+      };
+      const text = await generateMonthlyNarrative(stats, ai.aiProvider, ai.aiModel, ai.resolvedKey, lang);
+      setNarrative(text || "");
+    } catch {
+      setNarrative({ error: true });
+    } finally {
+      setNarrativeLoading(false);
+    }
+  };
 
   const graduations = habits.getMonthlyTrajectory(); // [{ habitId, from, to, graduatedAt, completionRate }]
   const sorted = [...graduations].sort((a, b) => (a.graduatedAt < b.graduatedAt ? 1 : -1));
@@ -101,6 +126,20 @@ export default function HabitProgress({ habits, onClose, theme }) {
 
   const DOW = lang === "zh" ? ["日", "一", "二", "三", "四", "五", "六"] : ["S", "M", "T", "W", "T", "F", "S"];
 
+  // ── Insights (#4 best-time, #5 correlation, #6 tier calibration) ──
+  const bestTimes = useMemo(() => habits.getBestTimeSuggestions?.() || [], [habits]);
+  const correlations = useMemo(() => habits.getCorrelationInsights?.() || [], [habits]);
+  const tierCal = useMemo(() => habits.getTierCalibration?.() || [], [habits]);
+  const slotLabel = (id) => {
+    const b = habits.schedule.find((s) => s.id === id);
+    return b ? (lang === "zh" ? b.label : b.labelEn || b.label) : id;
+  };
+  const dimLabel = (id) => {
+    const d = ENERGY_DIMENSIONS.find((x) => x.id === id);
+    return d ? t(d.labelKey) : id;
+  };
+  const hasInsights = bestTimes.length || correlations.length || tierCal.length;
+
   const nameOf = (id) => {
     const c = getHabitById(id);
     return c ? (lang === "zh" ? c.name : c.nameEn || c.name) : id;
@@ -122,6 +161,27 @@ export default function HabitProgress({ habits, onClose, theme }) {
             <button onClick={onClose} className="text-gray-300 hover:text-gray-500 text-lg">✕</button>
           </div>
         </div>
+
+        {/* Monthly AI narrative (#1) */}
+        {ai?.hasApiKey && (
+          <div className="rounded-2xl p-4 mb-5" style={{ background: `${accent}0c` }}>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: accent }}>📖 {t("habit.narrative.title")}</span>
+              {!narrative && !narrativeLoading && (
+                <button onClick={runNarrative} className="text-[11px] font-bold" style={{ color: accent }}>{t("habit.narrative.generate")} →</button>
+              )}
+            </div>
+            {narrativeLoading ? (
+              <p className="text-[12px] text-gray-400 animate-pulse">{t("habit.narrative.loading")}</p>
+            ) : narrative?.error ? (
+              <p className="text-[12px] text-red-500">{t("copilot.error")}</p>
+            ) : narrative ? (
+              <p className="text-[13px] text-gray-700 leading-relaxed italic">{narrative}</p>
+            ) : (
+              <p className="text-[12px] text-gray-400">{t("habit.narrative.hint")}</p>
+            )}
+          </div>
+        )}
 
         {/* Weekly replay — this week's completions as an animated path */}
         <div className="rounded-2xl bg-gray-50 p-3 mb-5">
@@ -194,6 +254,73 @@ export default function HabitProgress({ habits, onClose, theme }) {
             </div>
           ))}
         </div>
+
+        {/* Insights */}
+        {hasInsights && (
+          <div className="mb-5">
+            <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-2">💡 {t("habit.insights.title")}</div>
+            <div className="space-y-1.5">
+              {bestTimes.map((s) => (
+                <div key={`bt-${s.habitId}`} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50/60">
+                  <span className="text-[12px] flex-1 text-gray-600">
+                    {t("habit.insights.bestTime", { name: nameOf(s.habitId), slot: slotLabel(s.bestSlot), pct: s.share })}
+                  </span>
+                  <button
+                    onClick={() => { const h = habits.activeHabits.find((x) => x.habitId === s.habitId); habits.activateHabit(s.habitId, h?.layer || 2, { timeSlot: s.bestSlot }); }}
+                    className="text-[11px] font-bold px-2 py-1 rounded-full text-white shrink-0"
+                    style={{ background: accent }}
+                  >
+                    {t("habit.insights.move")}
+                  </button>
+                </div>
+              ))}
+              {correlations.map((c) => (
+                <div key={`co-${c.habitId}`} className="px-3 py-2 rounded-xl bg-emerald-50/60 text-[12px] text-gray-600">
+                  {t(c.delta >= 0 ? "habit.insights.corrPos" : "habit.insights.corrNeg", {
+                    name: nameOf(c.habitId), dim: dimLabel(c.dim), n: Math.abs(c.delta),
+                  })}
+                </div>
+              ))}
+              {tierCal.map((c) => (
+                <div key={`tc-${c.habitId}`} className="px-3 py-2 rounded-xl bg-amber-50/60 text-[12px] text-gray-600">
+                  {c.type === "alwaysLow"
+                    ? t("habit.insights.alwaysLow", { name: nameOf(c.habitId) })
+                    : t("habit.insights.oftenSkipped", { name: nameOf(c.habitId), pct: c.rate })}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Habit → Quest bridge (#13) — stabilized Core habits become Study quests */}
+        {onMakeQuest && active.filter((h) => h.layer === 1).length > 0 && (
+          <div className="mb-5">
+            <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-2">🌉 {t("habit.bridge.title")}</div>
+            <div className="space-y-1.5">
+              {active.filter((h) => h.layer === 1).slice(0, 6).map((h) => {
+                const name = nameOf(h.habitId);
+                const done = bridged[h.habitId];
+                return (
+                  <div key={h.habitId} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50">
+                    <span className="text-[13px]">◆</span>
+                    <span className="flex-1 text-[13px] text-gray-700">{name}</span>
+                    {done ? (
+                      <span className="text-[11px] font-bold text-green-500">✓ {t("habit.bridge.made")}</span>
+                    ) : (
+                      <button
+                        onClick={() => { onMakeQuest(name); setBridged((b) => ({ ...b, [h.habitId]: true })); }}
+                        className="text-[11px] font-bold px-2.5 py-1 rounded-full text-white"
+                        style={{ background: accent }}
+                      >
+                        {t("habit.bridge.make")}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Graduation timeline */}
         <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-3">

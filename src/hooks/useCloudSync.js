@@ -68,6 +68,9 @@ export function useCloudSync() {
     qt_habit_graduations: { table: "extra_state", column: "habit_graduations" },
     qt_habit_explore_budget: { table: "extra_state", column: "habit_explore_budget" },
     qt_daily_schedule: { table: "extra_state", column: "habit_schedule" },
+    qt_habit_identity: { table: "extra_state", column: "habit_identity" },
+    qt_habit_letters: { table: "extra_state", column: "habit_letters" },
+    qt_habit_week_plan: { table: "extra_state", column: "habit_week_plan" },
   };
 
   // ── Step 1: On authentication, run migration then pull ──
@@ -261,6 +264,9 @@ export function useCloudSync() {
         if (ex.habit_graduations) safeSet("qt_habit_graduations", ex.habit_graduations);
         if (ex.habit_explore_budget) safeSet("qt_habit_explore_budget", ex.habit_explore_budget);
         if (ex.habit_schedule) safeSet("qt_daily_schedule", ex.habit_schedule);
+        if (ex.habit_identity != null) safeSet("qt_habit_identity", ex.habit_identity);
+        if (ex.habit_letters) safeSet("qt_habit_letters", ex.habit_letters);
+        if (ex.habit_week_plan) safeSet("qt_habit_week_plan", ex.habit_week_plan);
       }
 
       lastPullRef.current = Date.now();
@@ -399,6 +405,9 @@ export function useCloudSync() {
           habit_graduations: safeGet("qt_habit_graduations", []),
           habit_explore_budget: safeGet("qt_habit_explore_budget", {}),
           habit_schedule: safeGet("qt_daily_schedule", null),
+          habit_identity: safeGet("qt_habit_identity", ""),
+          habit_letters: safeGet("qt_habit_letters", []),
+          habit_week_plan: safeGet("qt_habit_week_plan", {}),
         }, { onConflict: "user_id" })
       );
 

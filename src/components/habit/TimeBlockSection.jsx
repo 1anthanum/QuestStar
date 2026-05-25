@@ -11,6 +11,7 @@ export default function TimeBlockSection({
   habitsInBlock,    // [{ habitId, layer, done, ... }] assigned to this block
   habits,           // useHabitSystem instance (for tier/rate lookups + actions)
   energyMode,
+  energy,           // full 4-dim energy object (for dependency gating)
   defaultExpanded,
   theme,
   onBrowse,
@@ -88,6 +89,7 @@ export default function TimeBlockSection({
                   effectiveTiers={habits.getEffectiveTiers(h.habitId)}
                   completionRate={habits.getCompletionRate(h.habitId, 28).rate}
                   energyMode={energyMode}
+                  energy={energy}
                   onComplete={habits.completeHabit}
                   onUncomplete={habits.uncompleteHabit}
                   onSkip={habits.skipHabit}

@@ -68,6 +68,7 @@ import BudgetDashboard from "./components/BudgetDashboard";
 import { useVEMSync } from "./hooks/useVEMSync";
 import VEMQuickPanel from "./components/VEMQuickPanel";
 import MicroFeedbackChip from "./components/MicroFeedbackChip";
+import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import { useCopilot } from "./hooks/useCopilot";
 import AICopilotPanel from "./components/AICopilotPanel";
 
@@ -180,6 +181,19 @@ export default function App() {
     [game]
   );
 
+  // Habit → Quest bridge (#13): turn a stabilized habit into a Study quest (no nav)
+  const handleHabitToQuest = useCallback(
+    (name) => {
+      return game.addQuest({
+        name,
+        category: "habit",
+        questType: "daily",
+        steps: [{ text: name, difficulty: "easy", done: false }],
+      });
+    },
+    [game]
+  );
+
   // Copilot: save check-in to qt_reflections
   const [reflections, setReflections] = useLocalStorage("qt_reflections", {});
   const handleSaveCheckIn = useCallback(
@@ -223,6 +237,9 @@ export default function App() {
     <div className="min-h-screen relative">
       {/* Dynamic themed background */}
       <AnimatedBackground theme={theme} />
+
+      {/* PWA install banner (Chrome/Edge/Android) */}
+      <PWAInstallPrompt theme={theme} />
 
       {/* Onboarding Guide overlay */}
       {showOnboarding && (
@@ -680,6 +697,7 @@ export default function App() {
                   onBrowse={() => modals.show("HabitBrowser")}
                   onOpenCopilot={() => modals.show("Copilot")}
                   onGoStudy={() => setAppMode("study")}
+                  onMakeQuest={handleHabitToQuest}
                 />
               </Suspense>
             </ErrorBoundary>

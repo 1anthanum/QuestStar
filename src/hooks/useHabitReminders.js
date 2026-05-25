@@ -27,10 +27,15 @@ function readSettings() {
     enabled: get("qt_notify_enabled", false),
     webhook: get("qt_notify_webhook", ""),
     time: get("qt_notify_time", "20:00"),
+    weekly: get("qt_notify_weekly", false),
   };
 }
 
 const todayKey = () => new Date().toISOString().split("T")[0];
+const weekKey = () => {
+  const d = new Date(); d.setDate(d.getDate() - d.getDay());
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 export function useHabitReminders({ habits, appMode, lang = "zh" }) {
   const firingRef = useRef(false);
@@ -75,8 +80,37 @@ export function useHabitReminders({ habits, appMode, lang = "zh" }) {
       }
     };
 
-    check();
-    const id = setInterval(check, TICK_MS);
+    // ── Weekly digest (Sunday evening) — browser + webhook (webhook can relay to email) ──
+    const checkWeekly = async () => {
+      if (firingRef.current) return;
+      const { weekly, webhook } = readSettings();
+      if (!weekly) return;
+      const now = new Date();
+      if (now.getDay() !== 0 || now.getHours() < 18) return; // Sunday after 18:00
+      let last = null;
+      try { last = JSON.parse(localStorage.getItem("qt_notify_weekly_last") || "null"); } catch { /* noop */ }
+      const wk = weekKey();
+      if (last === wk) return;
+
+      const report = habits.getWeeklyReport?.() || {};
+      const pct = Math.round((report.rate || 0) * 100);
+      firingRef.current = true;
+      const title = lang === "zh" ? "🌱 本周回顾" : "🌱 Weekly recap";
+      const body =
+        lang === "zh"
+          ? `本周完成率 ${pct}% · ${report.totalCompleted || 0}/${report.totalPossible || 0}。下一周，一件就好。`
+          : `This week: ${pct}% · ${report.totalCompleted || 0}/${report.totalPossible || 0}. Next week, just one will do.`;
+      try {
+        await notifyAll({ title, body, webhookUrl: webhook, tag: "qt-habit-weekly" });
+        localStorage.setItem("qt_notify_weekly_last", JSON.stringify(wk));
+      } finally {
+        firingRef.current = false;
+      }
+    };
+
+    const tick = () => { check(); checkWeekly(); };
+    tick();
+    const id = setInterval(tick, TICK_MS);
     return () => clearInterval(id);
   }, [habits, appMode, lang]);
 }

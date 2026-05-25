@@ -449,3 +449,6 @@
 
 /* ── SVG path draw (weekly replay) ── */
 @keyframes qt-draw { to { stroke-dashoffset: 0; } }
+
+/* ── Body-doubling companion bob ── */
+@keyframes qt-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }

@@ -33,7 +33,7 @@ export function canNotifyBrowser() {
 export function notifyBrowser(title, body, { tag } = {}) {
   if (!canNotifyBrowser()) return false;
   try {
-    new Notification(title, { body, tag, icon: "/icon.png" });
+    new Notification(title, { body, tag, icon: "/icon.svg" });
     return true;
   } catch {
     return false;

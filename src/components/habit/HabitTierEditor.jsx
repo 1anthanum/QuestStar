@@ -3,7 +3,7 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { getHabitById } from "../../utils/habitCatalog";
 
 // ── HabitTierEditor — customize L/M/H descriptions for a habit ──
-export default function HabitTierEditor({ habitId, currentTiers, onSave, onClose, theme }) {
+export default function HabitTierEditor({ habitId, currentTiers, currentWhy = "", currentChainNext = "", currentRequiresPhysical = 0, otherHabits = [], onSave, onClose, theme }) {
   const { t, lang } = useLanguage();
   const accent = theme?.accent || "#6366f1";
   const cat = getHabitById(habitId);
@@ -16,14 +16,21 @@ export default function HabitTierEditor({ habitId, currentTiers, onSave, onClose
   const [low, setLow] = useState(init("L"));
   const [mid, setMid] = useState(init("M"));
   const [high, setHigh] = useState(init("H"));
+  const [why, setWhy] = useState(currentWhy || "");
+  const [chainNext, setChainNext] = useState(currentChainNext || "");
+  const [reqPhysical, setReqPhysical] = useState(currentRequiresPhysical || 0);
 
   const save = () => {
     // Store as text/textEn pair (use same string for both — user writes in their language)
-    onSave({
-      L: { text: low, textEn: low, minMinutes: 1 },
-      M: { text: mid, textEn: mid, minMinutes: 5 },
-      H: { text: high, textEn: high, minMinutes: 15 },
-    });
+    onSave(
+      {
+        L: { text: low, textEn: low, minMinutes: 1 },
+        M: { text: mid, textEn: mid, minMinutes: 5 },
+        H: { text: high, textEn: high, minMinutes: 15 },
+      },
+      why.trim(),
+      { chainNext, requiresEnergy: reqPhysical ? { dim: "physical", min: reqPhysical } : null }
+    );
   };
 
   return (
@@ -53,6 +60,55 @@ export default function HabitTierEditor({ habitId, currentTiers, onSave, onClose
               />
             </div>
           ))}
+        </div>
+
+        {/* Personal "why" anchor */}
+        <div className="mt-4">
+          <label className="text-[10px] font-bold uppercase tracking-wide mb-1 block text-gray-400">
+            💭 {t("habit.why.label")}
+          </label>
+          <input
+            value={why}
+            onChange={(e) => setWhy(e.target.value)}
+            placeholder={t("habit.why.placeholder")}
+            className="w-full bg-gray-50 rounded-xl px-3 py-2 text-sm text-gray-700 outline-none"
+            style={{ border: `1px solid ${accent}25` }}
+          />
+        </div>
+
+        {/* Chain (#4): after this, do… */}
+        {otherHabits.length > 0 && (
+          <div className="mt-4">
+            <label className="text-[10px] font-bold uppercase tracking-wide mb-1 block text-gray-400">🔗 {t("habit.chain.label")}</label>
+            <select
+              value={chainNext}
+              onChange={(e) => setChainNext(e.target.value)}
+              className="w-full bg-gray-50 rounded-xl px-3 py-2 text-sm text-gray-700 outline-none"
+              style={{ border: `1px solid ${accent}25` }}
+            >
+              <option value="">{t("habit.chain.none")}</option>
+              {otherHabits.map((h) => (
+                <option key={h.habitId} value={h.habitId}>{h.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Dependency (#5): requires physical energy */}
+        <div className="mt-4">
+          <label className="text-[10px] font-bold uppercase tracking-wide mb-1 block text-gray-400">🔒 {t("habit.dep.label")}</label>
+          <div className="flex gap-1.5">
+            {[{ v: 0, k: "habit.dep.off" }, { v: 5, k: "habit.dep.mid" }, { v: 7, k: "habit.dep.high" }].map(({ v, k }) => (
+              <button
+                key={v}
+                onClick={() => setReqPhysical(v)}
+                className="flex-1 py-2 rounded-xl text-[12px] font-semibold transition-all"
+                style={reqPhysical === v ? { background: accent + "18", color: accent, border: `1px solid ${accent}` } : { background: "#f8fafc", color: "#64748b", border: "1px solid transparent" }}
+              >
+                {t(k)}
+              </button>
+            ))}
+          </div>
         </div>
 
         <button

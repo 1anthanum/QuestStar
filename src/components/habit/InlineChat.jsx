@@ -117,7 +117,9 @@ export default function InlineChat({ copilot, theme, onExpand }) {
                   {/* Habit action confirmation chip */}
                   {m.habitResult && (
                     <div className="mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full inline-block" style={{ background: `${accent}18`, color: accent }}>
-                      ✓ {t("habit.chat.actionDone")}
+                      ✓ {m.habitResult.type === "plan"
+                        ? t("habit.chat.planAdded", { n: m.habitResult.count })
+                        : t("habit.chat.actionDone")}
                     </div>
                   )}
                 </div>

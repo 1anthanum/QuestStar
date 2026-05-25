@@ -41,6 +41,9 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
   const [graduations, setGraduations] = useLocalStorage("qt_habit_graduations", []);
   const [exploreBudget, setExploreBudget] = useLocalStorage("qt_habit_explore_budget", {});
   const [schedule] = useLocalStorage("qt_daily_schedule", null); // null → DEFAULT_SCHEDULE
+  const [identity, setIdentity] = useLocalStorage("qt_habit_identity", ""); // #8 identity statement
+  const [letters, setLetters] = useLocalStorage("qt_habit_letters", []);    // #9 letters to future self
+  const [weekPlans, setWeekPlans] = useLocalStorage("qt_habit_week_plan", {}); // #12 weekly intentions
 
   const effectiveSchedule = schedule || DEFAULT_SCHEDULE;
   const today = todayStr();
@@ -308,14 +311,25 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
   );
   const declareRestDay = useCallback(() => setDayMeta({ restDay: true }), [setDayMeta]);
   const setBriefing = useCallback((text) => setDayMeta({ briefing: text }), [setDayMeta]);
+  // #16 — manual mini-trackers (caffeine cups / weight / free-text symptom), merged into day meta
+  const setMiniTracker = useCallback((patch) => {
+    const t = todayStr();
+    setHabitLog((prev) => {
+      const day = { ...(prev[t] || {}) };
+      const meta = { ...(day._meta || {}) };
+      meta.mini = { ...(meta.mini || {}), ...patch };
+      day._meta = meta;
+      return { ...prev, [t]: day };
+    });
+  }, [setHabitLog]);
   const saveMorningPlan = useCallback(
     (energyMode, exploreDecision, energy = null) =>
       setDayMeta({ energyMode, exploreDecision, morningPlanDone: true, ...(energy ? { energy } : {}) }),
     [setDayMeta]
   );
   const saveEveningCheckIn = useCallback(
-    (mood, aiInsight = null) =>
-      setDayMeta({ mood, aiInsight, eveningCheckInDone: true }),
+    (mood, aiInsight = null, emotions = null) =>
+      setDayMeta({ mood, aiInsight, eveningCheckInDone: true, ...(emotions ? { emotions } : {}) }),
     [setDayMeta]
   );
 
@@ -328,6 +342,65 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     },
     [setActiveHabits]
   );
+
+  // Personal "why" anchor — shown when about to skip the habit
+  const setHabitWhy = useCallback(
+    (habitId, why) => {
+      setActiveHabits((prev) =>
+        prev.map((h) => (h.habitId === habitId ? { ...h, why } : h))
+      );
+    },
+    [setActiveHabits]
+  );
+
+  // Generic per-habit config merge (chainNext #4, requiresEnergy #5, …)
+  const setHabitConfig = useCallback(
+    (habitId, patch) => {
+      setActiveHabits((prev) =>
+        prev.map((h) => (h.habitId === habitId ? { ...h, ...patch } : h))
+      );
+    },
+    [setActiveHabits]
+  );
+
+  // ── #9 Letters to future self ──
+  const addLetter = useCallback((text, deliverOn) => {
+    setLetters((prev) => [
+      ...prev,
+      { id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text, createdAt: todayStr(), deliverOn, delivered: false },
+    ].slice(-50));
+  }, [setLetters]);
+  const getDueLetters = useCallback(() => {
+    const today = todayStr();
+    return letters.filter((l) => !l.delivered && l.deliverOn <= today);
+  }, [letters]);
+  const markLetterDelivered = useCallback((id) => {
+    setLetters((prev) => prev.map((l) => (l.id === id ? { ...l, delivered: true } : l)));
+  }, [setLetters]);
+
+  // ── #12 Weekly planning (intention + focus habit), keyed by the week's Sunday ──
+  const weekKey = () => {
+    const d = new Date(); d.setDate(d.getDate() - d.getDay());
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const getWeekPlan = useCallback(() => weekPlans[weekKey()] || null, [weekPlans]);
+  const saveWeekPlan = useCallback((plan) => {
+    setWeekPlans((prev) => ({ ...prev, [weekKey()]: { ...plan, setAt: Date.now() } }));
+  }, [setWeekPlans]);
+
+  // #8 — count of habit completions this week (fuel for the identity statement)
+  const getWeekActionCount = useCallback(() => {
+    const base = new Date();
+    let n = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(base); d.setDate(base.getDate() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const day = habitLog[key];
+      if (!day) continue;
+      for (const k of Object.keys(day)) if (!k.startsWith("_")) n++;
+    }
+    return n;
+  }, [habitLog]);
 
   // ── Queries ──
 
@@ -401,6 +474,140 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     return null;
   }, [activeHabits, habitLog, todayLogEntry, todayMeta.energyMode]);
 
+  // ── Insights (read-only analytics over the log) ──
+
+  // Map an hour to a schedule slot id (mirrors the dashboard's block ranges)
+  const hourToSlot = (h) => {
+    if (h < 8) return "morning_prep";
+    if (h < 12) return "upper_morning";
+    if (h < 15) return "noon";
+    if (h < 17) return "peak_cognitive";
+    if (h < 22) return "evening";
+    return "sleep_prep";
+  };
+
+  // #4 — habits that are usually completed in a slot different from their assigned one
+  const getBestTimeSuggestions = useCallback(() => {
+    const out = [];
+    for (const h of activeHabits) {
+      if (h.layer < 1) continue;
+      const slots = {};
+      for (const day of Object.values(habitLog)) {
+        const at = day?.[h.habitId]?.completedAt;
+        if (!at) continue;
+        const s = hourToSlot(new Date(at).getHours());
+        slots[s] = (slots[s] || 0) + 1;
+      }
+      const entries = Object.entries(slots);
+      const total = entries.reduce((a, [, n]) => a + n, 0);
+      if (total < 4) continue;
+      const [bestSlot, bestN] = entries.sort((a, b) => b[1] - a[1])[0];
+      const current = h.timeSlot || "upper_morning";
+      if (bestSlot !== current && bestN / total >= 0.6) {
+        out.push({ habitId: h.habitId, currentSlot: current, bestSlot, share: Math.round((bestN / total) * 100) });
+      }
+    }
+    return out;
+  }, [activeHabits, habitLog]);
+
+  // #5 — for each habit, the energy dimension that differs most between done/not-done days
+  const getCorrelationInsights = useCallback(() => {
+    const dims = ["physical", "cognitive", "emotional", "social"];
+    const days = Object.entries(habitLog).filter(([, d]) => d?._meta?.energy);
+    if (days.length < 5) return [];
+    const out = [];
+    for (const h of activeHabits) {
+      if (h.layer < 1) continue;
+      const done = { physical: [], cognitive: [], emotional: [], social: [] };
+      const not = { physical: [], cognitive: [], emotional: [], social: [] };
+      for (const [, day] of days) {
+        const e = day._meta.energy;
+        const bucket = day[h.habitId] ? done : not;
+        for (const dim of dims) if (typeof e[dim] === "number") bucket[dim].push(e[dim]);
+      }
+      const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
+      let best = null;
+      for (const dim of dims) {
+        const a = avg(done[dim]); const b = avg(not[dim]);
+        if (a == null || b == null || done[dim].length < 3 || not[dim].length < 2) continue;
+        const delta = a - b;
+        if (!best || Math.abs(delta) > Math.abs(best.delta)) best = { dim, delta: Math.round(delta * 10) / 10 };
+      }
+      if (best && Math.abs(best.delta) >= 1) out.push({ habitId: h.habitId, dim: best.dim, delta: best.delta });
+    }
+    return out.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 4);
+  }, [activeHabits, habitLog]);
+
+  // #6 — tier calibration: habits done almost always at L, or frequently skipped
+  const getTierCalibration = useCallback(() => {
+    const out = [];
+    for (const h of activeHabits) {
+      if (h.layer < 1) continue;
+      let lows = 0, total = 0, skips = 0, present = 0;
+      for (const day of Object.values(habitLog)) {
+        const rec = day?.[h.habitId];
+        if (rec) { total++; if (rec.tier === "L") lows++; }
+        const skippedSet = day?._meta?.skippedHabits;
+        if (skippedSet?.includes?.(h.habitId)) { skips++; present++; }
+        else if (rec) present++;
+      }
+      if (total >= 5 && lows / total >= 0.85) out.push({ habitId: h.habitId, type: "alwaysLow" });
+      else if (present >= 5 && skips / present >= 0.5) out.push({ habitId: h.habitId, type: "oftenSkipped", rate: Math.round((skips / present) * 100) });
+    }
+    return out;
+  }, [activeHabits, habitLog]);
+
+  // #8 — personal energy baseline (avg per dimension, excluding today)
+  const getEnergyBaseline = useCallback(() => {
+    const dims = ["physical", "cognitive", "emotional", "social"];
+    const acc = { physical: [], cognitive: [], emotional: [], social: [] };
+    for (const [key, day] of Object.entries(habitLog)) {
+      if (key === today) continue;
+      const e = day?._meta?.energy;
+      if (!e) continue;
+      for (const d of dims) if (typeof e[d] === "number") acc[d].push(e[d]);
+    }
+    const out = {}; let any = false;
+    for (const d of dims) {
+      if (acc[d].length >= 3) { out[d] = Math.round((acc[d].reduce((a, b) => a + b, 0) / acc[d].length) * 10) / 10; any = true; }
+    }
+    return any ? out : null;
+  }, [habitLog, today]);
+
+  // #2 — sustained-low anomaly: a dimension ≤4 across the last 3 recorded days
+  const getEnergyAnomalies = useCallback(() => {
+    const dims = ["physical", "cognitive", "emotional", "social"];
+    const recent = Object.entries(habitLog)
+      .filter(([k, d]) => k < today && d?._meta?.energy)
+      .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+      .slice(0, 3)
+      .map(([, d]) => d._meta.energy);
+    if (recent.length < 3) return [];
+    return dims.filter((dim) => recent.every((e) => typeof e[dim] === "number" && e[dim] <= 4)).map((dim) => ({ dim }));
+  }, [habitLog, today]);
+
+  // #3 — invisible progress: a habit whose completion rate quietly improved (last 14 vs prior 14 days)
+  const getInvisibleProgress = useCallback(() => {
+    const base = new Date();
+    const keyAt = (offset) => {
+      const d = new Date(base); d.setDate(base.getDate() - offset);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    };
+    let best = null;
+    for (const h of activeHabits) {
+      if (h.layer < 1) continue;
+      let recent = 0, prior = 0;
+      for (let i = 1; i <= 14; i++) if (habitLog[keyAt(i)]?.[h.habitId]) recent++;
+      for (let i = 15; i <= 28; i++) if (habitLog[keyAt(i)]?.[h.habitId]) prior++;
+      const rRate = recent / 14, pRate = prior / 14;
+      const delta = rRate - pRate;
+      if (prior + recent >= 4 && delta >= 0.2 && (!best || delta > best.delta)) {
+        best = { habitId: h.habitId, delta: Math.round(delta * 100), recentPct: Math.round(rRate * 100) };
+      }
+    }
+    return best;
+  }, [activeHabits, habitLog]);
+
   // ── Proactive nudge (context-triggered companion card) ──
   // Time-of-day + today's state → a gentle, actionable prompt. Session-dismissible.
   const getProactiveNudge = useCallback(() => {
@@ -416,6 +623,27 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     if (hour >= 11 && done === 0) return { id: "slowStart", type: "slowStart" };
     return null;
   }, [activeHabits, todayLogEntry, todayMeta.energyMode]);
+
+  // ── #11 Smart auto-defer — roll past-slot, still-important habits to NOW (today only) ──
+  // Eligible = Core/Forming (layer ≤ 2) & not done; Explore (layer 3) is left behind.
+  // Stored as a per-day override in _meta.deferrals so a habit's home slot is unchanged.
+  const SLOT_ORDER = ["morning_prep", "upper_morning", "noon", "peak_cognitive", "evening", "sleep_prep"];
+  const autoDefer = useCallback(() => {
+    const current = hourToSlot(new Date().getHours());
+    const ci = SLOT_ORDER.indexOf(current);
+    const view = getDailyView(activeHabits, todayLogEntry, todayMeta.energyMode || "normal");
+    const existing = todayMeta.deferrals || {};
+    const moves = {};
+    for (const h of view) {
+      if (h.done || h.layer > 2) continue;
+      const eff = existing[h.habitId] || h.timeSlot || "upper_morning";
+      if (SLOT_ORDER.indexOf(eff) < ci) moves[h.habitId] = current;
+    }
+    if (Object.keys(moves).length === 0) return 0;
+    setDayMeta({ deferrals: { ...existing, ...moves } });
+    return Object.keys(moves).length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHabits, todayLogEntry, todayMeta, setDayMeta]);
 
   // ── Auto-archive habits with 14 days of zero completion ──
   const autoArchiveStale = useCallback(() => {
@@ -544,11 +772,24 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     setEnergy,
     declareRestDay,
     setBriefing,
+    setMiniTracker,
     saveMorningPlan,
     saveEveningCheckIn,
     // tiers
     customizeTiers,
+    setHabitWhy,
+    setHabitConfig,
     getEffectiveTiers,
+    // identity + letters
+    identity,
+    setIdentity,
+    letters,
+    addLetter,
+    getDueLetters,
+    markLetterDelivered,
+    getWeekActionCount,
+    getWeekPlan,
+    saveWeekPlan,
     // queries
     getTodayView,
     getTodayProgress,
@@ -559,12 +800,19 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     getYesterdayExplore,
     getPastDays,
     getProactiveNudge,
+    getBestTimeSuggestions,
+    getCorrelationInsights,
+    getTierCalibration,
+    getEnergyBaseline,
+    getEnergyAnomalies,
+    getInvisibleProgress,
     getTopSuggestion,
     getCompletionRate: (id, days) => getCompletionRate(id, habitLog, days),
     getMonthlyTrajectory: () => graduations,
     // maintenance
     pruneLog,
     autoArchiveStale,
+    autoDefer,
     reconcileFromDailyChecks,
   };
 }

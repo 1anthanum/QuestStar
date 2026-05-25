@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { copilotChat } from "../utils/aiService";
 import { extractText, truncateForAI } from "../utils/fileExtractor";
 import { getHabitById } from "../utils/habitCatalog";
@@ -29,12 +29,23 @@ function executeHabitActions(structured, habits) {
       habits.declareRestDay();
       return { type: "restDay" };
     }
+    const VALID_SLOTS = ["morning_prep", "upper_morning", "noon", "peak_cognitive", "evening", "sleep_prep"];
     if (structured.habitActivate?.habitId) {
       const { habitId, layer, timeSlot } = structured.habitActivate;
-      const VALID_SLOTS = ["morning_prep", "upper_morning", "noon", "peak_cognitive", "evening", "sleep_prep"];
       const opts = VALID_SLOTS.includes(timeSlot) ? { timeSlot } : {};
       const res = habits.activateHabit(habitId, [1, 2, 3].includes(layer) ? layer : 3, opts);
       return { type: "habitActivate", habitId, ok: res?.ok !== false };
+    }
+    // A full plan — add several habits to today at once
+    if (Array.isArray(structured.plan) && structured.plan.length) {
+      let added = 0;
+      for (const item of structured.plan) {
+        if (!item?.habitId) continue;
+        const opts = VALID_SLOTS.includes(item.timeSlot) ? { timeSlot: item.timeSlot } : {};
+        const res = habits.activateHabit(item.habitId, [1, 2, 3].includes(item.layer) ? item.layer : 3, opts);
+        if (res?.ok !== false) added++;
+      }
+      return { type: "plan", count: added };
     }
     if (structured.habitArchive?.habitId) {
       habits.archiveHabit(structured.habitArchive.habitId);
@@ -82,9 +93,10 @@ ${list}
 - {"energyMode": "normal|low"}
 - {"restDay": true}
 - {"habitActivate": {"habitId": "xxx", "layer": 1|2|3, "timeSlot": "morning_prep|upper_morning|noon|peak_cognitive|evening|sleep_prep"}}
+- {"plan": [{"habitId": "xxx", "layer": 1|2|3, "timeSlot": "..."}, ...]}  ← 规划一整天时用这个，一次加入多个
 - {"habitArchive": {"habitId": "xxx"}}
 - {"tierCustomize": {"habitId": "xxx", "L": "...", "M": "...", "H": "..."}}
-说明：habitId 必须来自上面列表（添加新 habit 时用 catalog id）。timeSlot 可选，用户说"下午/晚上做"时填对应时段。操作会立即生效。
+说明：habitId 必须来自上面列表（添加新 habit 时用 catalog id）。timeSlot 可选，用户说"下午/晚上做"时填对应时段。当用户让你"规划今天/安排一天"时，用 plan 一次性把多个 habit 加入今天。操作会立即生效。
 `;
   }
   return `
@@ -100,17 +112,37 @@ ${list}
 - {"energyMode": "normal|low"}
 - {"restDay": true}
 - {"habitActivate": {"habitId": "xxx", "layer": 1|2|3, "timeSlot": "morning_prep|upper_morning|noon|peak_cognitive|evening|sleep_prep"}}
+- {"plan": [{"habitId": "xxx", "layer": 1|2|3, "timeSlot": "..."}, ...]}  ← use this to plan a whole day (adds several at once)
 - {"habitArchive": {"habitId": "xxx"}}
 - {"tierCustomize": {"habitId": "xxx", "L": "...", "M": "...", "H": "..."}}
-Note: habitId must come from the list above (use catalog id when adding). timeSlot is optional — set it when the user says when to do it. Actions take effect immediately.
+Note: habitId must come from the list above (use catalog id when adding). timeSlot is optional — set it when the user says when to do it. When the user asks you to "plan my day", use plan to add multiple habits to today at once. Actions take effect immediately.
 `;
 }
 
+const HISTORY_KEY = "qt_copilot_history";
+const HISTORY_CAP = 60; // keep recent turns; planning context survives reloads
+
 export function useCopilot({ game, rewards, energy, appMode, ai, lang, habits = null }) {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const abortRef = useRef(false);
+
+  // Persist chat history so the AI can continue planning across reloads
+  useEffect(() => {
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(messages.slice(-HISTORY_CAP)));
+    } catch {
+      /* storage full / unavailable — non-fatal */
+    }
+  }, [messages]);
 
   // ── Build dynamic system prompt with user context ──
   const buildSystemPrompt = useCallback(() => {
@@ -357,6 +389,7 @@ Guidelines:
   const clearHistory = useCallback(() => {
     setMessages([]);
     setError(null);
+    try { localStorage.removeItem(HISTORY_KEY); } catch { /* noop */ }
   }, []);
 
   return {

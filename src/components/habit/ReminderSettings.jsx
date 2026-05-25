@@ -4,15 +4,32 @@ import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { requestNotifyPermission, notifySupported, notifyAll } from "../../utils/notify";
 
 // ── ReminderSettings — configure habit reminder channels (browser + webhook) ──
-export default function ReminderSettings({ onClose, theme }) {
+export default function ReminderSettings({ onClose, theme, habits }) {
   const { t, lang } = useLanguage();
   const accent = theme?.accent || "#6366f1";
 
   const [enabled, setEnabled] = useLocalStorage("qt_notify_enabled", false);
   const [webhook, setWebhook] = useLocalStorage("qt_notify_webhook", "");
   const [time, setTime] = useLocalStorage("qt_notify_time", "20:00");
+  const [weekly, setWeekly] = useLocalStorage("qt_notify_weekly", false);
   const [perm, setPerm] = useState(notifySupported() ? Notification.permission : "unsupported");
   const [tested, setTested] = useState(false);
+  const [shared, setShared] = useState(false);
+
+  const sendWeeklyNow = async () => {
+    const r = habits?.getWeeklyReport?.() || {};
+    const pct = Math.round((r.rate || 0) * 100);
+    await notifyAll({
+      title: lang === "zh" ? "🌱 本周回顾" : "🌱 Weekly recap",
+      body: lang === "zh"
+        ? `本周完成率 ${pct}% · ${r.totalCompleted || 0}/${r.totalPossible || 0}`
+        : `This week: ${pct}% · ${r.totalCompleted || 0}/${r.totalPossible || 0}`,
+      webhookUrl: webhook,
+      tag: "qt-weekly-now",
+    });
+    setShared(true);
+    setTimeout(() => setShared(false), 2500);
+  };
 
   const toggleBrowser = async () => {
     if (!enabled) {
@@ -70,6 +87,17 @@ export default function ReminderSettings({ onClose, theme }) {
           />
         </div>
 
+        {/* Weekly digest */}
+        <button onClick={() => setWeekly((w) => !w)} className="w-full flex items-center gap-2 px-3 py-3 rounded-xl bg-gray-50 mb-3">
+          <span className="w-9 h-5 rounded-full relative transition-colors shrink-0" style={{ background: weekly ? accent : "#cbd5e1" }}>
+            <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all" style={{ left: weekly ? 18 : 2 }} />
+          </span>
+          <div className="flex-1 text-left">
+            <div className="text-[13px] font-bold text-gray-700">{t("habit.notify.weekly")}</div>
+            <div className="text-[10.5px] text-gray-400">{t("habit.notify.weeklyHint")}</div>
+          </div>
+        </button>
+
         {/* Webhook */}
         <div className="mb-4">
           <label className="text-[13px] font-bold text-gray-700">🔗 {t("habit.notify.webhook")}</label>
@@ -83,14 +111,25 @@ export default function ReminderSettings({ onClose, theme }) {
           <p className="text-[10.5px] text-gray-400 mt-1 leading-snug">{t("habit.notify.webhookHint")}</p>
         </div>
 
-        <button
-          onClick={sendTest}
-          disabled={!enabled && !webhook}
-          className="w-full py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-40"
-          style={{ background: `${accent}15`, color: accent }}
-        >
-          {tested ? `✓ ${t("habit.notify.sent")}` : t("habit.notify.test")}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={sendTest}
+            disabled={!enabled && !webhook}
+            className="flex-1 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-40"
+            style={{ background: `${accent}15`, color: accent }}
+          >
+            {tested ? `✓ ${t("habit.notify.sent")}` : t("habit.notify.test")}
+          </button>
+          {webhook && habits && (
+            <button
+              onClick={sendWeeklyNow}
+              className="flex-1 py-2.5 rounded-xl text-[13px] font-bold"
+              style={{ background: `${accent}15`, color: accent }}
+            >
+              {shared ? `✓ ${t("habit.notify.sent")}` : `📤 ${t("habit.notify.shareNow")}`}
+            </button>
+          )}
+        </div>
         <p className="text-[10px] text-gray-300 text-center mt-3 leading-snug">{t("habit.notify.limitation")}</p>
       </div>
     </div>
