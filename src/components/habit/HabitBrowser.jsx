@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useDeferredValue } from "react";
 import { useLanguage } from "../../hooks/useLanguage";
 import {
   HABIT_CATALOG,
@@ -13,6 +13,7 @@ export default function HabitBrowser({ habits, onClose, theme, defaultTimeSlot }
   const { t, lang } = useLanguage();
   const accent = theme?.accent || "#6366f1";
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search); // keep typing snappy while the list re-filters
   const [catFilter, setCatFilter] = useState(null); // selected category id, null = all
 
   const activeIds = useMemo(
@@ -22,13 +23,13 @@ export default function HabitBrowser({ habits, onClose, theme, defaultTimeSlot }
 
   // Catalog filtered by the search box (category chips derive from this)
   const searchFiltered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = deferredSearch.trim().toLowerCase();
     return HABIT_CATALOG.filter((h) => {
       if (!q) return true;
       const name = (h.name + " " + (h.nameEn || "")).toLowerCase();
       return name.includes(q);
     });
-  }, [search]);
+  }, [deferredSearch]);
 
   // Category chips (only categories that have matching habits), grouped by track order
   const catChips = useMemo(() => {

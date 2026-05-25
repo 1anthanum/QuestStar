@@ -63,6 +63,32 @@ export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
     onClose();
   };
 
+  // ── Daily story (qt_daily_story) — a warm narrative woven from today's facts
+  //    + a system observation + the identity. Heuristic; persisted per day. ──
+  const story = (() => {
+    const existing = habits.getDailyStory?.();
+    if (existing) return existing;
+    const { completed, total } = progress;
+    let s;
+    if (total > 0 && completed >= total) s = t("story.allDone");
+    else if (total > 0 && completed / total >= 0.6) s = t("story.most", { done: completed, total });
+    else if (completed > 0) s = t("story.some", { done: completed });
+    else s = t("story.none");
+    const streakObs = (habits.getObservations?.() || []).find((o) => o.type === "streak");
+    if (streakObs) {
+      const c = getHabitById(streakObs.habitId);
+      const nm = c ? (lang === "zh" ? c.name : c.nameEn || c.name) : streakObs.habitId;
+      s += " " + t("story.streak", { habit: nm, n: streakObs.n });
+    }
+    if (habits.identity) s += " " + t("story.identity", { identity: habits.identity });
+    return s;
+  })();
+
+  useEffect(() => {
+    if (story && !habits.getDailyStory?.()) habits.saveDailyStory?.(story);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 animate-fade-in" onClick={onClose}>
       <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -70,6 +96,14 @@ export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
           <h3 className="text-base font-black text-gray-800">📊 {t("habit.evening.title")}</h3>
           <button onClick={onClose} className="text-gray-300 hover:text-gray-500 text-lg">✕</button>
         </div>
+
+        {/* Daily story (qt_daily_story) */}
+        {story && (
+          <div className="mb-5 rounded-2xl px-4 py-3" style={{ background: `${accent}0e` }}>
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1">📖 {t("story.title")}</p>
+            <p className="text-[13px] text-gray-700 leading-relaxed">{story}</p>
+          </div>
+        )}
 
         {/* Today replay timeline */}
         {replay.length > 0 && (

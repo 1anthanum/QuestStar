@@ -49,6 +49,8 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
   const [weekPlans, setWeekPlans] = useLocalStorage("qt_habit_week_plan", {}); // #12 weekly intentions
   const [habitColors, setHabitColors] = useLocalStorage("qt_habit_colors", {}); // per-habit hue overrides (local-only; base hue is deterministic)
   const [, setStreakCache] = useLocalStorage("qt_habit_streaks", {}); // denormalized streak snapshot (derived cache; refreshed daily)
+  const [, setObservationsCache] = useLocalStorage("qt_observations", []); // system-generated factual notes (fuel for copy)
+  const [dailyStory, setDailyStory] = useLocalStorage("qt_daily_story", null); // { date, text } — today's narrative for End Day
 
   const effectiveSchedule = schedule || DEFAULT_SCHEDULE;
   const today = todayStr();
@@ -667,14 +669,36 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     return { last10Days, totalDone, longestStreak: longest, current: getHabitStreak(habitId, habitLog) };
   }, [habitLog, getHabitHistory]);
 
-  // Refresh the persisted streak snapshot once per session (≈daily). Source of
-  // truth stays habitLog; this denormalized cache feeds cross-surface reads.
+  // System observations — factual, structured notes derived from the log.
+  // Structured (type + ids/numbers) so the UI localizes them and AI can read them.
+  const getObservations = useCallback(() => {
+    const obs = [];
+    const bt = getBestTimeSuggestions?.() || [];
+    if (bt[0]) obs.push({ type: "bestTime", habitId: bt[0].habitId, slot: bt[0].bestSlot, share: bt[0].share });
+    let lead = null;
+    for (const h of activeHabits) { const s = getStreakStats(h.habitId); if (s.current >= 2 && (!lead || s.current > lead.n)) lead = { habitId: h.habitId, n: s.current }; }
+    if (lead) obs.push({ type: "streak", habitId: lead.habitId, n: lead.n });
+    let best = null;
+    for (const h of activeHabits) { const { rate, total } = getCompletionRate(h.habitId, habitLog, 28); if (total >= 7 && (!best || rate > best.rate)) best = { habitId: h.habitId, rate }; }
+    if (best && best.rate >= 0.6) obs.push({ type: "consistent", habitId: best.habitId, pct: Math.round(best.rate * 100) });
+    const wk = getWeekActionCount();
+    if (wk >= 5) obs.push({ type: "momentum", n: wk });
+    return obs.slice(0, 4);
+  }, [activeHabits, habitLog, getBestTimeSuggestions, getStreakStats, getWeekActionCount]);
+
+  const getDailyStory = useCallback(() => (dailyStory?.date === today ? dailyStory.text : null), [dailyStory, today]);
+  const saveDailyStory = useCallback((text) => setDailyStory({ date: today, text }), [setDailyStory, today]);
+
+  // Refresh the persisted streak + observation snapshots once per session
+  // (≈daily). Source of truth stays habitLog; these denormalized caches feed
+  // cross-surface reads and copy generation.
   useEffect(() => {
     const snap = {};
     for (const h of activeHabits) {
       const s = getStreakStats(h.habitId);
       snap[h.habitId] = { last10Days: s.last10Days, totalDone: s.totalDone, longestStreak: s.longestStreak };
     }
+    setObservationsCache(getObservations());
     setStreakCache(snap);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1002,6 +1026,9 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     getStreakStats,
     getHabitColor,
     setHabitColor,
+    getObservations,
+    getDailyStory,
+    saveDailyStory,
     getGraduationProgress,
     getWeekDailyRates,
     getSlotEndingNudge,

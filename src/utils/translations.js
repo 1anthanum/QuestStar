@@ -967,6 +967,14 @@ const translations = {
     "briefing.fbEnergy": "tiers adapt to your energy.",
     "briefing.fbMomentum": "{n} completions this week — momentum is real.",
     "briefing.fbDue": "{n} quest(s) due — worth a glance.",
+    // Daily story (End Day)
+    "story.title": "Today's story",
+    "story.allDone": "You cleared everything today — a full, complete day.",
+    "story.most": "You showed up for {done} of {total} — a strong day.",
+    "story.some": "You took {done} small steps today. Each one counts.",
+    "story.none": "A quiet day. Rest is part of the rhythm too.",
+    "story.streak": "{habit} is on a {n}-day streak.",
+    "story.identity": "Another day becoming {identity}.",
     // Morning planning
     "habit.morning.title": "Good morning!",
     "habit.morning.energyQ": "How's your energy today?",
@@ -2276,6 +2284,14 @@ const translations = {
     "briefing.fbEnergy": "强度会按你的能量自动调整。",
     "briefing.fbMomentum": "本周已完成 {n} 次 —— 势头正好。",
     "briefing.fbDue": "有 {n} 个任务到期 —— 值得留意。",
+    // Daily story (End Day)
+    "story.title": "今天的故事",
+    "story.allDone": "今天全部完成 —— 圆满的一天。",
+    "story.most": "你完成了 {total} 件中的 {done} 件 —— 很棒的一天。",
+    "story.some": "今天你迈出了 {done} 小步，每一步都算数。",
+    "story.none": "安静的一天。休息也是节奏的一部分。",
+    "story.streak": "{habit} 已连续 {n} 天。",
+    "story.identity": "又向「{identity}」靠近了一天。",
     // Morning planning
     "habit.morning.title": "早上好！",
     "habit.morning.energyQ": "今天能量如何？",
