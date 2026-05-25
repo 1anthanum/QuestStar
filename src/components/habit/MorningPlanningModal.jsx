@@ -41,10 +41,12 @@ export default function MorningPlanningModal({ habits, onClose, theme }) {
       }))
       .filter((b) => b.habits.length > 0 || b.fixedCount > 0);
   }, [habits, lang]);
-  const trials = useMemo(
-    () => habits.activeHabits.filter((h) => h.trial && h.retryTomorrow && h.layer >= 1),
-    [habits.activeHabits]
-  );
+  const trials = useMemo(() => {
+    // Mo1: don't list habits already completed today as "carried over to plan"
+    const doneToday = new Set(habits.getTodayView().filter((v) => v.done).map((v) => v.habitId));
+    return habits.activeHabits.filter((h) => h.trial && h.retryTomorrow && h.layer >= 1 && !doneToday.has(h.habitId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [habits.activeHabits]);
 
   // Steps: 0=energy, 1=explore (skip if none), 2=plan, 3=tiers (skip if none)
   const steps = [0, exploreName ? 1 : null, 2, noCustom.length > 0 ? 3 : null].filter((s) => s !== null);

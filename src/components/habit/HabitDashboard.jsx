@@ -66,7 +66,17 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [showMore, setShowMore] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [perfectFlash, setPerfectFlash] = useState(false);
+  const [tick, setTick] = useState(0); // C1: forces a re-render each minute so time-based UI stays current
   const briefingTried = useRef(false);
+
+  // C1: re-render on a 60s tick + when the tab regains focus, so overdue/missed/NOW update live
+  useEffect(() => {
+    const bump = () => setTick((n) => n + 1);
+    const id = setInterval(bump, 60000);
+    const onVis = () => { if (!document.hidden) bump(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVis); };
+  }, []);
 
   // On mount: reconcile iOS check-offs + auto-archive stale + smart-defer past-slot habits
   useEffect(() => {
@@ -176,7 +186,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   }, [todayView, coreOnly, todayMeta.deferrals]);
   const deferCount = Object.keys(deferrals).length;
 
-  // Determine current block by hour
+  // Determine current block by hour — recomputes on the minute tick (C1)
   const currentBlockId = useMemo(() => {
     const hour = new Date().getHours();
     // crude mapping: pick block whose range start hour ≤ now
@@ -189,7 +199,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       if (hour >= start) best = id;
     }
     return best;
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tick]);
 
   // Block status relative to "now" — drives the timeline dots / NOW ring
   const SLOT_ORDER = ["morning_prep", "upper_morning", "noon", "peak_cognitive", "evening", "sleep_prep"];
@@ -252,6 +263,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       energy: energy || undefined,
       yesterday: habits.getPastDays?.(1)?.[0] || null,
       todayPlanCount: progress.total,
+      completedToday: progress.completed,
+      morningPlanDone: !!todayMeta.morningPlanDone,
     };
     generateMorningBriefing(ctx, ai.aiProvider, ai.aiModel, ai.resolvedKey, lang)
       .then((text) => { if (text) habits.setBriefing(text); })
@@ -273,7 +286,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   useEffect(() => {
     if (progress.total > 0 && progress.completed === progress.total) {
       const res = habits.awardPerfectDayIfDone?.();
-      if (res) { setPerfectFlash(true); setTimeout(() => setPerfectFlash(false), 2600); }
+      if (res) { setPerfectFlash(res); setTimeout(() => setPerfectFlash(false), 2600); }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progress.completed, progress.total]);
@@ -295,7 +308,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   // ── Consolidated "signals" — transient info banners → one rotating strip ──
   const dimMeta = (id) => ENERGY_DIMENSIONS.find((d) => d.id === id);
   const signals = [];
-  if (todayMeta.briefing && !briefingDismissed) signals.push({ key: "briefing", icon: "☀️", text: todayMeta.briefing, tone: accent });
+  // Briefing only stays relevant in the morning — hide the stale "good morning" later in the day (M3)
+  if (todayMeta.briefing && !briefingDismissed && new Date().getHours() < 12) signals.push({ key: "briefing", icon: "☀️", text: todayMeta.briefing, tone: accent });
   if (adaptNoteKey) signals.push({ key: "adapt", icon: "🧭", text: t(adaptNoteKey), tone: "#b45309" });
   if (anomalies.length > 0) signals.push({ key: "anomaly", icon: "📉", text: t("habit.anomaly.msg", { dim: t(dimMeta(anomalies[0].dim)?.labelKey || "") }), tone: "#c2410c" });
   if (invisible && !dismissedInvisible) {
@@ -323,6 +337,42 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     );
   })() : null;
   const signalCount = signals.length;
+
+  // Identity strip (#8) — extracted so it can also appear in Focus view (M2)
+  const identityStrip = (
+    <div className="rounded-2xl px-4 py-2.5 flex items-center gap-2" style={{ background: `${accent}08` }}>
+      {editingIdentity ? (
+        <>
+          <span className="text-[12px] text-gray-600 shrink-0">{t("habit.identity.becoming")}</span>
+          <input
+            autoFocus
+            value={identityDraft}
+            onChange={(e) => setIdentityDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { habits.setIdentity(identityDraft.trim()); setEditingIdentity(false); } }}
+            placeholder={t("habit.identity.placeholder")}
+            className="flex-1 bg-white rounded-lg px-2 py-1 text-[12.5px] outline-none border border-gray-200"
+          />
+          <button onClick={() => { habits.setIdentity(identityDraft.trim()); setEditingIdentity(false); }} className="text-[11px] font-bold shrink-0" style={{ color: accent }}>✓</button>
+        </>
+      ) : (
+        <button
+          onClick={() => { setIdentityDraft(habits.identity || ""); setEditingIdentity(true); }}
+          className="flex items-center gap-2 w-full text-left"
+        >
+          <span className="text-base">🌟</span>
+          {habits.identity ? (
+            <span className="flex-1 text-[12.5px] text-gray-700">
+              {t("habit.identity.becoming")}<span className="font-black" style={{ color: accent }}>{habits.identity}</span>
+              {weekActions > 0 && <span className="text-[10.5px] text-gray-500"> · {t("habit.identity.fuel", { n: weekActions })}</span>}
+            </span>
+          ) : (
+            <span className="flex-1 text-[12px] text-gray-500">{t("habit.identity.prompt")}</span>
+          )}
+          <span className="text-[11px] text-gray-400">✎</span>
+        </button>
+      )}
+    </div>
+  );
 
   // Auto-advance the consolidated insight strip
   useEffect(() => {
@@ -354,38 +404,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       {insightStrip}
 
       {/* Identity strip (#8) */}
-      <div className="rounded-2xl px-4 py-2.5 flex items-center gap-2" style={{ background: `${accent}08` }}>
-        {editingIdentity ? (
-          <>
-            <span className="text-[12px] text-gray-600 shrink-0">{t("habit.identity.becoming")}</span>
-            <input
-              autoFocus
-              value={identityDraft}
-              onChange={(e) => setIdentityDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { habits.setIdentity(identityDraft.trim()); setEditingIdentity(false); } }}
-              placeholder={t("habit.identity.placeholder")}
-              className="flex-1 bg-white rounded-lg px-2 py-1 text-[12.5px] outline-none border border-gray-200"
-            />
-            <button onClick={() => { habits.setIdentity(identityDraft.trim()); setEditingIdentity(false); }} className="text-[11px] font-bold shrink-0" style={{ color: accent }}>✓</button>
-          </>
-        ) : (
-          <button
-            onClick={() => { setIdentityDraft(habits.identity || ""); setEditingIdentity(true); }}
-            className="flex items-center gap-2 w-full text-left"
-          >
-            <span className="text-base">🌟</span>
-            {habits.identity ? (
-              <span className="flex-1 text-[12.5px] text-gray-700">
-                {t("habit.identity.becoming")}<span className="font-black" style={{ color: accent }}>{habits.identity}</span>
-                {weekActions > 0 && <span className="text-[10.5px] text-gray-500"> · {t("habit.identity.fuel", { n: weekActions })}</span>}
-              </span>
-            ) : (
-              <span className="flex-1 text-[12px] text-gray-500">{t("habit.identity.prompt")}</span>
-            )}
-            <span className="text-[11px] text-gray-400">✎</span>
-          </button>
-        )}
-      </div>
+      {identityStrip}
 
       {/* This week's focus + intention (#12) */}
       {(weekPlan?.intention || focusHabitName) && (
@@ -800,7 +819,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           <div className="pact-win px-7 py-5 rounded-3xl text-center shadow-2xl" style={{ background: "linear-gradient(135deg,#fbbf24,#f59e0b)" }}>
             <div className="text-4xl mb-1">✨</div>
             <div className="text-[17px] font-black text-white">{t("habit.perfectDay.title")}</div>
-            <div className="text-[13px] font-bold text-white/90 mt-0.5">+20 XP</div>
+            <div className="text-[13px] font-bold text-white/90 mt-0.5">+{perfectFlash.xp || 20} XP · +${perfectFlash.coins || 5}</div>
           </div>
         </div>
       )}
@@ -1009,7 +1028,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       ) : layout === "timeline" ? (
         <div className="space-y-3">{timelineCol}</div>
       ) : layout === "focus" ? (
-        <div className="space-y-3">{todoCol}</div>
+        <div className="space-y-3">{identityStrip}{todoCol}</div>
       ) : (
         <div className="space-y-3">{widgets}{todoCol}</div>
       )}

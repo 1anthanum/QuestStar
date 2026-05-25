@@ -18,10 +18,11 @@ export default function FixedItemRow({ item, done, onToggle, theme }) {
   const text = lang === "zh" ? item.text : (item.textEn || item.text);
   const overdue = !done && isOverdue(item.time);
 
+  // M4: only the checkbox toggles (not the whole row) — prevents accidental
+  // medication check/uncheck from trackpad drift or mis-taps.
   return (
-    <button
-      onClick={() => onToggle(item)}
-      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-colors hover:bg-gray-50 text-left"
+    <div
+      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl"
       style={overdue ? { background: "#fef2f2" } : undefined}
     >
       <span className={`text-[10px] font-mono w-12 shrink-0 ${overdue ? "text-red-500 font-bold" : "text-gray-300"}`}>{item.time}</span>
@@ -32,14 +33,16 @@ export default function FixedItemRow({ item, done, onToggle, theme }) {
       {overdue && (
         <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 shrink-0">{t("habit.overdue")}</span>
       )}
-      <span
-        className={`shrink-0 w-5 h-5 rounded-md flex items-center justify-center transition-all ${
-          done ? "text-white" : overdue ? "border-2 border-red-300" : "border-2 border-gray-200"
+      <button
+        onClick={() => onToggle(item)}
+        aria-label={done ? t("habit.undo") : "check"}
+        className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90 ${
+          done ? "text-white" : overdue ? "border-2 border-red-300 hover:border-red-400" : "border-2 border-gray-200 hover:border-gray-300"
         }`}
         style={done ? { background: accent } : undefined}
       >
-        {done && <span className="text-[11px] font-bold">✓</span>}
-      </span>
-    </button>
+        {done && <span className="text-[13px] font-bold">✓</span>}
+      </button>
+    </div>
   );
 }

@@ -653,9 +653,10 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     if (view.length === 0 || !view.every((v) => v.done)) return null;
     if (todayMeta.perfectDayAwarded) return null;
     game?.addXP?.(20, "habit");
+    rewards?.addToWallet?.(5, "Perfect day", "✨"); // Mo2: real payoff, not just a celebration
     setDayMeta({ perfectDayAwarded: true });
-    return { xp: 20 };
-  }, [activeHabits, todayLogEntry, todayMeta, game, setDayMeta]);
+    return { xp: 20, coins: 5 };
+  }, [activeHabits, todayLogEntry, todayMeta, game, rewards, setDayMeta]);
 
   // #8 — personal energy baseline (avg per dimension, excluding today)
   const getEnergyBaseline = useCallback(() => {
