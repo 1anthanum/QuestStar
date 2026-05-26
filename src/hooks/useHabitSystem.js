@@ -136,10 +136,14 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
   const completeHabit = useCallback(
     (habitId, tierKey = "M") => {
       const t = todayStr();
-      // ① primary write — habit log with tier
+      // R6-M1: already done today (incl. iOS-sourced) → no-op. Re-clicking
+      // a completed habit must NEVER award fresh XP nor overwrite the entry.
+      if (habitLog[t]?.[habitId]) return { earnedXp: 0, didLevelUp: false, alreadyDone: true };
+      // ① primary write — habit log with tier (source: web)
       setHabitLog((prev) => {
+        if (prev[t]?.[habitId]) return prev; // defensive: race with another writer
         const day = { ...(prev[t] || {}) };
-        day[habitId] = { tier: tierKey, completedAt: Date.now() };
+        day[habitId] = { tier: tierKey, completedAt: Date.now(), source: "web" };
         return { ...prev, [t]: day };
       });
       // ② mirror to legacy daily_checks (iOS compat)
@@ -156,7 +160,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
       setLastAction({ type: "complete", habitId, tier: tierKey, at: Date.now() });
       return { earnedXp: amount, didLevelUp: result?.didLevelUp || false };
     },
-    [game, mirrorToDailyChecks, setHabitLog]
+    [habitLog, game, mirrorToDailyChecks, setHabitLog]
   );
 
   const uncompleteHabit = useCallback(
@@ -689,9 +693,10 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
   const getDailyStory = useCallback(() => (dailyStory?.date === today ? dailyStory.text : null), [dailyStory, today]);
   const saveDailyStory = useCallback((text) => setDailyStory({ date: today, text }), [setDailyStory, today]);
 
-  // Refresh the persisted streak + observation snapshots once per session
-  // (≈daily). Source of truth stays habitLog; these denormalized caches feed
-  // cross-surface reads and copy generation.
+  // Refresh persisted streak + observation snapshots whenever the log or
+  // active set changes (not just on mount — cloud-pull may arrive later and
+  // R6-Mo1 reported qt_observations stayed empty because the producer fired
+  // once on mount, before today's log was hydrated).
   useEffect(() => {
     const snap = {};
     for (const h of activeHabits) {
@@ -701,7 +706,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     setObservationsCache(getObservations());
     setStreakCache(snap);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeHabits, habitLog]);
 
   // Progress toward the next layer (#3) → { to, pct, eligible, have, need, kind }
   const getGraduationProgress = useCallback((habitId) => {

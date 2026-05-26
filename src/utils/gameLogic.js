@@ -36,16 +36,24 @@ export function getStepXp(step, streak = 0, questType = "daily") {
 export function calculateStreak(lastActiveDate, currentStreak, shieldAvailable = false, useShieldFn = null) {
   if (!lastActiveDate) return 1;
 
-  const last = new Date(lastActiveDate);
-  const today = new Date();
+  // R6-C1: compare on LOCAL date so iOS (Config.todayString, local) and web
+  // (getTodayStr, now local) agree on "today". The earlier UTC variant fixed a
+  // mismatch with the old UTC getTodayStr, but it broke alignment with iOS:
+  // a Pacific user at 19:00 would compute today="2026-05-26" UTC while iOS
+  // wrote habit_log["2026-05-25"] local — so every "completed today" surface
+  // would read an empty bucket.
+  const last = (() => {
+    if (typeof lastActiveDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(lastActiveDate)) {
+      const [y, m, d] = lastActiveDate.split("-").map(Number);
+      return new Date(y, m - 1, d); // local midnight
+    }
+    const d = new Date(lastActiveDate);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
 
-  // 以 UTC 日期为基准比较，与 getTodayStr()（toISOString 取 UTC 日期）保持一致。
-  // 之前用本地午夜归一化，但 lastActive 存的是 UTC 日期串，导致本地午夜～UTC 午夜
-  // 之间（如 UTC+8 的 00:00–08:00）同日完成被误判为"连续一天"，连签虚增。
-  const lastUTC = Date.UTC(last.getUTCFullYear(), last.getUTCMonth(), last.getUTCDate());
-  const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
-
-  const diffDays = Math.round((todayUTC - lastUTC) / (1000 * 60 * 60 * 24));
+  const diffDays = Math.round((today - last) / (1000 * 60 * 60 * 24));
 
   // ID-03 修复：未来日期（设备时钟/时区异常导致 lastActive 晚于今天）视为"同日"，不扣连签
   if (diffDays < 0) return currentStreak;
@@ -64,9 +72,14 @@ export function calculateStreak(lastActiveDate, currentStreak, shieldAvailable =
   return Math.max(0, currentStreak - penalty);
 }
 
-// ── 今天的日期字符串 ──
+// ── 今天的日期字符串 (LOCAL date, YYYY-MM-DD) ──
+// R6-C1: switched from toISOString() (UTC) to local-calendar date so iOS
+// widgets (which write yyyy-MM-dd via DateFormatter in local time) and the
+// web compute the same "today" key. Both surfaces now read/write the same
+// bucket — no more 0/5-vs-4/5 disagreements at UTC-boundary hours.
 export function getTodayStr() {
-  return new Date().toISOString().split("T")[0];
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 // ── 生成唯一 ID ──

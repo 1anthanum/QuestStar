@@ -14,7 +14,9 @@ import { useHabitSystem } from "../../src/hooks/useHabitSystem.js";
 
 beforeEach(() => window.localStorage.clear());
 
-const today = new Date().toISOString().split("T")[0];
+// R6-C1: code now uses LOCAL date keys (matching iOS) — tests follow suit.
+const localKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const today = localKey();
 
 // Minimal fake game with addXP capturing calls
 function makeGame() {
@@ -144,7 +146,7 @@ function seedLog(habitId, days) {
   for (let i = 0; i < days; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const key = d.toISOString().split("T")[0];
+    const key = localKey(d);
     log[key] = { [habitId]: { tier: "M", completedAt: 0 } };
   }
   return log;
@@ -178,7 +180,7 @@ describe("useHabitSystem — auto-archive (Phase 2)", () => {
     for (let i = 0; i < 14; i++) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      log[d.toISOString().split("T")[0]] = { otherHabit: { tier: "L", completedAt: 0 } };
+      log[localKey(d)] = { otherHabit: { tier: "L", completedAt: 0 } };
     }
     window.localStorage.setItem("qt_habit_log", JSON.stringify(log));
     window.localStorage.setItem("qt_habit_active", JSON.stringify([

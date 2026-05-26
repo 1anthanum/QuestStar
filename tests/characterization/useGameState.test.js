@@ -21,7 +21,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useGameState } from "../../src/hooks/useGameState.js";
 
-const today = new Date().toISOString().split("T")[0];
+// R6-C1: code now uses LOCAL date keys — tests follow suit.
+const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
 const easyStep = (text) => ({ text, difficulty: "easy" });
 
 beforeEach(() => window.localStorage.clear());
