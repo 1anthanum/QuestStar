@@ -964,6 +964,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           fixedDone={fixedDone}
           habitsInBlock={habitsBySlot[block.id] || []}
           habits={habits}
+          onCompleteHabit={tryCompleteHabit}
           energyMode={energyMode}
           energy={energy}
           status={blockStatus(block.id)}
@@ -1002,6 +1003,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
               fixedDone={fixedDone}
               habitsInBlock={habitsBySlot[block.id] || []}
               habits={habits}
+              onCompleteHabit={tryCompleteHabit}
               energyMode={energyMode}
               energy={energy}
               status={state}
@@ -1461,6 +1463,19 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
             </button>
           ))}
         </div>
+
+        {/* Discovery hint — Rest Day + extras live in the More sheet (R11-N2) */}
+        {!habits.todayMeta.restDay && (
+          <button
+            onClick={() => setShowMore(true)}
+            className="mt-2 text-[10.5px] text-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-1 w-full py-1"
+            title={t("habit.moreHint.tip")}
+          >
+            <span>🛌</span>
+            <span>{t("habit.moreHint")}</span>
+            <Icon name="more" size={12} />
+          </button>
+        )}
       </div>
 
 

@@ -23,6 +23,7 @@ export default function TimeBlockSection({
   fixedDone,        // { fixedId: true }
   habitsInBlock,    // [{ habitId, layer, done, ... }] assigned to this block
   habits,           // useHabitSystem instance (for tier/rate lookups + actions)
+  onCompleteHabit,  // optional wrapper that toasts on alreadyDone (R12); falls back to habits.completeHabit
   energyMode,
   energy,           // full 4-dim energy object (for dependency gating)
   status = "future", // "past" | "now" | "future" relative to the clock
@@ -122,7 +123,7 @@ export default function TimeBlockSection({
                   completionRate={habits.getCompletionRate(h.habitId, 28).rate}
                   energyMode={energyMode}
                   energy={energy}
-                  onComplete={habits.completeHabit}
+                  onComplete={onCompleteHabit || habits.completeHabit}
                   onUncomplete={habits.uncompleteHabit}
                   onSkip={habits.skipHabit}
                   onCustomize={(id) => habits._onCustomize?.(id)}
