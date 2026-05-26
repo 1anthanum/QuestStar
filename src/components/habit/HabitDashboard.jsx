@@ -69,6 +69,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [briefingDismissed, setBriefingDismissed] = useState(false);
   const [hoveredDot, setHoveredDot] = useState(null); // R6-M2: dot's inline hover label
   const [hoveredCell, setHoveredCell] = useState(null); // R6-M2: rhythm cell's inline hover label
+  const [autoAddedToast, setAutoAddedToast] = useState(null); // R8: "added to {block} · Change?" after one-click suggestion add
   const [signalIdx, setSignalIdx] = useState(0);
   const [showMore, setShowMore] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
@@ -110,6 +111,13 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [habits.combo?.at]);
+
+  // Auto-dismiss the "added to {block}" toast (one-click suggestion add)
+  useEffect(() => {
+    if (!autoAddedToast) return undefined;
+    const tm = setTimeout(() => setAutoAddedToast(null), 4500);
+    return () => clearTimeout(tm);
+  }, [autoAddedToast]);
 
   // Undo toast — appears after a complete/skip, auto-dismisses
   useEffect(() => {
@@ -644,13 +652,29 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
               const reasonKey = !socialOk && HABIT_CATEGORIES[h.category]?.track === "recovery"
                 ? "habit.suggest.becauseLowEnergy"
                 : (h.suggestedLayer || 3) === 1 ? "habit.suggest.becauseCore" : "habit.suggest.becauseStart";
+              // Auto-match the slot: prefer the catalog's natural timeSlot if it's
+              // in the user's schedule, otherwise fall back to the current block.
+              const autoSlot = (() => {
+                const sched = habits.schedule || [];
+                if (h.timeSlot && sched.some((b) => b.id === h.timeSlot)) return h.timeSlot;
+                if (currentBlockId && sched.some((b) => b.id === currentBlockId)) return currentBlockId;
+                return "upper_morning";
+              })();
+              const autoBlk = habits.schedule?.find?.((b) => b.id === autoSlot);
+              const autoBlkLabel = autoBlk ? (lang === "zh" ? autoBlk.label : autoBlk.labelEn || autoBlk.label) : autoSlot;
               return (
                 <div key={h.id} className="shrink-0 w-40 rounded-xl bg-gray-50 p-3">
                   <div className="text-xl mb-1">{icon}</div>
                   <div className="text-[12px] font-bold text-gray-700 truncate">{name}</div>
-                  <div className="text-[9.5px] text-gray-400 mb-2 leading-tight truncate">{t(reasonKey)}</div>
+                  <div className="text-[9.5px] text-gray-400 mb-1 leading-tight truncate">{t(reasonKey)}</div>
+                  <div className="text-[9px] font-bold mb-2 truncate" style={{ color: accent }} title={t("habit.suggest.autoMatchTip")}>
+                    → {autoBlkLabel}
+                  </div>
                   <button
-                    onClick={() => setAddingSuggestion(h)}
+                    onClick={() => {
+                      const res = habits.activateHabit(h.id, h.suggestedLayer || 3, { timeSlot: autoSlot });
+                      if (res?.ok !== false) setAutoAddedToast({ habit: h, blockLabel: autoBlkLabel });
+                    }}
                     className="w-full py-1.5 rounded-lg text-[11px] font-bold text-white"
                     style={{ background: accent }}
                   >
@@ -958,6 +982,24 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           </div>
         );
       })()}
+
+      {/* Suggestion auto-add toast — confirms placement + offers a quick override */}
+      {autoAddedToast && (
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-20 z-[55] animate-fade-in">
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-gray-900 text-white shadow-lg">
+            <span className="text-[12px]">✓</span>
+            <span className="text-[12px] font-semibold">
+              {t("habit.suggest.addedTo", { name: lang === "zh" ? autoAddedToast.habit.name : autoAddedToast.habit.nameEn || autoAddedToast.habit.name, block: autoAddedToast.blockLabel })}
+            </span>
+            <button
+              onClick={() => { setAddingSuggestion(autoAddedToast.habit); setAutoAddedToast(null); }}
+              className="text-[11px] font-bold px-2 py-1 rounded-full bg-white/15 hover:bg-white/25 transition-colors"
+            >
+              {t("habit.suggest.change")}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Undo toast */}
       {undoToast && (
