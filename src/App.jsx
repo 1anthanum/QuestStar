@@ -43,6 +43,9 @@ import { XpPopup, LevelUpOverlay, QuestCompleteOverlay } from "./components/Cele
 import { APP_MODES } from "./utils/constants";
 import { useStepCompletionChain } from "./hooks/useStepCompletionChain";
 import { useModalManager } from "./hooks/useModalManager";
+import { useCelebrationOverlays } from "./hooks/useCelebrationOverlays";
+import { useTransientOverlays } from "./hooks/useTransientOverlays";
+import { useQuestNavigation } from "./hooks/useQuestNavigation";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { lazy, Suspense } from "react";
 import { useHabitSystem } from "./hooks/useHabitSystem";
@@ -99,8 +102,6 @@ export default function App() {
   const vem = useVEMSync();
   const copilot = useCopilot({ game, rewards, energy, appMode, ai, lang, habits });
 
-  const [microFeedback, setMicroFeedback] = useState(null);
-
   // ── Mode-based quest filtering ──
   const modePrefix = APP_MODES[appMode]?.tagPrefix || "Stage ";
   const displayQuests = game.quests.filter(q => !q.tag || q.tag.startsWith(modePrefix));
@@ -115,14 +116,25 @@ export default function App() {
   const launcher = useSmartLauncher(displayQuests, energy.profile, vem.dailySummary?.vitality);
   const parallelTracks = useParallelTracks(displayQuests);
 
-  const [activeQuestId, setActiveQuestId] = useState(null);
-  const [browseSlot, setBrowseSlot] = useState(null); // time slot to drop a habit into (Life browse)
-  const [view, setView] = useState("board"); // "board" | "detail"
-  const [loreDrop, setLoreDrop] = useState(null);
-  const [surprisePopup, setSurprisePopup] = useState(null);
-  const [stepGuide, setStepGuide] = useState(null);
-  const [hyperfocusQuest, setHyperfocusQuest] = useState(null);
-  const [flyingXp, setFlyingXp] = useState(null);
+  // ── Navigation: board ↔ detail + active quest (R12 split out of App.jsx) ──
+  const {
+    activeQuestId, setActiveQuestId,
+    view, setView,
+    selectQuest: handleSelectQuest,
+    deleteQuest: handleDeleteQuest,
+  } = useQuestNavigation({ game });
+
+  // ── Transient overlays + handleStepBurst (R12 split) ──
+  const {
+    surprisePopup, setSurprisePopup,
+    loreDrop, setLoreDrop,
+    stepGuide, setStepGuide,
+    hyperfocusQuest, setHyperfocusQuest,
+    flyingXp, setFlyingXp,
+    microFeedback, setMicroFeedback,
+    browseSlot, setBrowseSlot,
+    handleStepBurst,
+  } = useTransientOverlays();
 
   // Deadline reminder system
   useDeadlineReminder(game.quests);
@@ -132,29 +144,16 @@ export default function App() {
   // Enforce pact deadline on app load
   useEffect(() => { pact.enforcePactDeadline(); }, []);
 
-  // Celebration states
-  const [xpPopup, setXpPopup] = useState({ visible: false, amount: 0 });
-  const [levelUpOverlay, setLevelUpOverlay] = useState(null);
-  const [questCompleteOverlay, setQuestCompleteOverlay] = useState(null);
+  // ── Celebrations: XP popup + level-up + quest-complete (R12 split) ──
+  const {
+    xpPopup,
+    showXpGain,
+    levelUpOverlay, setLevelUpOverlay,
+    questCompleteOverlay, setQuestCompleteOverlay,
+  } = useCelebrationOverlays();
 
   const activeQuest = game.quests.find((q) => q.id === activeQuestId);
   const nextStep = activeQuest?.steps.find((s) => !s.done);
-
-  const showXpGain = useCallback((amount) => {
-    setXpPopup({ visible: true, amount });
-    setTimeout(() => setXpPopup({ visible: false, amount: 0 }), 1500);
-    // Trigger XP bar absorption pulse
-    const bar = document.querySelector("[data-xp-bar]");
-    if (bar) { bar.classList.add("xp-absorb"); setTimeout(() => bar.classList.remove("xp-absorb"), 600); }
-  }, []);
-
-  const handleStepBurst = useCallback(({ x, y, amount }) => {
-    const bar = document.querySelector("[data-xp-bar]");
-    if (bar && amount > 0) {
-      const rect = bar.getBoundingClientRect();
-      setFlyingXp({ fromX: x, fromY: y, toX: rect.left + rect.width / 2, toY: rect.top + rect.height / 2, amount });
-    }
-  }, []);
 
   // Reward chain orchestration (extracted to dedicated hook for testability + clarity).
   // Fires the 9-step animation/effect cascade when a step is completed.
@@ -212,22 +211,6 @@ export default function App() {
     },
     [setReflections]
   );
-
-  const handleDeleteQuest = useCallback(
-    (questId) => {
-      game.deleteQuest(questId);
-      if (activeQuestId === questId) {
-        setActiveQuestId(null);
-        setView("board");
-      }
-    },
-    [game, activeQuestId]
-  );
-
-  const handleSelectQuest = useCallback((id) => {
-    setActiveQuestId(id);
-    setView("detail");
-  }, []);
 
   const { theme } = themeCtx;
 
