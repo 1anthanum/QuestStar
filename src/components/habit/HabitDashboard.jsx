@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { useDrag } from "@use-gesture/react";
+import confetti from "canvas-confetti";
 import { SPRING_POP, SPRING_SOFT } from "../../utils/motion";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
@@ -35,6 +37,7 @@ import { ENERGY_DIMENSIONS, energyColor, deriveEnergyMode, defaultEnergy, energy
 export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests = [], onPlanDay, onEndDay, onBrowse, onOpenCopilot, onGoStudy, onMakeQuest }) {
   const { t, lang } = useLanguage();
   const accent = theme?.accent || "#6366f1";
+  const reduce = useReducedMotion();
 
   const [tierEditorId, setTierEditorId] = useState(null);
   const [showReview, setShowReview] = useState(false);
@@ -72,6 +75,9 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [autoAddedToast, setAutoAddedToast] = useState(null); // R8: "added to {block} · Change?" after one-click suggestion add
   const [alreadyDoneToast, setAlreadyDoneToast] = useState(null); // R9-P1: feedback when completeHabit's alreadyDone guard fires
   const [dotDetail, setDotDetail] = useState(null); // R9-P3: clicked identity-dot detail popover
+  const [focusRadial, setFocusRadial] = useState(false); // R10: long-press radial menu on the pinned focus button
+  const focusLpTimer = useRef(null);
+  const focusLpFired = useRef(false);
   const [signalIdx, setSignalIdx] = useState(0);
   const [showMore, setShowMore] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
@@ -334,12 +340,21 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     return `${accent}${a}`;
   };
 
-  // #2 Perfect Day — all flexible done → one-time +20 XP + gold flash
+  // #2 Perfect Day — all flexible done → one-time +20 XP + gold flash + confetti
   useEffect(() => {
     if (progress.total > 0 && progress.completed === progress.total) {
       const res = habits.awardPerfectDayIfDone?.();
       // Mo3: when Perfect Day fires, fold the per-habit "+N XP" into the gold overlay
-      if (res) { setXpFloat(null); setPerfectFlash(res); setTimeout(() => setPerfectFlash(false), 2600); }
+      if (res) {
+        setXpFloat(null);
+        setPerfectFlash(res);
+        setTimeout(() => setPerfectFlash(false), 2600);
+        // R10: celebration with weight — two staggered confetti bursts (R10-skip under reduced-motion)
+        if (!reduce) {
+          confetti({ particleCount: 90, spread: 80, origin: { y: 0.55 }, scalar: 0.9, ticks: 220, colors: ["#f59e0b", "#fbbf24", "#10b981", "#6366f1", "#ec4899"] });
+          setTimeout(() => confetti({ particleCount: 50, spread: 130, origin: { y: 0.5 }, scalar: 0.7, ticks: 180, colors: ["#f59e0b", "#fde68a", "#a78bfa"] }), 220);
+        }
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progress.completed, progress.total]);
@@ -367,6 +382,30 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const focusTierReasonKey = focus
     ? (focusTier !== focusRecTier ? "habit.focus.tierEnergy" : focus.customTiers ? "habit.focus.tierCustom" : "habit.focus.tierDefault")
     : null;
+
+  // R10: long-press the pinned button → radial menu (L/M/H/skip). 450ms hold
+  // with movement < 8px opens it; a quick tap still completes at focusTier.
+  const bindFocusLongPress = useDrag(
+    ({ first, last, movement: [mx, my] }) => {
+      if (first) {
+        focusLpFired.current = false;
+        if (focusLpTimer.current) clearTimeout(focusLpTimer.current);
+        focusLpTimer.current = setTimeout(() => { setFocusRadial(true); focusLpFired.current = true; }, 450);
+      }
+      if (Math.abs(mx) > 8 || Math.abs(my) > 8) {
+        if (focusLpTimer.current) { clearTimeout(focusLpTimer.current); focusLpTimer.current = null; }
+      }
+      if (last && focusLpTimer.current) { clearTimeout(focusLpTimer.current); focusLpTimer.current = null; }
+    },
+    { filterTaps: true, pointer: { touch: true } }
+  );
+
+  const focusRadialItems = focus ? [
+    { id: "L", label: "L", bg: focusRecTier === "L" ? accent : "#f1f5f9", color: focusRecTier === "L" ? "#fff" : "#475569", onClick: () => tryCompleteHabit(focus.habitId, "L", focusName) },
+    { id: "M", label: "M", bg: focusRecTier === "M" ? accent : "#f1f5f9", color: focusRecTier === "M" ? "#fff" : "#475569", onClick: () => tryCompleteHabit(focus.habitId, "M", focusName) },
+    { id: "H", label: "H", bg: focusRecTier === "H" ? accent : "#f1f5f9", color: focusRecTier === "H" ? "#fff" : "#475569", onClick: () => tryCompleteHabit(focus.habitId, "H", focusName) },
+    { id: "skip", label: t("habit.swipe.skip"), bg: "#fff", color: "#94a3b8", onClick: () => habits.skipHabit?.(focus.habitId) },
+  ] : [];
 
   // ── Consolidated "signals" — transient info banners → one rotating strip ──
   const dimMeta = (id) => ENERGY_DIMENSIONS.find((d) => d.id === id);
@@ -854,33 +893,46 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
                 >
                   <span className="text-base">{icon}</span>
                   <span className="flex-1 text-[13px] font-semibold text-gray-700 truncate">{name}</span>
-                  {open ? (
-                    <div className="flex items-center gap-1 shrink-0">
-                      {["L", "M", "H"].map((k) => (
-                        <motion.button
-                          key={k}
-                          onClick={() => { tryCompleteHabit(h.habitId, k, name); setDoNowPick(null); }}
-                          whileTap={{ scale: 0.88 }}
-                          transition={SPRING_POP}
-                          className="text-[11px] font-black w-7 h-7 rounded-full"
-                          style={k === recTier ? { background: theme?.btnGrad || accent, color: "#fff" } : { background: "#fff", color: accent, border: `1px solid ${accent}40` }}
-                        >
-                          {k}
-                        </motion.button>
-                      ))}
-                      <button onClick={() => setDoNowPick(null)} className="text-gray-300 hover:text-gray-500 ml-0.5"><Icon name="close" size={13} /></button>
-                    </div>
-                  ) : (
-                    <motion.button
-                      onClick={() => setDoNowPick(h.habitId)}
-                      whileTap={{ scale: 0.94 }}
-                      transition={SPRING_POP}
-                      className="text-[11px] font-bold px-3 py-1.5 rounded-full text-white shrink-0"
-                      style={{ background: theme?.btnGrad || accent }}
-                    >
-                      {t("habit.doNow.go")} · {recTier}
-                    </motion.button>
-                  )}
+                  <AnimatePresence mode="wait" initial={false}>
+                    {open ? (
+                      <motion.div
+                        key="picker"
+                        initial={{ opacity: 0, scale: 0.88 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.88 }}
+                        transition={SPRING_POP}
+                        className="flex items-center gap-1 shrink-0"
+                      >
+                        {["L", "M", "H"].map((k) => (
+                          <motion.button
+                            key={k}
+                            onClick={() => { tryCompleteHabit(h.habitId, k, name); setDoNowPick(null); }}
+                            whileTap={{ scale: 0.88 }}
+                            transition={SPRING_POP}
+                            className="text-[11px] font-black w-7 h-7 rounded-full"
+                            style={k === recTier ? { background: theme?.btnGrad || accent, color: "#fff" } : { background: "#fff", color: accent, border: `1px solid ${accent}40` }}
+                          >
+                            {k}
+                          </motion.button>
+                        ))}
+                        <button onClick={() => setDoNowPick(null)} className="text-gray-300 hover:text-gray-500 ml-0.5"><Icon name="close" size={13} /></button>
+                      </motion.div>
+                    ) : (
+                      <motion.button
+                        key="doit"
+                        onClick={() => setDoNowPick(h.habitId)}
+                        initial={{ opacity: 0, scale: 0.88 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.88 }}
+                        whileTap={{ scale: 0.94 }}
+                        transition={SPRING_POP}
+                        className="text-[11px] font-bold px-3 py-1.5 rounded-full text-white shrink-0"
+                        style={{ background: theme?.btnGrad || accent }}
+                      >
+                        {t("habit.doNow.go")} · {recTier}
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               );
             })}
@@ -1020,6 +1072,34 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         );
       })()}
 
+      {/* R10: long-press radial menu for the pinned focus button */}
+      {focusRadial && focus && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/25 animate-fade-in" onClick={() => setFocusRadial(false)}>
+          <div className="relative w-48 h-48" onClick={(e) => e.stopPropagation()}>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-16 h-16 rounded-full bg-white shadow-lg flex items-center justify-center text-2xl">{focusIcon}</div>
+            </div>
+            {focusRadialItems.map((it, i) => {
+              const ang = (-90 + i * (360 / focusRadialItems.length)) * (Math.PI / 180);
+              const R = 72;
+              return (
+                <motion.button
+                  key={it.id}
+                  initial={reduce ? { opacity: 0 } : { scale: 0, x: 0, y: 0 }}
+                  animate={reduce ? { opacity: 1 } : { scale: 1, x: Math.cos(ang) * R, y: Math.sin(ang) * R }}
+                  transition={reduce ? { duration: 0 } : { ...SPRING_POP, delay: i * 0.035 }}
+                  onClick={() => { setFocusRadial(false); it.onClick(); }}
+                  className="absolute left-1/2 top-1/2 -ml-7 -mt-7 w-14 h-14 rounded-full shadow-md flex items-center justify-center text-[11px] font-black"
+                  style={{ background: it.bg, color: it.color, border: "1px solid rgba(0,0,0,0.04)" }}
+                >
+                  {it.label}
+                </motion.button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* R9-P3: identity-dot detail card — clicking a completion dot opens
           a tiny popover with full context (habit / date / time / tier). */}
       {dotDetail && (
@@ -1052,7 +1132,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 16 }}
           transition={SPRING_POP}
-          className="fixed left-1/2 -translate-x-1/2 bottom-32 z-[55]"
+          className="fixed bottom-32 z-[55]"
+          style={{ left: "50%", x: "-50%" }}
         >
           <div className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[12px] font-semibold shadow-md">
             <span>✓</span>
@@ -1073,40 +1154,60 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       )}
 
       {/* Suggestion auto-add toast — confirms placement + offers a quick override */}
-      {autoAddedToast && (
-        <div className="fixed left-1/2 -translate-x-1/2 bottom-20 z-[55] animate-fade-in">
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-gray-900 text-white shadow-lg">
-            <span className="text-[12px]">✓</span>
-            <span className="text-[12px] font-semibold">
-              {t("habit.suggest.addedTo", { name: lang === "zh" ? autoAddedToast.habit.name : autoAddedToast.habit.nameEn || autoAddedToast.habit.name, block: autoAddedToast.blockLabel })}
-            </span>
-            <button
-              onClick={() => { setAddingSuggestion(autoAddedToast.habit); setAutoAddedToast(null); }}
-              className="text-[11px] font-bold px-2 py-1 rounded-full bg-white/15 hover:bg-white/25 transition-colors"
-            >
-              {t("habit.suggest.change")}
-            </button>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {autoAddedToast && (
+          <motion.div
+            key="autoAddedToast"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            transition={SPRING_SOFT}
+            className="fixed bottom-20 z-[55]"
+            style={{ left: "50%", x: "-50%" }}
+          >
+            <div className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-gray-900 text-white shadow-lg">
+              <span className="text-[12px]">✓</span>
+              <span className="text-[12px] font-semibold">
+                {t("habit.suggest.addedTo", { name: lang === "zh" ? autoAddedToast.habit.name : autoAddedToast.habit.nameEn || autoAddedToast.habit.name, block: autoAddedToast.blockLabel })}
+              </span>
+              <button
+                onClick={() => { setAddingSuggestion(autoAddedToast.habit); setAutoAddedToast(null); }}
+                className="text-[11px] font-bold px-2 py-1 rounded-full bg-white/15 hover:bg-white/25 transition-colors"
+              >
+                {t("habit.suggest.change")}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Undo toast */}
-      {undoToast && (
-        <div className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[55] animate-fade-in">
-          <div className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-gray-900 text-white shadow-xl">
-            <span className="text-[12.5px] font-semibold">
-              {undoToast.type === "skip" ? t("habit.undoToast.skipped") : t("habit.undoToast.completed")}
-            </span>
-            <button
-              onClick={() => { habits.undoLast(); setUndoToast(null); }}
-              className="text-[12.5px] font-black"
-              style={{ color: theme?.accentLight || "#a5b4fc" }}
-            >
-              ↩ {t("habit.undoToast.undo")}
-            </button>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {undoToast && (
+          <motion.div
+            key="undoToast"
+            initial={{ opacity: 0, y: 24, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 24, scale: 0.95 }}
+            transition={SPRING_POP}
+            className="fixed bottom-6 z-[55]"
+            style={{ left: "50%", x: "-50%" }}
+          >
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-gray-900 text-white shadow-xl">
+              <span className="text-[12.5px] font-semibold">
+                {undoToast.type === "skip" ? t("habit.undoToast.skipped") : t("habit.undoToast.completed")}
+              </span>
+              <button
+                onClick={() => { habits.undoLast(); setUndoToast(null); }}
+                className="text-[12.5px] font-black"
+                style={{ color: theme?.accentLight || "#a5b4fc" }}
+              >
+                ↩ {t("habit.undoToast.undo")}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Floating "+N XP" on completion (#4) */}
       {xpFloat && (
@@ -1197,7 +1298,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     <div className="space-y-3 pb-24" data-skin={skin}>
       {/* Pinned next-up bar — labeled "Next up" (current slot's first remaining),
           distinct from "Just one thing" (easiest). A small caption under the
-          pill always names where the tier came from (R6-Mi1). */}
+          pill always names where the tier came from (R6-Mi1). Long-press the
+          pill (R10) opens a radial L/M/H + skip menu. */}
       {focus && (
         <div className="sticky top-2 z-30 -mx-1">
           <div className="mx-1 flex items-center gap-2 px-3 py-2 rounded-full bg-white/95 backdrop-blur border border-white/70 shadow-md">
@@ -1205,11 +1307,17 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
             <span className="text-base">{focusIcon}</span>
             <span className="flex-1 text-[12.5px] font-bold text-gray-700 truncate">{focusName}</span>
             <motion.button
-              onClick={() => tryCompleteHabit(focus.habitId, focusTier, focusName)}
+              {...bindFocusLongPress()}
+              onClick={(e) => {
+                // Suppress the click that follows a successful long-press release
+                if (focusLpFired.current) { focusLpFired.current = false; e.preventDefault?.(); return; }
+                tryCompleteHabit(focus.habitId, focusTier, focusName);
+              }}
               whileTap={{ scale: 0.94 }}
               transition={SPRING_POP}
-              className="shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full text-white"
-              style={{ background: theme?.btnGrad || accent }}
+              className="shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full text-white select-none"
+              style={{ background: theme?.btnGrad || accent, touchAction: "manipulation" }}
+              title={t("habit.focus.longPressHint")}
             >
               {t("habit.doNow.go")} · {focusTier}{focusTier !== focusRecTier ? " ↓" : ""}
             </motion.button>
