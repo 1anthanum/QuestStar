@@ -16,6 +16,9 @@ import PRNToolbox from "./PRNToolbox";
 import PastDaysModal from "./PastDaysModal";
 import JustOneThing from "./JustOneThing";
 import DailyBriefingModal from "./DailyBriefingModal";
+import SunMascot from "./SunMascot";
+import HabitGarden from "./HabitGarden";
+import { useLivingWorld } from "../../hooks/useLivingWorld";
 import ReminderSettings from "./ReminderSettings";
 import BodyScanModal from "./BodyScanModal";
 import BodyDoubling from "./BodyDoubling";
@@ -55,6 +58,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [oneThing, setOneThing] = useState(null); // null | "normal" | "gentle"
   const [showBriefing, setShowBriefing] = useState(false); // first-login AI daily briefing
   const briefingAutoTried = useRef(false);
+  const [showGarden, setShowGarden] = useState(false); // Phase 1 Living World — 花园
   const [coreOnly, setCoreOnly] = useState(false);
   const [layout, setLayout] = useLocalStorage("qt_life_layout", "stacked"); // stacked | split | todoFirst | focus
   const [skin, setSkin] = useLocalStorage("qt_life_skin", "soft"); // soft | glass | aurora | vivid | outline
@@ -595,6 +599,9 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     }
   };
   const observations = habits.getObservations?.() || [];
+
+  // ── Living World (Phase 1) — sun + garden derivations ──
+  const livingWorld = useLivingWorld({ habits, perfectFlash: !!perfectFlash });
   const observationsStrip = observations.length > 0 ? (
     <div className="rounded-2xl px-4 py-2.5" style={{ background: `${accent}08` }}>
       <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">📊 {t("obs.title")}</div>
@@ -1270,6 +1277,17 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         />
       )}
 
+      {/* Living World — full garden view */}
+      {showGarden && (
+        <HabitGarden
+          world={livingWorld}
+          habits={habits}
+          theme={theme}
+          lang={lang}
+          onClose={() => setShowGarden(false)}
+        />
+      )}
+
       {/* Energy re-assess modal */}
       {showEnergy && (
         <EnergyQuickModal
@@ -1310,6 +1328,17 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
 
   return (
     <div className="space-y-3 pb-24" data-skin={skin}>
+      {/* Living World Phase 1 — your sun, persistent in the corner */}
+      <SunMascot
+        world={livingWorld}
+        identity={habits.identity}
+        weekActions={weekActions}
+        topObservation={observations[0] ? formatObservation(observations[0]) : null}
+        completed={progress.completed}
+        total={progress.total}
+        theme={theme}
+      />
+
       {/* Pinned next-up bar — labeled "Next up" (current slot's first remaining),
           distinct from "Just one thing" (easiest). A small caption under the
           pill always names where the tier came from (R6-Mi1). Long-press the
@@ -1558,6 +1587,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
             <div className="grid grid-cols-4 gap-3">
               {[
                 { icon: "bed", label: t("habit.restDay"), act: habits.toggleRestDay, active: !!habits.todayMeta.restDay, dismissAfter: false },
+                { icon: "sprout", label: t("garden.title"), act: () => setShowGarden(true) },
                 { icon: "browse", label: t("habit.browse"), act: onBrowse },
                 { icon: "tools", label: t("habit.prn"), act: () => setShowPRN(true) },
                 { icon: "users", label: t("habit.bodyDouble.title"), act: () => setShowBodyDouble(true) },
