@@ -166,6 +166,8 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
   const uncompleteHabit = useCallback(
     (habitId) => {
       const t = todayStr();
+      const entry = habitLog[t]?.[habitId];
+      if (!entry) return;
       setHabitLog((prev) => {
         if (!prev[t] || !prev[t][habitId]) return prev;
         const day = { ...prev[t] };
@@ -173,9 +175,16 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
         return { ...prev, [t]: day };
       });
       mirrorToDailyChecks(habitId, false);
-      // XP is not clawed back (matches quest behavior)
+      // R9-P4: refund the XP that was actually web-awarded. iOS-sourced
+      // entries were never added to the web XP counter, so leaving those
+      // alone keeps the totals honest.
+      const fromWeb = entry.source === "web" || !entry.source;
+      if (fromWeb && entry.tier) {
+        const amount = HABIT_XP[entry.tier] ?? HABIT_XP.M;
+        game?.subtractXP?.(amount, "habit-undo");
+      }
     },
-    [mirrorToDailyChecks, setHabitLog]
+    [habitLog, game, mirrorToDailyChecks, setHabitLog]
   );
 
   const skipHabit = useCallback(

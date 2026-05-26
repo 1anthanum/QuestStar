@@ -186,6 +186,19 @@ export function useGameState() {
     [xp, setXp]
   );
 
+  // R9-P4: refund path. Subtract XP (clamped at 0) when an action is undone.
+  // addXP rejects non-positive amounts so we need a dedicated subtract.
+  const subtractXP = useCallback(
+    (amount, source = "refund") => {
+      const safeAmount = Number(amount) || 0;
+      if (safeAmount <= 0) return { refundedXp: 0, source };
+      const newXp = Math.max(0, xp - safeAmount);
+      setXp(newXp);
+      return { refundedXp: xp - newXp, source };
+    },
+    [xp, setXp]
+  );
+
   // ── 重置所有数据 ──
   const resetAll = useCallback(() => {
     setQuests([]);
@@ -204,6 +217,7 @@ export function useGameState() {
     completedSteps,
     toggleStep,
     addXP,
+    subtractXP,
     addQuest,
     updateQuest,
     deleteQuest,

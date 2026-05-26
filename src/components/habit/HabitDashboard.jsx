@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { motion } from "framer-motion";
-import { SPRING_POP } from "../../utils/motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { SPRING_POP, SPRING_SOFT } from "../../utils/motion";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { generateMorningBriefing } from "../../utils/aiService";
@@ -70,6 +70,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [hoveredDot, setHoveredDot] = useState(null); // R6-M2: dot's inline hover label
   const [hoveredCell, setHoveredCell] = useState(null); // R6-M2: rhythm cell's inline hover label
   const [autoAddedToast, setAutoAddedToast] = useState(null); // R8: "added to {block} · Change?" after one-click suggestion add
+  const [alreadyDoneToast, setAlreadyDoneToast] = useState(null); // R9-P1: feedback when completeHabit's alreadyDone guard fires
+  const [dotDetail, setDotDetail] = useState(null); // R9-P3: clicked identity-dot detail popover
   const [signalIdx, setSignalIdx] = useState(0);
   const [showMore, setShowMore] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
@@ -118,6 +120,26 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     const tm = setTimeout(() => setAutoAddedToast(null), 4500);
     return () => clearTimeout(tm);
   }, [autoAddedToast]);
+
+  // Auto-dismiss the "already done" toast (R9-P1)
+  useEffect(() => {
+    if (!alreadyDoneToast) return undefined;
+    const tm = setTimeout(() => setAlreadyDoneToast(null), 3200);
+    return () => clearTimeout(tm);
+  }, [alreadyDoneToast]);
+
+  // R9-P1: shared helper so every "complete" call site shows the same feedback
+  // when the alreadyDone guard fires (instead of looking like a dead click).
+  const tryCompleteHabit = (habitId, tier, name) => {
+    const res = habits.completeHabit(habitId, tier);
+    if (res?.alreadyDone) {
+      const cat = getHabitById(habitId);
+      const fallbackName = name || (cat ? (lang === "zh" ? cat.name : cat.nameEn || cat.name) : habitId);
+      const entry = habits.habitLog?.[todayKeyLocal()]?.[habitId];
+      setAlreadyDoneToast({ habitId, name: fallbackName, source: entry?.source || null, tier: entry?.tier || null });
+    }
+    return res;
+  };
 
   // Undo toast — appears after a complete/skip, auto-dismisses
   useEffect(() => {
@@ -441,18 +463,19 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
                   const dotColor = habits.getHabitColor?.(a.habitId) || accent;
                   const tip = `${nameOfHabit(a.habitId)} · ${a.date}${a.completedAt ? " · " + fmtActionTime(a.completedAt) : ""}`;
                   return (
-                    <motion.span
+                    <motion.button
                       key={`${a.date}-${a.habitId}-${i}`}
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: hoveredDot === i ? 1.8 : 1, opacity: 1 }}
                       transition={{ ...SPRING_POP, delay: Math.min(i * 0.018, 0.5) }}
+                      whileTap={{ scale: 1.3 }}
                       onMouseEnter={() => setHoveredDot(i)}
                       onMouseLeave={() => setHoveredDot((cur) => (cur === i ? null : cur))}
                       onFocus={() => setHoveredDot(i)}
                       onBlur={() => setHoveredDot((cur) => (cur === i ? null : cur))}
-                      tabIndex={0}
+                      onClick={() => setDotDetail({ ...a, color: dotColor, name: nameOfHabit(a.habitId), icon: HABIT_CATEGORIES[getHabitById(a.habitId)?.category]?.icon || "◆" })}
                       aria-label={tip}
-                      className="w-2.5 h-2.5 rounded-full cursor-pointer outline-none"
+                      className="w-2.5 h-2.5 rounded-full cursor-pointer outline-none border-0 p-0"
                       style={{ background: dotColor, boxShadow: `0 1px 4px ${dotColor}66` }}
                     />
                   );
@@ -812,6 +835,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           <p className="text-[12px] text-gray-500 py-1">{t("habit.doNow.empty")}</p>
         ) : (
           <div className="space-y-1.5">
+            <AnimatePresence mode="popLayout" initial={false}>
             {doNow.map((h) => {
               const cat = getHabitById(h.habitId);
               const name = cat ? (lang === "zh" ? cat.name : cat.nameEn || cat.name) : h.habitId;
@@ -819,35 +843,48 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
               const recTier = capTierByEnergy(h.recommendedTier || "M", energy);
               const open = doNowPick === h.habitId;
               return (
-                <div key={h.habitId} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-gray-50">
+                <motion.div
+                  key={h.habitId}
+                  layout
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: 28, scale: 0.96, transition: { duration: 0.22 } }}
+                  transition={SPRING_SOFT}
+                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-gray-50"
+                >
                   <span className="text-base">{icon}</span>
                   <span className="flex-1 text-[13px] font-semibold text-gray-700 truncate">{name}</span>
                   {open ? (
                     <div className="flex items-center gap-1 shrink-0">
                       {["L", "M", "H"].map((k) => (
-                        <button
+                        <motion.button
                           key={k}
-                          onClick={() => { habits.completeHabit(h.habitId, k); setDoNowPick(null); }}
-                          className="text-[11px] font-black w-7 h-7 rounded-full transition-all"
+                          onClick={() => { tryCompleteHabit(h.habitId, k, name); setDoNowPick(null); }}
+                          whileTap={{ scale: 0.88 }}
+                          transition={SPRING_POP}
+                          className="text-[11px] font-black w-7 h-7 rounded-full"
                           style={k === recTier ? { background: theme?.btnGrad || accent, color: "#fff" } : { background: "#fff", color: accent, border: `1px solid ${accent}40` }}
                         >
                           {k}
-                        </button>
+                        </motion.button>
                       ))}
                       <button onClick={() => setDoNowPick(null)} className="text-gray-300 hover:text-gray-500 ml-0.5"><Icon name="close" size={13} /></button>
                     </div>
                   ) : (
-                    <button
+                    <motion.button
                       onClick={() => setDoNowPick(h.habitId)}
+                      whileTap={{ scale: 0.94 }}
+                      transition={SPRING_POP}
                       className="text-[11px] font-bold px-3 py-1.5 rounded-full text-white shrink-0"
                       style={{ background: theme?.btnGrad || accent }}
                     >
                       {t("habit.doNow.go")} · {recTier}
-                    </button>
+                    </motion.button>
                   )}
-                </div>
+                </motion.div>
               );
             })}
+            </AnimatePresence>
           </div>
         )}
       </div>
@@ -983,6 +1020,58 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         );
       })()}
 
+      {/* R9-P3: identity-dot detail card — clicking a completion dot opens
+          a tiny popover with full context (habit / date / time / tier). */}
+      {dotDetail && (
+        <div className="fixed inset-0 z-[58] flex items-center justify-center bg-black/25 animate-fade-in" onClick={() => setDotDetail(null)}>
+          <motion.div
+            initial={{ scale: 0.85, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={SPRING_POP}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl px-5 py-4 shadow-2xl flex items-center gap-3 max-w-xs"
+          >
+            <span className="w-4 h-4 rounded-full shrink-0" style={{ background: dotDetail.color, boxShadow: `0 1px 6px ${dotDetail.color}88` }} />
+            <span className="text-2xl shrink-0">{dotDetail.icon}</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13.5px] font-black text-gray-800 truncate">{dotDetail.name}</div>
+              <div className="text-[11px] text-gray-500 tabular-nums">
+                {dotDetail.date}{dotDetail.completedAt ? ` · ${fmtActionTime(dotDetail.completedAt)}` : ""}{dotDetail.tier ? ` · ${dotDetail.tier}` : ""}
+              </div>
+            </div>
+            <button onClick={() => setDotDetail(null)} className="text-gray-400 hover:text-gray-600 shrink-0"><Icon name="close" size={14} /></button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* "Already done" toast — R9-P1: visible feedback when the alreadyDone
+          guard fires so a click never looks like a dead click. Offers Undo. */}
+      {alreadyDoneToast && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 16 }}
+          transition={SPRING_POP}
+          className="fixed left-1/2 -translate-x-1/2 bottom-32 z-[55]"
+        >
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[12px] font-semibold shadow-md">
+            <span>✓</span>
+            <span>
+              {t(alreadyDoneToast.source === "ios" ? "habit.alreadyDone.ios" : "habit.alreadyDone.web", { name: alreadyDoneToast.name })}
+            </span>
+            <button
+              onClick={() => {
+                habits.uncompleteHabit?.(alreadyDoneToast.habitId);
+                setAlreadyDoneToast(null);
+              }}
+              className="text-[11px] font-bold px-2 py-1 rounded-full bg-white hover:bg-amber-100 transition-colors"
+            >
+              ↩ {t("habit.alreadyDone.undo")}
+            </button>
+          </div>
+        </motion.div>
+      )}
+
       {/* Suggestion auto-add toast — confirms placement + offers a quick override */}
       {autoAddedToast && (
         <div className="fixed left-1/2 -translate-x-1/2 bottom-20 z-[55] animate-fade-in">
@@ -1115,13 +1204,15 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
             <span className="text-[9px] font-bold uppercase tracking-wide text-gray-400 shrink-0">{t("habit.focus.nextUp")}</span>
             <span className="text-base">{focusIcon}</span>
             <span className="flex-1 text-[12.5px] font-bold text-gray-700 truncate">{focusName}</span>
-            <button
-              onClick={() => habits.completeHabit(focus.habitId, focusTier)}
+            <motion.button
+              onClick={() => tryCompleteHabit(focus.habitId, focusTier, focusName)}
+              whileTap={{ scale: 0.94 }}
+              transition={SPRING_POP}
               className="shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full text-white"
               style={{ background: theme?.btnGrad || accent }}
             >
               {t("habit.doNow.go")} · {focusTier}{focusTier !== focusRecTier ? " ↓" : ""}
-            </button>
+            </motion.button>
           </div>
           {/* Visible tier-source caption (R6-Mi1) — always names the rule */}
           {focusTierReasonKey && (
@@ -1166,7 +1257,18 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         <div className="flex items-center gap-4 mb-3">
           <ProgressRing progress={totalPct / 100} size={72} stroke={5} accentColor={accent} id="lifeHeroRing">
             <div className="text-center leading-none">
-              <div className="text-[16px] font-black text-gray-800">{totalPct}%</div>
+              <AnimatePresence mode="popLayout">
+                <motion.div
+                  key={totalPct}
+                  initial={{ opacity: 0, scale: 0.7, y: -6 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.7, y: 6 }}
+                  transition={SPRING_POP}
+                  className="text-[16px] font-black text-gray-800"
+                >
+                  {totalPct}%
+                </motion.div>
+              </AnimatePresence>
             </div>
           </ProgressRing>
           <div className="flex-1 min-w-0">

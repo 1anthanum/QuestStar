@@ -11,3 +11,13 @@ playwright-report
 
 # 中文文档（本地参考，不入库）
 docs-CN/
+
+# 用户的本地 UX 测试笔记 / 设计草稿（不入库；多次被 git add -A 误扫，需要每次手动 reset）
+UX_TEST_*.md
+UX_DESIGN_*.md
+TESTING_HANDOFF.md
+BEHAVIOR_SPEC.md
+DEPENDENCIES.md
+E2E_COVERAGE.md
+INVENTORY.md
+ISSUES.md
