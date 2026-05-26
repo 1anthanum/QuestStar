@@ -71,6 +71,10 @@ export default function MorningPlanningModal({ habits, onClose, theme }) {
     if (ni < steps.length) setStep(steps[ni]);
     else finish();
   };
+  const back = () => {
+    const pi = stepIdx - 1;
+    if (pi >= 0) setStep(steps[pi]);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
@@ -245,14 +249,24 @@ export default function MorningPlanningModal({ habits, onClose, theme }) {
           </div>
         )}
 
-        {/* Footer */}
-        <button
-          onClick={next}
-          className="w-full mt-6 py-3 rounded-2xl text-sm font-black text-white"
-          style={{ background: theme?.btnGrad || accent }}
-        >
-          {stepIdx === steps.length - 1 ? t("habit.morning.startDay") : t("habit.next")}
-        </button>
+        {/* Footer — Back (only after step 0) + primary Next/Finish */}
+        <div className="flex gap-2 mt-6">
+          {stepIdx > 0 && (
+            <button
+              onClick={back}
+              className="py-3 px-4 rounded-2xl text-sm font-bold text-gray-600 bg-gray-100 active:scale-95 transition-transform"
+            >
+              ← {t("habit.back")}
+            </button>
+          )}
+          <button
+            onClick={next}
+            className="flex-1 py-3 rounded-2xl text-sm font-black text-white"
+            style={{ background: theme?.btnGrad || accent }}
+          >
+            {stepIdx === steps.length - 1 ? t("habit.morning.startDay") : t("habit.next")}
+          </button>
+        </div>
       </div>
     </div>
   );

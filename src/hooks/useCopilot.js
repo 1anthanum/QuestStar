@@ -125,17 +125,13 @@ const SESSIONS_KEY = "qt_copilot_sessions"; // archived past conversations
 const SESSIONS_CAP = 30; // most-recent 30 archived sessions
 
 export function useCopilot({ game, rewards, energy, appMode, ai, lang, habits = null }) {
+  // ── Hook order note (R11-C1): keep existing hooks at their ORIGINAL
+  //    positions. New hooks added in R11 (sessions / archive / delete) go at
+  //    the end of the hook list to minimize position shifts when shipping
+  //    fresh code into a browser holding the previous bundle in cache. ──
   const [messages, setMessages] = useState(() => {
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [sessions, setSessions] = useState(() => {
-    try {
-      const raw = localStorage.getItem(SESSIONS_KEY);
       return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
@@ -153,15 +149,6 @@ export function useCopilot({ game, rewards, energy, appMode, ai, lang, habits = 
       /* storage full / unavailable — non-fatal */
     }
   }, [messages]);
-
-  // Persist archived sessions
-  useEffect(() => {
-    try {
-      localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions.slice(-SESSIONS_CAP)));
-    } catch {
-      /* non-fatal */
-    }
-  }, [sessions]);
 
   // ── Build dynamic system prompt with user context ──
   const buildSystemPrompt = useCallback(() => {
@@ -409,31 +396,49 @@ Guidelines:
     sendMessage(prompt);
   }, [lang, sendMessage]);
 
-  // ── Archive the current conversation as a session ──
-  // Snapshot { id, title, startedAt, endedAt, messages } into qt_copilot_sessions
-  // so the user can revisit past conversations instead of losing them on clear.
-  const archiveCurrentSession = useCallback(() => {
-    if (!messages.length) return;
-    const firstUser = messages.find((m) => m.role === "user");
-    const rawTitle = firstUser ? String(firstUser.content || "").trim() : "";
-    const title = rawTitle ? rawTitle.slice(0, 60) : "(no title)";
-    const startedAt = messages[0]?.timestamp || Date.now();
-    const endedAt = messages[messages.length - 1]?.timestamp || Date.now();
-    setSessions((prev) => [
-      ...prev.slice(-SESSIONS_CAP + 1),
-      { id: `s-${startedAt}-${endedAt}`, title, startedAt, endedAt, messages: messages.slice() },
-    ]);
-  }, [messages]);
-
   // ── Clear history (archives the current conversation first) ──
+  // Archive logic is INLINED here so this useCallback can stay at its
+  // original hook position. sessions state lives at the end of the hook list
+  // (see below) so the previous hook order is preserved 1:1.
   const clearHistory = useCallback(() => {
-    archiveCurrentSession();
+    if (messages.length) {
+      const firstUser = messages.find((m) => m.role === "user");
+      const rawTitle = firstUser ? String(firstUser.content || "").trim() : "";
+      const title = rawTitle ? rawTitle.slice(0, 60) : "(no title)";
+      const startedAt = messages[0]?.timestamp || Date.now();
+      const endedAt = messages[messages.length - 1]?.timestamp || Date.now();
+      // setSessions is defined below — the closure captures the binding;
+      // by the time this callback fires (user click), the binding is initialized.
+      setSessions((prev) => [
+        ...prev.slice(-SESSIONS_CAP + 1),
+        { id: `s-${startedAt}-${endedAt}`, title, startedAt, endedAt, messages: messages.slice() },
+      ]);
+    }
     setMessages([]);
     setError(null);
     try { localStorage.removeItem(HISTORY_KEY); } catch { /* noop */ }
-  }, [archiveCurrentSession]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
 
-  // ── Delete a specific archived session ──
+  // ── New hooks (R11) — appended at the end to preserve all previous hook
+  //    positions. Order before this point is identical to pre-R11. ──
+  const [sessions, setSessions] = useState(() => {
+    try {
+      const raw = localStorage.getItem(SESSIONS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions.slice(-SESSIONS_CAP)));
+    } catch {
+      /* non-fatal */
+    }
+  }, [sessions]);
+
   const deleteSession = useCallback((sessionId) => {
     setSessions((prev) => prev.filter((s) => s.id !== sessionId));
   }, []);

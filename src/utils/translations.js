@@ -998,6 +998,7 @@ const translations = {
     "habit.morning.tierDetailQ": "These habits use default L/M/H. Customize?",
     "habit.morning.startDay": "Start my day →",
     "habit.next": "Next",
+    "habit.back": "Back",
     "habit.skip": "Skip",
     "habit.keepDefault": "Keep default",
     // Evening check-in
@@ -2343,6 +2344,7 @@ const translations = {
     "habit.morning.tierDetailQ": "这些 habit 还在用默认 L/M/H。要自定义吗？",
     "habit.morning.startDay": "开始今天 →",
     "habit.next": "下一步",
+    "habit.back": "返回",
     "habit.skip": "跳过",
     "habit.keepDefault": "保持默认",
     // Evening check-in

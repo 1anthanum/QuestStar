@@ -544,27 +544,33 @@ export default function App() {
                 </button>
               </>
             )}
-            <button
-              onClick={() => modals.show("RewardPanel")}
-              className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
-              style={{ background: "linear-gradient(135deg, #f59e0b, #ef4444)" }}
-              title={t("reward.title")}
-            >
-              💰 <span className="font-mono">${rewards.wallet.toFixed(0)}</span>
-              {rewards.getAvailableMilestones().length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] flex items-center justify-center animate-pulse">
-                  {rewards.getAvailableMilestones().length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => modals.show("Timeline")}
-              className="text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
-              style={{ background: theme.btnGrad2 }}
-              title={t("timeline.title")}
-            >
-              📅
-            </button>
+            {/* Study-only: wallet + quest deadline timeline hide in Life
+                (Life surfaces rewards / time differently — habit-centric) */}
+            {appMode === "study" && (
+              <>
+                <button
+                  onClick={() => modals.show("RewardPanel")}
+                  className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
+                  style={{ background: "linear-gradient(135deg, #f59e0b, #ef4444)" }}
+                  title={t("reward.title")}
+                >
+                  💰 <span className="font-mono">${rewards.wallet.toFixed(0)}</span>
+                  {rewards.getAvailableMilestones().length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] flex items-center justify-center animate-pulse">
+                      {rewards.getAvailableMilestones().length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => modals.show("Timeline")}
+                  className="text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
+                  style={{ background: theme.btnGrad2 }}
+                  title={t("timeline.title")}
+                >
+                  📅
+                </button>
+              </>
+            )}
             {/* Energy Profile / VEM */}
             <button
               onClick={() => vem.enabled ? modals.show("VEMPanel") : modals.show("EnergyPanel")}
@@ -574,67 +580,76 @@ export default function App() {
             >
               {vem.enabled && vem.dailySummary?.weatherEmoji ? vem.dailySummary.weatherEmoji : energy.currentEnergy.level === "high" ? "⚡" : energy.currentEnergy.level === "low" ? "🌙" : "☀️"}
             </button>
-            {/* Boss Rush */}
-            <button
-              onClick={() => modals.show("BossRush")}
-              className="text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm"
-              style={{ background: "linear-gradient(135deg, #dc2626, #991b1b)" }}
-              title={lang === "zh" ? "Boss 战" : "Boss Rush"}
-            >
-              ⚔️
-            </button>
-            {/* Smart Launcher — "Just This One" */}
-            <button
-              onClick={() => modals.toggle("Launcher")}
-              className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
-              style={{
-                background: modals.isOpen("Launcher")
-                  ? "linear-gradient(135deg, #10b981, #059669)"
-                  : "linear-gradient(135deg, #f59e0b, #ef4444)",
-                boxShadow: launcher.stagnantQuests.length > 0
-                  ? "0 0 12px rgba(239,68,68,0.4)"
-                  : undefined,
-              }}
-              title={lang === "zh" ? "智能启动器" : "Smart Launcher"}
-            >
-              ⚡
-              {launcher.stagnantQuests.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] flex items-center justify-center animate-pulse text-white">
-                  {launcher.stagnantQuests.length}
-                </span>
-              )}
-            </button>
-            <button
-              data-guide="ai-btn"
-              onClick={() => modals.show("AIModal")}
-              className="relative text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
-              style={{ background: theme.btnGrad, boxShadow: `0 4px 14px ${theme.accentGlow}` }}
-            >
-              <span className="relative z-10">{t("app.aiDecompose")}</span>
-              <div className="absolute inset-0 xp-bar-shimmer opacity-20" />
-            </button>
-            <button
-              onClick={() => modals.show("FileModal")}
-              className="text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
-              style={{ background: theme.btnGrad }}
-            >
-              {t("file.title")}
-            </button>
-            <button
-              onClick={() => modals.show("BatchModal")}
-              className="text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
-              style={{ background: theme.btnGrad2 }}
-            >
-              {t("batch.btn")}
-            </button>
-            <button
-              data-guide="manual-btn"
-              onClick={() => modals.show("AddModal")}
-              className="text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
-              style={{ background: theme.btnGrad2 }}
-            >
-              {t("app.manual")}
-            </button>
+            {/* Boss Rush — study only (overdue-quest mechanic) */}
+            {appMode === "study" && (
+              <button
+                onClick={() => modals.show("BossRush")}
+                className="text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm"
+                style={{ background: "linear-gradient(135deg, #dc2626, #991b1b)" }}
+                title={lang === "zh" ? "Boss 战" : "Boss Rush"}
+              >
+                ⚔️
+              </button>
+            )}
+            {/* Study-only: launcher + quest decompose/import/manual — Life
+                creates "habits" via its own browse / suggestion flow, so these
+                quest-creation buttons aren't needed in the Life top bar. */}
+            {appMode === "study" && (
+              <>
+                {/* Smart Launcher — "Just This One" */}
+                <button
+                  onClick={() => modals.toggle("Launcher")}
+                  className="relative text-white font-bold px-4 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
+                  style={{
+                    background: modals.isOpen("Launcher")
+                      ? "linear-gradient(135deg, #10b981, #059669)"
+                      : "linear-gradient(135deg, #f59e0b, #ef4444)",
+                    boxShadow: launcher.stagnantQuests.length > 0
+                      ? "0 0 12px rgba(239,68,68,0.4)"
+                      : undefined,
+                  }}
+                  title={lang === "zh" ? "智能启动器" : "Smart Launcher"}
+                >
+                  ⚡
+                  {launcher.stagnantQuests.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] flex items-center justify-center animate-pulse text-white">
+                      {launcher.stagnantQuests.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  data-guide="ai-btn"
+                  onClick={() => modals.show("AIModal")}
+                  className="relative text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5 overflow-hidden"
+                  style={{ background: theme.btnGrad, boxShadow: `0 4px 14px ${theme.accentGlow}` }}
+                >
+                  <span className="relative z-10">{t("app.aiDecompose")}</span>
+                  <div className="absolute inset-0 xp-bar-shimmer opacity-20" />
+                </button>
+                <button
+                  onClick={() => modals.show("FileModal")}
+                  className="text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
+                  style={{ background: theme.btnGrad }}
+                >
+                  {t("file.title")}
+                </button>
+                <button
+                  onClick={() => modals.show("BatchModal")}
+                  className="text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
+                  style={{ background: theme.btnGrad2 }}
+                >
+                  {t("batch.btn")}
+                </button>
+                <button
+                  data-guide="manual-btn"
+                  onClick={() => modals.show("AddModal")}
+                  className="text-white font-bold px-5 py-2.5 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all text-sm flex items-center gap-1.5"
+                  style={{ background: theme.btnGrad2 }}
+                >
+                  {t("app.manual")}
+                </button>
+              </>
+            )}
           </div>
           )}
         </div>

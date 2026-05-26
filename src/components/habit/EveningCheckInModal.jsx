@@ -18,18 +18,32 @@ export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
   const toggleEmotion = (id) => setEmotions((prev) => (prev.includes(id) ? prev.filter((e) => e !== id) : [...prev, id]));
 
   // ── Today replay — completions ordered by time, animated in sequence ──
-  const todayKey = new Date().toISOString().split("T")[0];
+  // R11-N3: pull from BOTH habit_log AND daily_checks (the iOS widget sometimes
+  // writes only the daily_checks bit) so iOS-source completions show up too.
+  // Also: use the LOCAL date key (matching iOS / R6-C1), not toISOString UTC.
+  const todayKey = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
   const dayLog = habits.habitLog?.[todayKey] || {};
-  const replay = Object.entries(dayLog)
-    .filter(([k]) => !k.startsWith("_"))
-    .map(([k, v]) => {
+  const dailyChecks = (() => {
+    try { return (JSON.parse(localStorage.getItem("qt_daily_checks") || "{}"))[todayKey] || {}; }
+    catch { return {}; }
+  })();
+  const completedIds = Array.from(new Set([
+    ...Object.keys(dayLog).filter((k) => !k.startsWith("_")),
+    ...Object.keys(dailyChecks).filter((k) => dailyChecks[k]),
+  ]));
+  const replay = completedIds
+    .map((k) => {
+      const v = dayLog[k];
       const cat = getHabitById(k);
+      // habit_log entry takes precedence; fall back to "L · iOS" for daily_checks-only.
+      const source = v?.source || (dailyChecks[k] && !v ? "ios" : null);
       return {
         id: k,
         name: cat ? (lang === "zh" ? cat.name : cat.nameEn || cat.name) : k,
         icon: HABIT_CATEGORIES[cat?.category]?.icon || "◆",
-        tier: v?.tier,
+        tier: v?.tier || (source === "ios" ? "L" : null),
         at: v?.completedAt || 0,
+        source,
       };
     })
     .sort((a, b) => a.at - b.at);
@@ -123,6 +137,9 @@ export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
                     <span className="w-3 h-3 rounded-full shrink-0 z-10" style={{ background: accent }} />
                     <span className="text-sm">{it.icon}</span>
                     <span className="flex-1 text-[12.5px] text-gray-700 truncate">{it.name}</span>
+                    {it.source === "ios" && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-600" title={t("habit.syncedTip")}>📱 {t("habit.syncedVia")}</span>
+                    )}
                     {it.tier && <span className="text-[10px] font-bold" style={{ color: accent }}>{it.tier}</span>}
                     {it.at > 0 && <span className="text-[10px] text-gray-300 tabular-nums">{fmtTime(it.at)}</span>}
                   </div>
