@@ -10,8 +10,11 @@ export default function PastDaysModal({ habits, onClose, theme }) {
   const { t, lang } = useLanguage();
   const accent = theme?.accent || "#6366f1";
   const [repeated, setRepeated] = useState({}); // habitId → true (added back today)
+  const [backfillPick, setBackfillPick] = useState(null); // "{date}|{habitId}" of expanded row
 
-  const days = useMemo(() => habits.getPastDays(14), [habits]);
+  // includeEmpty: true so empty past days are listed for backfill;
+  // habits.habitLog in deps re-derives after each backfill/undo.
+  const days = useMemo(() => habits.getPastDays(14, { includeEmpty: true }), [habits, habits.habitLog]);
 
   const DOW = lang === "zh"
     ? ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
@@ -111,14 +114,75 @@ export default function PastDaysModal({ habits, onClose, theme }) {
                     </div>
                   )}
 
-                  {/* Regular completions (compact) */}
+                  {/* Regular completions (compact, with backfill / iOS badges + undo on backfilled) */}
                   {day.completed.filter((c) => !c.adhoc).length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {day.completed.filter((c) => !c.adhoc).map((c) => (
-                        <span key={c.habitId} className="text-[10.5px] text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded-md">
+                        <span
+                          key={c.habitId}
+                          className={`inline-flex items-center gap-1 text-[10.5px] px-1.5 py-0.5 rounded-md ${c.backfilled ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-gray-50 text-gray-500"}`}
+                          title={c.source === "ios" ? t("habit.syncedTip") : c.backfilled ? t("habit.past.backfilledTip") : ""}
+                        >
                           {iconOf(c.habitId)} {nameOf(c.habitId)}
+                          {c.backfilled && <span className="ml-0.5 font-bold">·{t("habit.past.backfilledShort")}</span>}
+                          {c.source === "ios" && !c.backfilled && <span className="ml-0.5">📱</span>}
+                          {c.backfilled && (
+                            <button
+                              onClick={() => habits.uncompleteHabitForDate?.(c.habitId, day.date)}
+                              className="ml-1 text-amber-600 hover:text-amber-800 font-bold"
+                              title={t("habit.past.backfillUndo")}
+                            >×</button>
+                          )}
                         </span>
                       ))}
+                    </div>
+                  )}
+
+                  {/* R12 backfill: missing active habits → tap to log retroactively */}
+                  {day.missing && day.missing.length > 0 && (
+                    <div className="rounded-xl p-2.5 border border-dashed border-gray-200">
+                      <div className="text-[10.5px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">
+                        ↶ {t("habit.past.backfillTitle")}
+                      </div>
+                      <div className="space-y-1">
+                        {day.missing.map((m) => {
+                          const key = `${day.date}|${m.habitId}`;
+                          const open = backfillPick === key;
+                          return (
+                            <div key={m.habitId} className="flex items-center gap-2">
+                              <span className="text-[13px]">{iconOf(m.habitId)}</span>
+                              <span className="flex-1 text-[12px] text-gray-600 truncate">{nameOf(m.habitId)}</span>
+                              {open ? (
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {["L", "M", "H"].map((k) => (
+                                    <button
+                                      key={k}
+                                      onClick={() => {
+                                        habits.completeHabitForDate?.(m.habitId, k, day.date);
+                                        setBackfillPick(null);
+                                      }}
+                                      className="text-[10px] font-black w-6 h-6 rounded-full"
+                                      style={k === (m.suggestedTier || "M")
+                                        ? { background: theme?.btnGrad || accent, color: "#fff" }
+                                        : { background: "#fff", color: accent, border: `1px solid ${accent}40` }}
+                                    >{k}</button>
+                                  ))}
+                                  <button onClick={() => setBackfillPick(null)} className="text-gray-300 hover:text-gray-500 text-[10px] ml-0.5">✕</button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => setBackfillPick(key)}
+                                  className="text-[10.5px] font-bold px-2.5 py-1 rounded-full text-white shrink-0"
+                                  style={{ background: accent }}
+                                  title={t("habit.past.backfillTip")}
+                                >
+                                  ↶ {t("habit.past.backfillBtn")}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 
@@ -127,7 +191,7 @@ export default function PastDaysModal({ habits, onClose, theme }) {
                     <div className="text-[10.5px] text-gray-400">🔧 {t("habit.past.prnUsed", { n: day.prn.length })}</div>
                   )}
 
-                  {doneCount === 0 && day.adhoc.length === 0 && (
+                  {doneCount === 0 && day.adhoc.length === 0 && (!day.missing || day.missing.length === 0) && (
                     <p className="text-[11px] text-gray-300">{t("habit.past.nothing")}</p>
                   )}
                 </div>

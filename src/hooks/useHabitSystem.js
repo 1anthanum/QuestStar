@@ -163,6 +163,47 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     [habitLog, game, mirrorToDailyChecks, setHabitLog]
   );
 
+  // ── Backfill: complete / uncomplete a habit on an ARBITRARY past date ──
+  // Writes habit_log[dateKey][habitId] with backfilled:true so the UI can
+  // distinguish make-ups from real-time check-offs. Awards normal XP (the
+  // user is honest about what they did); undo refunds it.
+  const completeHabitForDate = useCallback(
+    (habitId, tierKey, dateKey) => {
+      if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return { ok: false, reason: "bad_date" };
+      if (habitLog[dateKey]?.[habitId]) return { ok: false, alreadyDone: true };
+      setHabitLog((prev) => {
+        if (prev[dateKey]?.[habitId]) return prev;
+        const day = { ...(prev[dateKey] || {}) };
+        day[habitId] = { tier: tierKey, completedAt: Date.now(), source: "web", backfilled: true };
+        return { ...prev, [dateKey]: day };
+      });
+      const amount = HABIT_XP[tierKey] ?? HABIT_XP.M;
+      game?.addXP?.(amount, "habit-backfill");
+      return { ok: true, earnedXp: amount };
+    },
+    [habitLog, game, setHabitLog]
+  );
+
+  const uncompleteHabitForDate = useCallback(
+    (habitId, dateKey) => {
+      const entry = habitLog[dateKey]?.[habitId];
+      if (!entry) return;
+      setHabitLog((prev) => {
+        if (!prev[dateKey]?.[habitId]) return prev;
+        const day = { ...prev[dateKey] };
+        delete day[habitId];
+        return { ...prev, [dateKey]: day };
+      });
+      // Only refund XP that was web-awarded (iOS-sourced never touched web XP)
+      const fromWeb = entry.source === "web" || !entry.source;
+      if (fromWeb && entry.tier) {
+        const amount = HABIT_XP[entry.tier] ?? HABIT_XP.M;
+        game?.subtractXP?.(amount, "habit-backfill-undo");
+      }
+    },
+    [habitLog, game, setHabitLog]
+  );
+
   const uncompleteHabit = useCallback(
     (habitId) => {
       const t = todayStr();
@@ -893,8 +934,13 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
   // ── Past-days review — last N days with completions + ad-hoc/trial adds ──
   // "adhoc" = was done that day but is a trial add or no longer a standing habit,
   //   i.e. a candidate the user might want to repeat.
-  const getPastDays = useCallback((n = 7) => {
-    const activeIds = new Set(activeHabits.filter((h) => h.layer >= 1).map((h) => h.habitId));
+  const getPastDays = useCallback((n = 7, opts = {}) => {
+    // R12 backfill: opts.includeEmpty=true surfaces days with no log entry
+    // (so the user can backfill them). Default false matches pre-R12
+    // behavior (only days with content).
+    const { includeEmpty = false } = opts;
+    const activeLayered = activeHabits.filter((h) => h.layer >= 1);
+    const activeIds = new Set(activeLayered.map((h) => h.habitId));
     const trialIds = new Set(activeHabits.filter((h) => h.trial).map((h) => h.habitId));
     const base = new Date();
     const out = [];
@@ -902,19 +948,38 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
       const d = new Date(base);
       d.setDate(d.getDate() - i);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      const day = habitLog[key];
-      if (!day) continue;
+      const day = habitLog[key] || {};
       const meta = day._meta || {};
       const completed = [];
+      const completedIds = new Set();
       for (const [k, v] of Object.entries(day)) {
         if (k.startsWith("_")) continue;
         const adhoc = trialIds.has(k) || !activeIds.has(k);
-        completed.push({ habitId: k, tier: v?.tier || "M", adhoc, active: activeIds.has(k) });
+        completed.push({
+          habitId: k,
+          tier: v?.tier || "M",
+          source: v?.source || null,
+          backfilled: !!v?.backfilled,
+          adhoc,
+          active: activeIds.has(k),
+        });
+        completedIds.add(k);
       }
+      // R12 backfill: list current active habits that were NOT done this day
+      // so the user can mark them in retrospect.
+      const missing = activeLayered
+        .filter((h) => !completedIds.has(h.habitId))
+        .map((h) => ({ habitId: h.habitId, suggestedTier: h.recommendedTier || "M", layer: h.layer }));
+      // Days with neither a log entry nor a meta entry are skipped by
+      // default; opt in via includeEmpty for the backfill UI.
+      const hasContent = completed.length > 0 || Object.keys(meta).length > 0 || (day._fixed && Object.keys(day._fixed).length > 0);
+      if (!hasContent && !includeEmpty) continue;
+      if (!hasContent && missing.length === 0) continue;
       out.push({
         date: key,
         dow: d.getDay(),
         completed,
+        missing,
         fixedDone: Object.keys(day._fixed || {}),
         prn: Object.keys(day._prn || {}),
         energy: meta.energy || null,
@@ -922,6 +987,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
         mood: meta.mood ?? null,
         restDay: !!meta.restDay,
         adhoc: completed.filter((c) => c.adhoc),
+        empty: !hasContent,
       });
     }
     return out;
@@ -983,7 +1049,9 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     // core
     activateHabit,
     completeHabit,
+    completeHabitForDate,
     uncompleteHabit,
+    uncompleteHabitForDate,
     skipHabit,
     unskipHabit,
     recordPRN,
