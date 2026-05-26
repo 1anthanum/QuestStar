@@ -315,12 +315,22 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const focusCat2 = weekPlan?.focusHabitId ? getHabitById(weekPlan.focusHabitId) : null;
   const focusHabitName = focusCat2 ? (lang === "zh" ? focusCat2.name : focusCat2.nameEn || focusCat2.name) : null;
 
-  // Top do-now item for the pinned focus bar
-  const focus = doNow[0];
+  // ── Pinned focus bar — picks the NEXT-UP habit (current-slot first), distinct
+  //    from "Just one thing" which picks the EASIEST. Communicates a different
+  //    intent so the two surfaces don't redundantly highlight the same row.
+  const focus = useMemo(() => {
+    if (doNow.length === 0) return null;
+    const inCurrentSlot = doNow.find((h) => (todayMeta.deferrals?.[h.habitId] || h.timeSlot || "upper_morning") === currentBlockId);
+    return inCurrentSlot || doNow[0];
+  }, [doNow, currentBlockId, todayMeta.deferrals]);
   const focusCat = focus ? getHabitById(focus.habitId) : null;
   const focusName = focusCat ? (lang === "zh" ? focusCat.name : focusCat.nameEn || focusCat.name) : focus?.habitId;
   const focusIcon = HABIT_CATEGORIES[focusCat?.category]?.icon || "◆";
-  const focusTier = focus ? capTierByEnergy(focus.recommendedTier || "M", energy) : "M";
+  const focusRecTier = focus?.recommendedTier || "M";
+  const focusTier = focus ? capTierByEnergy(focusRecTier, energy) : "M";
+  const focusTierReasonKey = focus
+    ? (focusTier !== focusRecTier ? "habit.focus.tierEnergy" : focus.customTiers ? "habit.focus.tierCustom" : "habit.focus.tierDefault")
+    : null;
 
   // ── Consolidated "signals" — transient info banners → one rotating strip ──
   const dimMeta = (id) => ENERGY_DIMENSIONS.find((d) => d.id === id);
@@ -415,15 +425,21 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
                     key={`${a.date}-${a.habitId}-${i}`}
                     initial={{ scale: 0, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
+                    whileHover={{ scale: 1.6 }}
                     transition={{ ...SPRING_POP, delay: Math.min(i * 0.018, 0.5) }}
                     title={`${nameOfHabit(a.habitId)} · ${a.date}${a.completedAt ? " " + fmtActionTime(a.completedAt) : ""}`}
-                    className="w-2.5 h-2.5 rounded-full cursor-default"
+                    className="w-2.5 h-2.5 rounded-full cursor-help"
                     style={{ background: dotColor, boxShadow: `0 1px 4px ${dotColor}66` }}
                   />
                 );
               })}
               {weekActionList.length > DOT_CAP && <span className="text-[10px] font-bold text-gray-400">+{weekActionList.length - DOT_CAP}</span>}
-              <span className="text-[10.5px] text-gray-400 ml-1">{t("habit.identity.thisWeek", { n: weekActionList.length })}</span>
+              <span
+                className="text-[10.5px] text-gray-400 ml-1 cursor-help"
+                title={t("habit.identity.thisWeekTip")}
+              >
+                {t("habit.identity.thisWeek", { n: weekActionList.length })}
+              </span>
             </div>
           )}
         </div>
@@ -597,16 +613,23 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         <div className="qt-card p-3.5">
           <div className="text-[10.5px] font-bold text-gray-400 uppercase tracking-wide mb-2">📅 {t("habit.weekRhythm")}</div>
           <div className="flex gap-1.5">
-            {weekRates.map((d, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                <span
-                  className="w-full rounded-md"
-                  style={{ aspectRatio: "1", background: d.future ? "#f1f5f9" : rateColor(d.rate), outline: d.isToday ? `2px solid ${accent}` : "none", outlineOffset: -1 }}
-                  title={d.rate != null ? `${Math.round(d.rate * 100)}%` : ""}
-                />
-                <span className="text-[9px] text-gray-400">{DOW_SHORT[i]}</span>
-              </div>
-            ))}
+            {weekRates.map((d, i) => {
+              const dateLabel = d.key || "";
+              const pct = d.rate != null ? Math.round(d.rate * 100) : null;
+              const tip = d.future
+                ? dateLabel
+                : `${dateLabel} · ${d.done}/${d.total}${pct != null ? ` · ${pct}%` : ""}${d.isToday ? " · today" : ""}`;
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                  <span
+                    className="w-full rounded-md cursor-help transition-transform hover:scale-110"
+                    style={{ aspectRatio: "1", background: d.future ? "#f1f5f9" : rateColor(d.rate), outline: d.isToday ? `2px solid ${accent}` : "none", outlineOffset: -1 }}
+                    title={tip}
+                  />
+                  <span className="text-[9px] text-gray-400">{DOW_SHORT[i]}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -642,21 +665,32 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         );
       })()}
 
-      {/* Day progress with a NOW marker */}
+      {/* Day progress with a clearly visible NOW marker (R6-Mi2) */}
       {(() => {
         const now = new Date();
         const mins = now.getHours() * 60 + now.getMinutes();
         const dayStart = 7 * 60, dayEnd = 23 * 60;
         const pct = Math.max(0, Math.min(100, ((mins - dayStart) / (dayEnd - dayStart)) * 100));
+        const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
         return (
-          <div className="flex items-center gap-2 px-1 pt-1">
-            <div className="flex-1 h-1.5 rounded-full bg-gray-200/80 overflow-hidden relative">
+          <div className="flex items-center gap-2 px-1 pt-2 pb-1">
+            <div className="flex-1 h-1.5 rounded-full bg-gray-200/80 relative overflow-visible">
               <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#34d399,#10b981)" }} />
-              <span className="absolute top-1/2 -translate-y-1/2 w-1 h-3 rounded-full shadow" style={{ left: `calc(${pct}% - 2px)`, background: "#f59e0b" }} />
+              {/* NOW marker: vertical bar that sits above the track + a labeled cap */}
+              <span
+                className="absolute -top-1.5 w-[3px] h-[14px] rounded-full"
+                style={{ left: `calc(${pct}% - 1.5px)`, background: "#f59e0b", boxShadow: "0 0 0 2px #fff, 0 1px 4px rgba(245,158,11,0.4)" }}
+                title={`${t("habit.day.nowTip")} · ${hhmm}`}
+              />
+              <span
+                className="absolute -top-5 text-[9px] font-black tabular-nums px-1 py-0.5 rounded"
+                style={{ left: `calc(${pct}% - 1.5px)`, transform: "translateX(-50%)", color: "#b45309", background: "#fef3c7" }}
+                title={t("habit.day.nowTip")}
+              >
+                {t("habit.day.now")}
+              </span>
             </div>
-            <span className="text-[11px] font-bold text-gray-400 tabular-nums shrink-0">
-              {String(now.getHours()).padStart(2, "0")}:{String(now.getMinutes()).padStart(2, "0")}
-            </span>
+            <span className="text-[11px] font-bold text-gray-400 tabular-nums shrink-0">{hhmm}</span>
           </div>
         );
       })()}
@@ -955,17 +989,20 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
 
   return (
     <div className="space-y-3 pb-24" data-skin={skin}>
-      {/* Pinned current-focus bar — stays visible while scrolling */}
+      {/* Pinned next-up bar — stays visible while scrolling. Labeled "Next up"
+          (current slot's first remaining) to distinguish from "Just one thing"
+          (the easiest remaining). */}
       {focus && (
         <div className="sticky top-2 z-30 -mx-1">
           <div className="mx-1 flex items-center gap-2 px-3 py-2 rounded-full bg-white/95 backdrop-blur border border-white/70 shadow-md">
-            <span className="text-[11px]">📌</span>
+            <span className="text-[9px] font-bold uppercase tracking-wide text-gray-400 shrink-0">{t("habit.focus.nextUp")}</span>
             <span className="text-base">{focusIcon}</span>
             <span className="flex-1 text-[12.5px] font-bold text-gray-700 truncate">{focusName}</span>
             <button
               onClick={() => habits.completeHabit(focus.habitId, focusTier)}
               className="shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full text-white"
               style={{ background: theme?.btnGrad || accent }}
+              title={focusTierReasonKey ? t(focusTierReasonKey) : ""}
             >
               {t("habit.doNow.go")} · {focusTier}
             </button>

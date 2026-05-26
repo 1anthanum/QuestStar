@@ -733,11 +733,11 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     for (let i = 0; i < 7; i++) {
       const d = new Date(sun); d.setDate(sun.getDate() + i);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      if (d > now) { out.push({ dow: i, rate: null, future: true }); continue; }
+      if (d > now) { out.push({ dow: i, key, rate: null, done: 0, total: denom, future: true }); continue; }
       const day = habitLog[key];
       let done = 0;
       if (day) for (const k of Object.keys(day)) if (!k.startsWith("_")) done++;
-      out.push({ dow: i, rate: Math.min(1, done / denom), future: false, isToday: +d === +now });
+      out.push({ dow: i, key, rate: Math.min(1, done / denom), done, total: denom, future: false, isToday: +d === +now });
     }
     return out;
   }, [habitLog, activeHabits]);

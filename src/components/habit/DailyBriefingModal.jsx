@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { useLanguage } from "../../hooks/useLanguage";
 import { getHabitById, HABIT_CATEGORIES } from "../../utils/habitCatalog";
 import { energyWeather, energyAverage, capTierByEnergy } from "../../utils/energyModel";
@@ -76,11 +76,13 @@ export default function DailyBriefingModal({ habits, ai, theme, studyQuests = []
     };
   };
 
-  const [loading, setLoading] = useState(!!ai?.hasApiKey);
-  const [brief, setBrief] = useState(ai?.hasApiKey ? null : buildFallback());
+  // R6-Mo2: render the heuristic immediately so the modal never feels blocked;
+  // AI text streams in and upgrades the headline / review when it arrives.
+  const [brief, setBrief] = useState(() => buildFallback());
+  const [aiLoading, setAiLoading] = useState(!!ai?.hasApiKey);
   const [added, setAdded] = useState({});
 
-  // ── AI generation (once on open) ──
+  // ── AI generation (once on open) — progressive enhancement, not a gate ──
   useEffect(() => {
     if (!ai?.hasApiKey) return;
     let alive = true;
@@ -101,12 +103,13 @@ export default function DailyBriefingModal({ habits, ai, theme, studyQuests = []
       .then((res) => {
         if (!alive) return;
         const ok = res?.headline || (res?.review || []).length;
-        const final = ok ? { ...buildFallback(), ...res, review: res.review?.length ? res.review : buildFallback().review } : buildFallback();
-        setBrief(final);
-        if (final.headline) habits.setBriefing?.(final.headline); // reuse for the inline morning strip
+        if (!ok) return; // keep the heuristic already on screen
+        // Merge AI text on top of the heuristic so we don't lose anything
+        setBrief((prev) => ({ ...prev, ...res, review: res.review?.length ? res.review : prev.review }));
+        if (res.headline) habits.setBriefing?.(res.headline); // reuse for the inline morning strip
       })
-      .catch(() => { if (alive) setBrief(buildFallback()); })
-      .finally(() => { if (alive) setLoading(false); });
+      .catch(() => { /* heuristic already visible — silent failure */ })
+      .finally(() => { if (alive) setAiLoading(false); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -135,24 +138,7 @@ export default function DailyBriefingModal({ habits, ai, theme, studyQuests = []
           </button>
         </div>
 
-        <AnimatePresence mode="wait">
-          {loading ? (
-            <motion.div key="loading" className="flex-1 flex flex-col items-center justify-center text-center" exit={{ opacity: 0 }}>
-              <motion.div
-                className="text-5xl mb-4"
-                animate={reduce ? {} : { rotate: [0, 8, -8, 0], scale: [1, 1.08, 1] }}
-                transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
-              >☀️</motion.div>
-              <div className="text-[15px] font-bold text-gray-700">{t("briefing.combing")}</div>
-              <div className="flex gap-1.5 mt-3">
-                {[0, 1, 2].map((i) => (
-                  <motion.span key={i} className="w-2 h-2 rounded-full" style={{ background: accent }}
-                    animate={reduce ? {} : { y: [0, -6, 0], opacity: [0.4, 1, 0.4] }}
-                    transition={{ repeat: Infinity, duration: 0.9, delay: i * 0.15 }} />
-                ))}
-              </div>
-            </motion.div>
-          ) : brief ? (
+        {brief && (
             <motion.div
               key="content"
               className="w-full max-w-md mt-2"
@@ -160,9 +146,20 @@ export default function DailyBriefingModal({ habits, ai, theme, studyQuests = []
               initial="hidden"
               animate="show"
             >
-              {/* Headline / greeting */}
+              {/* Headline / greeting — inline pulse while AI upgrades the heuristic */}
               <motion.div variants={item} className="text-center mb-5">
-                <div className="text-[13px] font-bold text-gray-400 mb-1">{greeting}</div>
+                <div className="text-[13px] font-bold text-gray-400 mb-1 flex items-center justify-center gap-1.5">
+                  <span>{greeting}</span>
+                  {aiLoading && (
+                    <motion.span
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ background: accent }}
+                      animate={reduce ? {} : { opacity: [0.3, 1, 0.3] }}
+                      transition={{ repeat: Infinity, duration: 1.2 }}
+                      title={t("briefing.combing")}
+                    />
+                  )}
+                </div>
                 <h1 className="text-[22px] font-black text-gray-800 leading-snug">{brief.headline}</h1>
               </motion.div>
 
@@ -292,8 +289,7 @@ export default function DailyBriefingModal({ habits, ai, theme, studyQuests = []
                 </button>
               </motion.div>
             </motion.div>
-          ) : null}
-        </AnimatePresence>
+        )}
       </div>
     </div>
   );
