@@ -618,11 +618,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       {/* Consolidated insight strip (rotating) */}
       {insightStrip}
 
-      {/* Identity strip (#8) */}
-      {identityStrip}
-
-      {/* What the system has noticed (qt_observations) */}
-      {observationsStrip}
+      {/* identityStrip + observationsStrip are rendered ABOVE the layout
+          switcher now (R13-N3) so they never remount on layout change. */}
 
       {/* This week's focus + intention (#12) */}
       {(weekPlan?.intention || focusHabitName) && (
@@ -1491,6 +1488,15 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         </div>
       )}
 
+      {/* R13-N3: identity hero + observations live ABOVE the layout switcher,
+          so switching layouts no longer unmounts/remounts them — fixes the
+          "dots vanish after rapid layout spam" bug (entry animation kept
+          restarting at scale:0 and never finishing). */}
+      <div className="space-y-3 mb-3">
+        {identityStrip}
+        {observationsStrip}
+      </div>
+
       {/* Body — arranged per the selected layout */}
       {layout === "split" ? (
         <div className="grid lg:grid-cols-[1fr,1.15fr] gap-3 items-start">
@@ -1500,9 +1506,9 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       ) : layout === "todoFirst" ? (
         <div className="space-y-3">{todoCol}{widgets}</div>
       ) : layout === "timeline" ? (
-        <div className="space-y-3">{identityStrip}{observationsStrip}{timelineCol}</div>
+        <div className="space-y-3">{timelineCol}</div>
       ) : layout === "focus" ? (
-        <div className="space-y-3">{identityStrip}{observationsStrip}{todoCol}</div>
+        <div className="space-y-3">{todoCol}</div>
       ) : (
         <div className="space-y-3">{widgets}{todoCol}</div>
       )}

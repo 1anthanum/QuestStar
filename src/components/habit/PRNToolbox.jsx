@@ -1,20 +1,28 @@
 import { useState } from "react";
 import { useLanguage } from "../../hooks/useLanguage";
 import { PRN_TOOLS } from "../../utils/habitCatalog";
+import PRNEnactment from "./PRNEnactment";
 
 // ── PRNToolbox — as-needed coping tools (recorded, not scored) ──
 // For ADHD/emotional regulation moments: "I need a tool right now."
+// R13-N1: tapping a tool now opens a tool-specific enactment overlay
+// (breathing timer, countdown, contact list, song link, vent textarea)
+// — not just a silent counter bump.
 export default function PRNToolbox({ habits, onClose, theme }) {
   const { t, lang } = useLanguage();
   const accent = theme?.accent || "#6366f1";
   const [usedNow, setUsedNow] = useState({}); // transient highlight after tapping
+  const [enacting, setEnacting] = useState(null); // R13-N1: active tool enactment
 
-  const todayPRN = habits.habitLog[new Date().toISOString().split("T")[0]]?._prn || {};
+  // Local date key (R6-C1) — matches iOS / the rest of the habit system.
+  const localTodayKey = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
+  const todayPRN = habits.habitLog[localTodayKey]?._prn || {};
 
   const use = (tool) => {
     habits.recordPRN(tool.id);
     setUsedNow((u) => ({ ...u, [tool.id]: true }));
     setTimeout(() => setUsedNow((u) => ({ ...u, [tool.id]: false })), 1500);
+    setEnacting(tool);
   };
 
   return (
@@ -53,6 +61,15 @@ export default function PRNToolbox({ habits, onClose, theme }) {
           })}
         </div>
       </div>
+
+      {/* R13-N1: tool enactment overlay — full-screen, dismisses back to toolbox */}
+      {enacting && (
+        <PRNEnactment
+          tool={enacting}
+          onDone={() => setEnacting(null)}
+          theme={theme}
+        />
+      )}
     </div>
   );
 }
