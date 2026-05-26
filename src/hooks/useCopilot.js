@@ -121,11 +121,21 @@ Note: habitId must come from the list above (use catalog id when adding). timeSl
 
 const HISTORY_KEY = "qt_copilot_history";
 const HISTORY_CAP = 60; // keep recent turns; planning context survives reloads
+const SESSIONS_KEY = "qt_copilot_sessions"; // archived past conversations
+const SESSIONS_CAP = 30; // most-recent 30 archived sessions
 
 export function useCopilot({ game, rewards, energy, appMode, ai, lang, habits = null }) {
   const [messages, setMessages] = useState(() => {
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [sessions, setSessions] = useState(() => {
+    try {
+      const raw = localStorage.getItem(SESSIONS_KEY);
       return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
@@ -143,6 +153,15 @@ export function useCopilot({ game, rewards, energy, appMode, ai, lang, habits = 
       /* storage full / unavailable — non-fatal */
     }
   }, [messages]);
+
+  // Persist archived sessions
+  useEffect(() => {
+    try {
+      localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions.slice(-SESSIONS_CAP)));
+    } catch {
+      /* non-fatal */
+    }
+  }, [sessions]);
 
   // ── Build dynamic system prompt with user context ──
   const buildSystemPrompt = useCallback(() => {
@@ -390,11 +409,33 @@ Guidelines:
     sendMessage(prompt);
   }, [lang, sendMessage]);
 
-  // ── Clear history ──
+  // ── Archive the current conversation as a session ──
+  // Snapshot { id, title, startedAt, endedAt, messages } into qt_copilot_sessions
+  // so the user can revisit past conversations instead of losing them on clear.
+  const archiveCurrentSession = useCallback(() => {
+    if (!messages.length) return;
+    const firstUser = messages.find((m) => m.role === "user");
+    const rawTitle = firstUser ? String(firstUser.content || "").trim() : "";
+    const title = rawTitle ? rawTitle.slice(0, 60) : "(no title)";
+    const startedAt = messages[0]?.timestamp || Date.now();
+    const endedAt = messages[messages.length - 1]?.timestamp || Date.now();
+    setSessions((prev) => [
+      ...prev.slice(-SESSIONS_CAP + 1),
+      { id: `s-${startedAt}-${endedAt}`, title, startedAt, endedAt, messages: messages.slice() },
+    ]);
+  }, [messages]);
+
+  // ── Clear history (archives the current conversation first) ──
   const clearHistory = useCallback(() => {
+    archiveCurrentSession();
     setMessages([]);
     setError(null);
     try { localStorage.removeItem(HISTORY_KEY); } catch { /* noop */ }
+  }, [archiveCurrentSession]);
+
+  // ── Delete a specific archived session ──
+  const deleteSession = useCallback((sessionId) => {
+    setSessions((prev) => prev.filter((s) => s.id !== sessionId));
   }, []);
 
   return {
@@ -405,5 +446,7 @@ Guidelines:
     sendMessage,
     quickCheckIn,
     clearHistory,
+    sessions,
+    deleteSession,
   };
 }

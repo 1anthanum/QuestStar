@@ -3,6 +3,7 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { getHabitById, HABIT_CATEGORIES } from "../../utils/habitCatalog";
 import EnergyAssessment from "./EnergyAssessment";
 import { defaultEnergy, deriveEnergyMode, energyWeather, energyAverage, capTierByEnergy, predictEnergyFromLog } from "../../utils/energyModel";
+import RichModalBackdrop from "./RichModalBackdrop";
 
 // ── MorningPlanningModal — 4-step day planning (energy → explore → plan → tiers) ──
 export default function MorningPlanningModal({ habits, onClose, theme }) {
@@ -72,8 +73,9 @@ export default function MorningPlanningModal({ habits, onClose, theme }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 animate-fade-in" onClick={onClose}>
-      <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
+      <RichModalBackdrop accent={accent} zIndex={-1} onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {/* Progress dots */}
         <div className="flex justify-center gap-1.5 mb-5">
           {steps.map((s, i) => (

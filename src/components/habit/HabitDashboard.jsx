@@ -279,16 +279,31 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     [todayView, socialOk, coreOnly]
   );
 
-  // ── Suggestions: catalog habits not yet active (prefer recovery track) ──
+  // ── Suggestions: catalog habits not yet active. Prefer habits whose natural
+  //    timeSlot sits within ±1 block of "now" (extra flexibility per user
+  //    request — strict "current block only" felt too narrow). If fewer than
+  //    3 habits land in the ±1 window, relax to the full pool. ──
   const suggestions = useMemo(() => {
     const activeIds = new Set(habits.activeHabits.map((h) => h.habitId));
-    return HABIT_CATALOG
+    const ci = SLOT_ORDER.indexOf(currentBlockId);
+    const distance = (slot) => {
+      const i = SLOT_ORDER.indexOf(slot);
+      return i === -1 || ci === -1 ? 99 : Math.abs(i - ci);
+    };
+    const filtered = HABIT_CATALOG
       .filter((h) => !activeIds.has(h.id))
       .filter((h) => socialOk || HABIT_CATEGORIES[h.category]?.track !== "social")
-      .filter((h) => cognitiveOk || HABIT_CATEGORIES[h.category]?.track !== "work")
-      .sort((a, b) => (a.suggestedLayer || 3) - (b.suggestedLayer || 3))
+      .filter((h) => cognitiveOk || HABIT_CATEGORIES[h.category]?.track !== "work");
+    const near = filtered.filter((h) => distance(h.timeSlot) <= 1);
+    const pool = near.length >= 3 ? near : filtered;
+    return pool
+      .sort((a, b) => {
+        const da = distance(a.timeSlot), db = distance(b.timeSlot);
+        if (da !== db) return da - db;
+        return (a.suggestedLayer || 3) - (b.suggestedLayer || 3);
+      })
       .slice(0, 3);
-  }, [habits.activeHabits, socialOk, cognitiveOk]);
+  }, [habits.activeHabits, socialOk, cognitiveOk, currentBlockId]);
 
   // Adaptive note shown when energy gates the interface
   const adaptNoteKey = !socialOk ? "habit.adapt.social" : !cognitiveOk ? "habit.adapt.cognitive" : null;
@@ -1424,11 +1439,13 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         </button>
 
         {/* Quick actions — 2×2 grid */}
-        <div className="grid grid-cols-2 gap-2 mt-3">
+        <div className="grid grid-cols-3 gap-2 mt-3">
+          {/* Rest-day toggle moved to the FAB → "More" sheet per user feedback —
+              it's an occasional override, not a daily action, so it no longer
+              earns a home-page slot. */}
           {[
             { icon: "sunrise", color: "#f59e0b", label: t("habit.planMyDay"), onClick: onPlanDay },
             { icon: "moon", color: "#8b5cf6", label: t("habit.endDay"), onClick: onEndDay },
-            { icon: "bed", color: "#10b981", label: t("habit.restDay"), onClick: habits.toggleRestDay, active: !!habits.todayMeta.restDay },
             { icon: "chat", color: "#ec4899", label: t("habit.tab.ai"), onClick: () => onOpenCopilot?.() },
           ].map((a) => (
             <button
@@ -1519,6 +1536,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
             </div>
             <div className="grid grid-cols-4 gap-3">
               {[
+                { icon: "bed", label: t("habit.restDay"), act: habits.toggleRestDay, active: !!habits.todayMeta.restDay, dismissAfter: false },
                 { icon: "browse", label: t("habit.browse"), act: onBrowse },
                 { icon: "tools", label: t("habit.prn"), act: () => setShowPRN(true) },
                 { icon: "users", label: t("habit.bodyDouble.title"), act: () => setShowBodyDouble(true) },
@@ -1530,10 +1548,11 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
               ].map((it) => (
                 <button
                   key={it.icon}
-                  onClick={() => { setShowMore(false); it.act?.(); }}
-                  className="flex flex-col items-center gap-1.5 py-3 rounded-2xl bg-gray-50 active:scale-95 transition-transform"
+                  onClick={() => { if (it.dismissAfter !== false) setShowMore(false); it.act?.(); }}
+                  className="flex flex-col items-center gap-1.5 py-3 rounded-2xl active:scale-95 transition-transform"
+                  style={it.active ? { background: `${accent}1f`, boxShadow: `inset 0 0 0 1.5px ${accent}` } : { background: "#f9fafb" }}
                 >
-                  <span style={{ color: accent }}><Icon name={it.icon} size={22} /></span>
+                  <span style={{ color: it.active ? accent : accent }}><Icon name={it.icon} size={22} /></span>
                   <span className="text-[10.5px] font-semibold text-gray-600 text-center leading-tight">{it.label}</span>
                 </button>
               ))}

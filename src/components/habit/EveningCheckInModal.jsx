@@ -3,6 +3,7 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { getHabitById, HABIT_CATEGORIES } from "../../utils/habitCatalog";
 import { analyzeDailyHabits } from "../../utils/aiService";
 import { EMOTION_QUADRANTS } from "../../utils/emotionVocab";
+import RichModalBackdrop from "./RichModalBackdrop";
 
 // ── EveningCheckInModal — daily summary + unfinished + AI insight + mood ──
 export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
@@ -90,8 +91,9 @@ export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 animate-fade-in" onClick={onClose}>
-      <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
+      <RichModalBackdrop accent={accent} zIndex={-1} onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-black text-gray-800">📊 {t("habit.evening.title")}</h3>
           <button onClick={onClose} className="text-gray-300 hover:text-gray-500 text-lg">✕</button>

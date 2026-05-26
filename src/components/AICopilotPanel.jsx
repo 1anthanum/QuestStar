@@ -234,7 +234,9 @@ export default function AICopilotPanel({
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
 
-  const { messages, isLoading, error, setError, sendMessage, quickCheckIn, clearHistory } = copilot;
+  const { messages, isLoading, error, setError, sendMessage, quickCheckIn, clearHistory, sessions, deleteSession } = copilot;
+  const [showHistory, setShowHistory] = useState(false);
+  const [viewingSession, setViewingSession] = useState(null);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -320,11 +322,22 @@ export default function AICopilotPanel({
           <span className="font-semibold">{t("copilot.title")}</span>
         </div>
         <div className="flex items-center gap-2">
+          {(sessions?.length > 0 || messages.length > 0) && (
+            <button
+              onClick={() => setShowHistory(true)}
+              className="text-xs px-2 py-1 rounded-lg opacity-60 hover:opacity-90 transition-opacity flex items-center gap-1"
+              style={{ background: "rgba(255,255,255,0.1)" }}
+              title={t("copilot.history.tip")}
+            >
+              📜 {t("copilot.history")}{sessions?.length > 0 ? ` · ${sessions.length}` : ""}
+            </button>
+          )}
           {messages.length > 0 && (
             <button
               onClick={clearHistory}
               className="text-xs px-2 py-1 rounded-lg opacity-50 hover:opacity-80 transition-opacity"
               style={{ background: "rgba(255,255,255,0.1)" }}
+              title={t("copilot.clearHistory.tip")}
             >
               {t("copilot.clearHistory")}
             </button>
@@ -337,6 +350,91 @@ export default function AICopilotPanel({
           </button>
         </div>
       </div>
+
+      {/* History drawer — list past sessions; click one to view its messages */}
+      {showHistory && (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40"
+          onClick={() => { setShowHistory(false); setViewingSession(null); }}
+        >
+          <div
+            className="w-full max-w-xl rounded-t-3xl shadow-2xl max-h-[80vh] flex flex-col"
+            style={{ background: theme.pageBg || "#0f172a", paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: `${accent}25` }}>
+              <span className="text-[14px] font-bold">
+                {viewingSession ? viewingSession.title : t("copilot.history.title")}
+              </span>
+              <div className="flex items-center gap-2">
+                {viewingSession && (
+                  <button
+                    onClick={() => setViewingSession(null)}
+                    className="text-[11px] px-2 py-1 rounded-lg opacity-70 hover:opacity-100"
+                    style={{ background: "rgba(255,255,255,0.1)" }}
+                  >
+                    ← {t("copilot.history.back")}
+                  </button>
+                )}
+                <button
+                  onClick={() => { setShowHistory(false); setViewingSession(null); }}
+                  className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10"
+                >✕</button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 py-3">
+              {viewingSession ? (
+                viewingSession.messages.length === 0 ? (
+                  <p className="text-[12px] opacity-60 text-center py-6">{t("copilot.history.empty")}</p>
+                ) : (
+                  <div className="space-y-3">
+                    {viewingSession.messages.map((m, i) => (
+                      <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                        <div
+                          className={`max-w-[80%] rounded-2xl px-3 py-2 text-[13px] leading-snug whitespace-pre-wrap break-words ${m.role === "user" ? "" : ""}`}
+                          style={m.role === "user"
+                            ? { background: accent + "33", color: "#fff" }
+                            : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.92)" }}
+                        >
+                          {typeof m.content === "string" ? m.content : JSON.stringify(m.content)}
+                          {m.timestamp && (
+                            <div className="text-[9px] opacity-50 mt-1 tabular-nums">{new Date(m.timestamp).toLocaleString(t("lang.iso") === "zh" ? "zh-CN" : "en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                (sessions || []).length === 0 ? (
+                  <p className="text-[12px] opacity-60 text-center py-6">{t("copilot.history.none")}</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {sessions.slice().reverse().map((s) => (
+                      <div key={s.id} className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/5 transition-colors">
+                        <button onClick={() => setViewingSession(s)} className="flex-1 text-left">
+                          <div className="text-[12.5px] font-semibold truncate">{s.title}</div>
+                          <div className="text-[10px] opacity-60 tabular-nums">
+                            {new Date(s.startedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            {" · "}
+                            {t("copilot.history.messages", { n: s.messages.length })}
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => deleteSession(s.id)}
+                          className="text-[11px] opacity-40 hover:opacity-90 px-2 py-1"
+                          title={t("copilot.history.delete")}
+                        >🗑</button>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Quick Action Chips ── */}
       <div className="flex gap-2 px-4 py-2 border-b" style={{ borderColor: `${accent}10` }}>

@@ -6,6 +6,7 @@ import { energyWeather, energyAverage, capTierByEnergy } from "../../utils/energ
 import { timeOfDayPalette } from "../../utils/timeOfDay";
 import { generateDailyBriefing } from "../../utils/aiService";
 import { SPRING, SPRING_POP, SPRING_SOFT, staggerContainer, staggerItem } from "../../utils/motion";
+import RichModalBackdrop from "./RichModalBackdrop";
 
 // ── DailyBriefingModal — first-login AI briefing that combs through today's plan ──
 // Staged framer-motion reveal ("梳理"): headline → review lines → plan-at-a-glance
@@ -123,12 +124,11 @@ export default function DailyBriefingModal({ habits, ai, theme, studyQuests = []
   const container = staggerContainer(reduce ? 0 : 0.07, reduce ? 0 : 0.05);
   const item = reduce ? { hidden: { opacity: 0 }, show: { opacity: 1, transition: { duration: 0 } } } : staggerItem;
 
-  const bg = `linear-gradient(165deg, ${accent}14, #ffffff 50%)`;
-
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto" style={{ background: bg }}>
-      {/* time-of-day wash */}
-      <div className="absolute inset-x-0 top-0 h-48 pointer-events-none" style={{ background: palette.headerBg, opacity: 0.5 }} />
+    <div className="fixed inset-0 z-[60] overflow-y-auto">
+      {/* Rich opaque backdrop with heartbeat-rate pulse (replaces the thin
+          linear-gradient that let the dashboard show through). */}
+      <RichModalBackdrop accent={accent} zIndex={0} />
 
       <div className="relative min-h-full flex flex-col items-center px-5 py-6">
         {/* skip */}
