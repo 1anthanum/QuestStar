@@ -67,6 +67,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [xpFloat, setXpFloat] = useState(null);
   const [chainPrompt, setChainPrompt] = useState(null);
   const [briefingDismissed, setBriefingDismissed] = useState(false);
+  const [hoveredDot, setHoveredDot] = useState(null); // R6-M2: dot's inline hover label
+  const [hoveredCell, setHoveredCell] = useState(null); // R6-M2: rhythm cell's inline hover label
   const [signalIdx, setSignalIdx] = useState(0);
   const [showMore, setShowMore] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
@@ -177,13 +179,17 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   }, [energy, habits.habitLog]);
   const fixedDone = habits.habitLog[todayKeyLocal()]?._fixed || {};
 
-  // Group active habits by their (possibly deferred) timeSlot; Core-only filter when on
+  // Group active habits by timeSlot; Core-only filter when on.
+  // R7-N1: deferrals only apply while a habit is PENDING. Once completed, the
+  // habit settles back to its home slot so the count credits the right block
+  // (otherwise completing a morning habit late in the day inflated Evening's
+  // count and left Upper-morning short).
   const deferrals = todayMeta.deferrals || {};
   const habitsBySlot = useMemo(() => {
     const map = {};
     for (const h of todayView) {
       if (coreOnly && h.layer !== 1) continue;
-      const slot = deferrals[h.habitId] || h.timeSlot || "upper_morning";
+      const slot = (!h.done && deferrals[h.habitId]) || h.timeSlot || "upper_morning";
       (map[slot] = map[slot] || []).push(h);
     }
     return map;
@@ -415,32 +421,46 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
             )}
           </button>
 
-          {/* Completion dots — each filled dot is one completion this week; hover reveals the time */}
+          {/* Completion dots — each filled dot is one completion this week.
+              R6-M2 / R6-Mi3: an always-visible label line under the row shows
+              the anchor explainer by default and swaps to the hovered dot's
+              "habit · date · time" on mouseenter (native title attrs were too
+              slow / invisible to count as discoverable). */}
           {habits.identity && weekActionList.length > 0 && (
-            <div className="flex items-center gap-1.5 mt-3 flex-wrap">
-              {weekActionList.slice(-DOT_CAP).map((a, i) => {
-                const dotColor = habits.getHabitColor?.(a.habitId) || accent;
-                return (
-                  <motion.span
-                    key={`${a.date}-${a.habitId}-${i}`}
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    whileHover={{ scale: 1.6 }}
-                    transition={{ ...SPRING_POP, delay: Math.min(i * 0.018, 0.5) }}
-                    title={`${nameOfHabit(a.habitId)} · ${a.date}${a.completedAt ? " " + fmtActionTime(a.completedAt) : ""}`}
-                    className="w-2.5 h-2.5 rounded-full cursor-help"
-                    style={{ background: dotColor, boxShadow: `0 1px 4px ${dotColor}66` }}
-                  />
-                );
-              })}
-              {weekActionList.length > DOT_CAP && <span className="text-[10px] font-bold text-gray-400">+{weekActionList.length - DOT_CAP}</span>}
-              <span
-                className="text-[10.5px] text-gray-400 ml-1 cursor-help"
-                title={t("habit.identity.thisWeekTip")}
-              >
-                {t("habit.identity.thisWeek", { n: weekActionList.length })}
-              </span>
-            </div>
+            <>
+              <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+                {weekActionList.slice(-DOT_CAP).map((a, i) => {
+                  const dotColor = habits.getHabitColor?.(a.habitId) || accent;
+                  const tip = `${nameOfHabit(a.habitId)} · ${a.date}${a.completedAt ? " · " + fmtActionTime(a.completedAt) : ""}`;
+                  return (
+                    <motion.span
+                      key={`${a.date}-${a.habitId}-${i}`}
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: hoveredDot === i ? 1.8 : 1, opacity: 1 }}
+                      transition={{ ...SPRING_POP, delay: Math.min(i * 0.018, 0.5) }}
+                      onMouseEnter={() => setHoveredDot(i)}
+                      onMouseLeave={() => setHoveredDot((cur) => (cur === i ? null : cur))}
+                      onFocus={() => setHoveredDot(i)}
+                      onBlur={() => setHoveredDot((cur) => (cur === i ? null : cur))}
+                      tabIndex={0}
+                      aria-label={tip}
+                      className="w-2.5 h-2.5 rounded-full cursor-pointer outline-none"
+                      style={{ background: dotColor, boxShadow: `0 1px 4px ${dotColor}66` }}
+                    />
+                  );
+                })}
+                {weekActionList.length > DOT_CAP && <span className="text-[10px] font-bold text-gray-400">+{weekActionList.length - DOT_CAP}</span>}
+                <span className="text-[10.5px] font-bold text-gray-500 ml-1">
+                  {t("habit.identity.thisWeek", { n: weekActionList.length })}
+                </span>
+              </div>
+              {/* Inline reveal: hovered dot's detail, else the anchor explainer */}
+              <div className="text-[10.5px] text-gray-500 mt-1.5 min-h-[1em] leading-tight transition-opacity">
+                {hoveredDot != null
+                  ? (() => { const a = weekActionList.slice(-DOT_CAP)[hoveredDot]; return a ? `${nameOfHabit(a.habitId)} · ${a.date}${a.completedAt ? " · " + fmtActionTime(a.completedAt) : ""}` : ""; })()
+                  : t("habit.identity.thisWeekTip")}
+              </div>
+            </>
           )}
         </div>
       )}
@@ -471,6 +491,43 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   ];
 
   // ── Content buckets (arranged differently per layout) ──
+  // ── Observations strip (R7-N2) — surfaces qt_observations as plain sentences,
+  //    so the "system speaks from data, not templates" promise (Engagement #6)
+  //    actually lands in the UI instead of staying a structured payload.
+  const slotLabel = (id) => {
+    const blk = habits.schedule?.find?.((b) => b.id === id);
+    if (!blk) return id;
+    return lang === "zh" ? blk.label : blk.labelEn || blk.label;
+  };
+  const formatObservation = (o) => {
+    if (!o) return null;
+    switch (o.type) {
+      case "bestTime": return t("obs.bestTime", { habit: nameOfHabit(o.habitId), slot: slotLabel(o.slot), share: o.share });
+      case "streak": return t("obs.streak", { habit: nameOfHabit(o.habitId), n: o.n });
+      case "consistent": return t("obs.consistent", { habit: nameOfHabit(o.habitId), pct: o.pct });
+      case "momentum": return t("obs.momentum", { n: o.n });
+      default: return null;
+    }
+  };
+  const observations = habits.getObservations?.() || [];
+  const observationsStrip = observations.length > 0 ? (
+    <div className="rounded-2xl px-4 py-2.5" style={{ background: `${accent}08` }}>
+      <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">📊 {t("obs.title")}</div>
+      <div className="space-y-1">
+        {observations.slice(0, 2).map((o, i) => {
+          const text = formatObservation(o);
+          if (!text) return null;
+          return (
+            <div key={i} className="flex items-start gap-1.5 text-[11.5px] text-gray-600 leading-snug">
+              <span className="shrink-0" style={{ color: accent }}>·</span>
+              <span className="flex-1">{text}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  ) : null;
+
   const widgets = (
     <>
       {/* Consolidated insight strip (rotating) */}
@@ -478,6 +535,9 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
 
       {/* Identity strip (#8) */}
       {identityStrip}
+
+      {/* What the system has noticed (qt_observations) */}
+      {observationsStrip}
 
       {/* This week's focus + intention (#12) */}
       {(weekPlan?.intention || focusHabitName) && (
@@ -608,31 +668,46 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         <InlineChat copilot={copilot} theme={theme} onExpand={onOpenCopilot} />
       )}
 
-      {/* Weekly rhythm heatmap (C) */}
-      {weekRates.length > 0 && (
-        <div className="qt-card p-3.5">
-          <div className="text-[10.5px] font-bold text-gray-400 uppercase tracking-wide mb-2">📅 {t("habit.weekRhythm")}</div>
-          <div className="flex gap-1.5">
-            {weekRates.map((d, i) => {
-              const dateLabel = d.key || "";
-              const pct = d.rate != null ? Math.round(d.rate * 100) : null;
-              const tip = d.future
-                ? dateLabel
-                : `${dateLabel} · ${d.done}/${d.total}${pct != null ? ` · ${pct}%` : ""}${d.isToday ? " · today" : ""}`;
-              return (
+      {/* Weekly rhythm heatmap (C). R6-M2: an always-visible label below the
+          row shows the hovered cell's detail (date · done/total · pct%); when
+          nothing's hovered, it summarizes the week. */}
+      {weekRates.length > 0 && (() => {
+        const todayCell = weekRates.find((d) => d.isToday);
+        const defaultTip = todayCell
+          ? `${t("habit.day.now")} · ${todayCell.done}/${todayCell.total}${todayCell.rate != null ? ` · ${Math.round(todayCell.rate * 100)}%` : ""}`
+          : t("habit.weekRhythm");
+        const hovered = hoveredCell != null ? weekRates[hoveredCell] : null;
+        const hoveredTip = hovered
+          ? (hovered.future
+            ? `${hovered.key} · —`
+            : `${hovered.key} · ${hovered.done}/${hovered.total}${hovered.rate != null ? ` · ${Math.round(hovered.rate * 100)}%` : ""}${hovered.isToday ? " · today" : ""}`)
+          : null;
+        return (
+          <div className="qt-card p-3.5">
+            <div className="text-[10.5px] font-bold text-gray-400 uppercase tracking-wide mb-2">📅 {t("habit.weekRhythm")}</div>
+            <div className="flex gap-1.5">
+              {weekRates.map((d, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1">
                   <span
-                    className="w-full rounded-md cursor-help transition-transform hover:scale-110"
-                    style={{ aspectRatio: "1", background: d.future ? "#f1f5f9" : rateColor(d.rate), outline: d.isToday ? `2px solid ${accent}` : "none", outlineOffset: -1 }}
-                    title={tip}
+                    className="w-full rounded-md cursor-pointer transition-transform"
+                    style={{ aspectRatio: "1", background: d.future ? "#f1f5f9" : rateColor(d.rate), outline: d.isToday ? `2px solid ${accent}` : "none", outlineOffset: -1, transform: hoveredCell === i ? "scale(1.18)" : undefined }}
+                    onMouseEnter={() => setHoveredCell(i)}
+                    onMouseLeave={() => setHoveredCell((cur) => (cur === i ? null : cur))}
+                    onFocus={() => setHoveredCell(i)}
+                    onBlur={() => setHoveredCell((cur) => (cur === i ? null : cur))}
+                    tabIndex={0}
+                    aria-label={d.future ? `${d.key} (upcoming)` : `${d.key}: ${d.done} of ${d.total}`}
                   />
                   <span className="text-[9px] text-gray-400">{DOW_SHORT[i]}</span>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+            <div className="text-[10.5px] text-gray-500 mt-2 min-h-[1em] leading-tight">
+              {hoveredTip || defaultTip}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </>
   );
 
@@ -989,9 +1064,9 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
 
   return (
     <div className="space-y-3 pb-24" data-skin={skin}>
-      {/* Pinned next-up bar — stays visible while scrolling. Labeled "Next up"
-          (current slot's first remaining) to distinguish from "Just one thing"
-          (the easiest remaining). */}
+      {/* Pinned next-up bar — labeled "Next up" (current slot's first remaining),
+          distinct from "Just one thing" (easiest). A small caption under the
+          pill always names where the tier came from (R6-Mi1). */}
       {focus && (
         <div className="sticky top-2 z-30 -mx-1">
           <div className="mx-1 flex items-center gap-2 px-3 py-2 rounded-full bg-white/95 backdrop-blur border border-white/70 shadow-md">
@@ -1002,11 +1077,14 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
               onClick={() => habits.completeHabit(focus.habitId, focusTier)}
               className="shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full text-white"
               style={{ background: theme?.btnGrad || accent }}
-              title={focusTierReasonKey ? t(focusTierReasonKey) : ""}
             >
-              {t("habit.doNow.go")} · {focusTier}
+              {t("habit.doNow.go")} · {focusTier}{focusTier !== focusRecTier ? " ↓" : ""}
             </button>
           </div>
+          {/* Visible tier-source caption (R6-Mi1) — always names the rule */}
+          {focusTierReasonKey && (
+            <div className="text-[10px] text-gray-400 px-4 pt-1">{t(focusTierReasonKey)}</div>
+          )}
         </div>
       )}
 
@@ -1138,9 +1216,9 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       ) : layout === "todoFirst" ? (
         <div className="space-y-3">{todoCol}{widgets}</div>
       ) : layout === "timeline" ? (
-        <div className="space-y-3">{identityStrip}{timelineCol}</div>
+        <div className="space-y-3">{identityStrip}{observationsStrip}{timelineCol}</div>
       ) : layout === "focus" ? (
-        <div className="space-y-3">{identityStrip}{todoCol}</div>
+        <div className="space-y-3">{identityStrip}{observationsStrip}{todoCol}</div>
       ) : (
         <div className="space-y-3">{widgets}{todoCol}</div>
       )}
