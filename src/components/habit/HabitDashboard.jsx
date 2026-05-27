@@ -22,11 +22,15 @@ import ChapterStrip from "./ChapterStrip";
 import ChapterOpenModal from "./ChapterOpenModal";
 import ChapterCloseModal from "./ChapterCloseModal";
 import LettersInbox from "./LettersInbox";
+import VinesPanel from "./VinesPanel";
+import ShelterModal from "./ShelterModal";
+import BurnItModal from "./BurnItModal";
 import { useLivingWorld } from "../../hooks/useLivingWorld";
 import { useChapters } from "../../hooks/useChapters";
 import { useCompost } from "../../hooks/useCompost";
 import { useSystemLetters } from "../../hooks/useSystemLetters";
 import { useMilestoneProducer } from "../../hooks/useMilestoneProducer";
+import { useVines } from "../../hooks/useVines";
 import ReminderSettings from "./ReminderSettings";
 import BodyScanModal from "./BodyScanModal";
 import BodyDoubling from "./BodyDoubling";
@@ -70,9 +74,13 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [showChapterOpen, setShowChapterOpen] = useState(false); // Phase 2 — open a new chapter
   const [showChapterClose, setShowChapterClose] = useState(false); // Phase 2 — close ceremony
   const [showLetters, setShowLetters] = useState(false); // Phase 3 — system-letters inbox
+  const [showVines, setShowVines] = useState(false); // Phase 4 — grape-vine trellises
+  const [showShelter, setShowShelter] = useState(false); // Phase 4 — "today is hard" overlay
+  const [showBurn, setShowBurn] = useState(false); // Phase 4 — write-and-burn
   const chapters = useChapters();
   const compost = useCompost();
   const letters = useSystemLetters();
+  const vines = useVines();
   // Phase 3.1 — milestone producer (queues a one-time letter on first 7d streak)
   useMilestoneProducer({ habits, letters, t, lang });
   const [coreOnly, setCoreOnly] = useState(false);
@@ -1344,6 +1352,37 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         />
       )}
 
+      {/* Phase 4 — grape-vine trellises */}
+      {showVines && (
+        <VinesPanel
+          vines={vines}
+          theme={theme}
+          onClose={() => setShowVines(false)}
+        />
+      )}
+
+      {/* Phase 4 — "today is hard" shelter; choices hand off to existing flows */}
+      {showShelter && (
+        <ShelterModal
+          theme={theme}
+          onBreathe={() => {
+            // Open the PRN pause directly — show the existing toolbox + the user picks pause
+            setShowPRN(true);
+          }}
+          onOneThing={() => setOneThing("gentle")}
+          onRest={() => habits.toggleRestDay?.()}
+          onClose={() => setShowShelter(false)}
+        />
+      )}
+
+      {/* Phase 4 — write-and-burn vent space */}
+      {showBurn && (
+        <BurnItModal
+          theme={theme}
+          onClose={() => setShowBurn(false)}
+        />
+      )}
+
       {/* Energy re-assess modal */}
       {showEnergy && (
         <EnergyQuickModal
@@ -1660,6 +1699,9 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
                 { icon: "bed", label: t("habit.restDay"), act: habits.toggleRestDay, active: !!habits.todayMeta.restDay, dismissAfter: false },
                 { icon: "sprout", label: t("garden.title"), act: () => setShowGarden(true) },
                 { icon: "mail", label: t("letters.title"), act: () => setShowLetters(true), active: letters.hasPending },
+                { icon: "tools", label: t("vines.title"), act: () => setShowVines(true) },
+                { icon: "moon", label: t("shelter.title"), act: () => setShowShelter(true) },
+                { icon: "zap", label: t("burn.title"), act: () => setShowBurn(true) },
                 { icon: "browse", label: t("habit.browse"), act: onBrowse },
                 { icon: "tools", label: t("habit.prn"), act: () => setShowPRN(true) },
                 { icon: "users", label: t("habit.bodyDouble.title"), act: () => setShowBodyDouble(true) },
