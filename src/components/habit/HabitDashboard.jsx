@@ -18,7 +18,11 @@ import JustOneThing from "./JustOneThing";
 import DailyBriefingModal from "./DailyBriefingModal";
 import SunMascot from "./SunMascot";
 import HabitGarden from "./HabitGarden";
+import ChapterStrip from "./ChapterStrip";
+import ChapterOpenModal from "./ChapterOpenModal";
+import ChapterCloseModal from "./ChapterCloseModal";
 import { useLivingWorld } from "../../hooks/useLivingWorld";
+import { useChapters } from "../../hooks/useChapters";
 import ReminderSettings from "./ReminderSettings";
 import BodyScanModal from "./BodyScanModal";
 import BodyDoubling from "./BodyDoubling";
@@ -59,6 +63,9 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [showBriefing, setShowBriefing] = useState(false); // first-login AI daily briefing
   const briefingAutoTried = useRef(false);
   const [showGarden, setShowGarden] = useState(false); // Phase 1 Living World — 花园
+  const [showChapterOpen, setShowChapterOpen] = useState(false); // Phase 2 — open a new chapter
+  const [showChapterClose, setShowChapterClose] = useState(false); // Phase 2 — close ceremony
+  const chapters = useChapters();
   const [coreOnly, setCoreOnly] = useState(false);
   const [layout, setLayout] = useLocalStorage("qt_life_layout", "stacked"); // stacked | split | todoFirst | focus
   const [skin, setSkin] = useLocalStorage("qt_life_skin", "soft"); // soft | glass | aurora | vivid | outline
@@ -1288,6 +1295,26 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         />
       )}
 
+      {/* Living World Phase 2 — open a new chapter */}
+      {showChapterOpen && (
+        <ChapterOpenModal
+          chapters={chapters}
+          habits={habits}
+          theme={theme}
+          onClose={() => setShowChapterOpen(false)}
+        />
+      )}
+
+      {/* Living World Phase 2 — close the active chapter */}
+      {showChapterClose && (
+        <ChapterCloseModal
+          chapters={chapters}
+          habits={habits}
+          theme={theme}
+          onClose={() => setShowChapterClose(false)}
+        />
+      )}
+
       {/* Energy re-assess modal */}
       {showEnergy && (
         <EnergyQuickModal
@@ -1337,6 +1364,15 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         completed={progress.completed}
         total={progress.total}
         theme={theme}
+      />
+
+      {/* Living World Phase 2 — chapter strip (read-only banner; flows live in modals) */}
+      <ChapterStrip
+        chapters={chapters}
+        theme={theme}
+        onOpen={() => setShowChapterOpen(true)}
+        onClose={() => setShowChapterClose(true)}
+        onForceStart={() => setShowChapterOpen(true)}
       />
 
       {/* Pinned next-up bar — labeled "Next up" (current slot's first remaining),
