@@ -5,6 +5,8 @@ import { getHabitById, HABIT_CATEGORIES } from "../../utils/habitCatalog";
 import { analyzeDailyHabits } from "../../utils/aiService";
 import { EMOTION_QUADRANTS } from "../../utils/emotionVocab";
 import { SPRING_SOFT } from "../../utils/motion";
+import { useGhost } from "../../hooks/useGhost";
+import GhostComparison from "./GhostComparison";
 import RichModalBackdrop from "./RichModalBackdrop";
 
 // ── EveningCheckInModal — daily summary + unfinished + AI insight + mood ──
@@ -109,6 +111,16 @@ export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Phase 6 — Ghost mode (opt-in, off by default). Calling the hook here
+  // shares state with HabitDashboard's instance via the storage event bus.
+  const ghost = useGhost({ habits });
+  useEffect(() => {
+    if (ghost.enabled) ghost.ensureShadowSaved?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ghost.enabled]);
+  const userDoneTodayIds = todayView.filter((v) => v.done).map((v) => v.habitId);
+  const ghostComparison = ghost.enabled ? ghost.compareToday(userDoneTodayIds) : null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
       <RichModalBackdrop accent={accent} zIndex={-1} onClick={onClose} />
@@ -146,6 +158,16 @@ export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1">📖 {t("story.title")}</p>
             <p className="text-[13px] text-gray-700 leading-relaxed">{story}</p>
           </div>
+        )}
+
+        {/* Ghost comparison (Phase 6) — only when enabled */}
+        {ghost.enabled && ghostComparison && (
+          <GhostComparison
+            comparison={ghostComparison}
+            intensity={ghost.intensity}
+            theme={theme}
+            lang={lang}
+          />
         )}
 
         {/* Today replay timeline */}

@@ -31,6 +31,8 @@ import { useCompost } from "../../hooks/useCompost";
 import { useSystemLetters } from "../../hooks/useSystemLetters";
 import { useMilestoneProducer } from "../../hooks/useMilestoneProducer";
 import { useVines } from "../../hooks/useVines";
+import { useGhost } from "../../hooks/useGhost";
+import GhostTemplateEditor from "./GhostTemplateEditor";
 import ReminderSettings from "./ReminderSettings";
 import BodyScanModal from "./BodyScanModal";
 import BodyDoubling from "./BodyDoubling";
@@ -77,10 +79,12 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [showVines, setShowVines] = useState(false); // Phase 4 — grape-vine trellises
   const [showShelter, setShowShelter] = useState(false); // Phase 4 — "today is hard" overlay
   const [showBurn, setShowBurn] = useState(false); // Phase 4 — write-and-burn
+  const [showGhost, setShowGhost] = useState(false); // Phase 6 — Ghost template editor
   const chapters = useChapters();
   const compost = useCompost();
   const letters = useSystemLetters();
   const vines = useVines();
+  const ghost = useGhost({ habits });
   // Phase 3.1 — milestone producer (queues a one-time letter on first 7d streak)
   useMilestoneProducer({ habits, letters, t, lang });
   const [coreOnly, setCoreOnly] = useState(false);
@@ -1384,6 +1388,17 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         />
       )}
 
+      {/* Phase 6 — Ghost template editor (kill switch lives here) */}
+      {showGhost && (
+        <GhostTemplateEditor
+          ghost={ghost}
+          habits={habits}
+          theme={theme}
+          lang={lang}
+          onClose={() => setShowGhost(false)}
+        />
+      )}
+
       {/* Energy re-assess modal */}
       {showEnergy && (
         <EnergyQuickModal
@@ -1701,6 +1716,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
                 { icon: "sprout", label: t("garden.title"), act: () => setShowGarden(true) },
                 { icon: "mail", label: t("letters.title"), act: () => setShowLetters(true), active: letters.hasPending },
                 { icon: "tools", label: t("vines.title"), act: () => setShowVines(true) },
+                { icon: "users", label: t("ghost.title"), act: () => setShowGhost(true), active: ghost.enabled },
                 { icon: "moon", label: t("shelter.title"), act: () => setShowShelter(true) },
                 { icon: "zap", label: t("burn.title"), act: () => setShowBurn(true) },
                 { icon: "browse", label: t("habit.browse"), act: onBrowse },
