@@ -2,62 +2,138 @@ import { useCallback } from "react";
 import { useLocalStorage } from "./useLocalStorage";
 
 // ═══════════════════════════════════════════════════════════
-// useVines — qt_vines store (the grape-vine trellis)
+// useVines — qt_vines store (bad-habit + trellis, same thing)
 // ═══════════════════════════════════════════════════════════
 //
-// A "vine" is a habit you DON'T want to defeat — you want to redirect into
-// a bounded structure. Classic case: "scroll Instagram before bed for an
-// hour." Setting a trellis says "Instagram allowed 21:00–21:15. After
-// that, wind-down." The vine grows along the structure instead of sprawling.
+// Phase 2 design principle (anti-shame hard rule):
+// "A bad habit cannot be tracked without simultaneously being given a
+//  trellis." So every entry has BOUNDS, and every log row is computed
+//  for `withinTrellis` — the count alone is never shown without the cage.
 //
 // Shape (per vine):
-//   id          string
-//   name        e.g. "Instagram 睡前"
-//   icon        emoji (defaults to 🍇)
-//   bounds      { startTime: "21:00", endTime: "21:15" } — daily time window
-//   createdAt   timestamp
-//   log         { "YYYY-MM-DD": { stayed: bool, note?: string, loggedAt } }
+//   id            string
+//   name          e.g. "Instagram 睡前"
+//   icon          emoji
+//   category      "screen" | "substance" | "food" | "sleep" | "social" | "custom"
+//   bounds        {
+//                   startTime?: "21:00", endTime?: "21:15",   — daily time window
+//                   maxCount?: 1,                              — e.g. ≤1 cup/day
+//                   maxDuration?: 15                           — e.g. ≤15 min/day
+//                 }
+//   tracking      "yes_no" | "count" | "duration"  — drives the log input
+//   chapterId     string | null     — which chapter introduced this trellis
+//   status        "tracking" | "graduated" | "paused"
+//   createdAt     timestamp
+//   log           { "YYYY-MM-DD": { stayed?, count?, duration?, note?, loggedAt, withinTrellis } }
 //
-// The "stayed within the trellis" report is HONEST self-report — same model
-// as the rest of the app (no surveillance, no time tracking). The user says
-// yes or no after the window; we log and visualize.
+// The "withinTrellis" boolean is computed at log time using deriveWithin()
+// (also exported) so list views and statistics can read it directly.
 
 const TODAY = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-export function useVines() {
-  const [vines, setVines] = useLocalStorage("qt_vines", []);
+const DEFAULT_BOUNDS = { startTime: "21:00", endTime: "21:15", maxCount: null, maxDuration: null };
 
-  const create = useCallback(({ name, icon = "🍇", bounds = { startTime: "21:00", endTime: "21:15" } }) => {
+// Compute "within the trellis" for a single log entry against the bounds.
+// Returns true / false / null (null = no input yet).
+//
+//   explicit stayed flag wins (honor-system path)
+//   else: count ≤ maxCount if maxCount set
+//   else: duration ≤ maxDuration if maxDuration set
+//   else: any non-empty entry → true (the trellis was just a time window)
+export function deriveWithin(entry, bounds = {}) {
+  if (!entry) return null;
+  if (entry.stayed === true) return true;
+  if (entry.stayed === false) return false;
+  if (bounds.maxCount != null && entry.count != null) {
+    return entry.count <= bounds.maxCount;
+  }
+  if (bounds.maxDuration != null && entry.duration != null) {
+    return entry.duration <= bounds.maxDuration;
+  }
+  if (entry.count != null || entry.duration != null) return true;
+  return null;
+}
+
+// Migrate a vine from pre-Phase 2 shape (bounds = { startTime, endTime }, no
+// category / tracking / status) into the extended shape. Safe to run
+// repeatedly — already-extended fields are left alone.
+function migrate(v) {
+  return {
+    id: v.id,
+    name: v.name,
+    icon: v.icon || "🍇",
+    category: v.category || "custom",
+    bounds: {
+      startTime: v.bounds?.startTime ?? null,
+      endTime: v.bounds?.endTime ?? null,
+      maxCount: v.bounds?.maxCount ?? null,
+      maxDuration: v.bounds?.maxDuration ?? null,
+    },
+    tracking: v.tracking || "yes_no",
+    chapterId: v.chapterId ?? null,
+    status: v.status || "tracking",
+    createdAt: v.createdAt || Date.now(),
+    log: v.log || {},
+  };
+}
+
+export function useVines() {
+  const [raw, setRaw] = useLocalStorage("qt_vines", []);
+  const vines = raw.map(migrate);
+  const setVines = setRaw;
+
+  const create = useCallback((init) => {
     const id = `vine-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const v = { id, name: String(name || "").trim(), icon, bounds, createdAt: Date.now(), log: {} };
+    const v = migrate({
+      id,
+      name: String(init?.name || "").trim(),
+      icon: init?.icon || "🍇",
+      category: init?.category || "custom",
+      bounds: { ...DEFAULT_BOUNDS, ...(init?.bounds || {}) },
+      tracking: init?.tracking || "yes_no",
+      chapterId: init?.chapterId || null,
+      status: "tracking",
+      createdAt: Date.now(),
+      log: {},
+    });
     setVines((prev) => [...prev, v]);
     return v;
   }, [setVines]);
 
   const update = useCallback((id, patch) => {
-    setVines((prev) => prev.map((v) => (v.id === id ? { ...v, ...patch } : v)));
+    setVines((prev) => prev.map((v) => {
+      if (v.id !== id) return v;
+      const next = { ...v, ...patch };
+      // Bounds patch is merged shallowly so caller can pass partial { maxCount: 1 }
+      if (patch.bounds) next.bounds = { ...v.bounds, ...patch.bounds };
+      return next;
+    }));
   }, [setVines]);
 
   const remove = useCallback((id) => {
     setVines((prev) => prev.filter((v) => v.id !== id));
   }, [setVines]);
 
-  // Record today's self-report; passing `null` clears it.
+  // Record today's entry. The caller passes a partial { stayed, count, duration, note };
+  // `withinTrellis` is computed and stamped here so log readers don't repeat the rule.
+  // Passing `null` clears today's entry entirely.
   const logToday = useCallback((id, entry) => {
     const key = TODAY();
     setVines((prev) => prev.map((v) => {
       if (v.id !== id) return v;
       const log = { ...(v.log || {}) };
-      if (entry == null) delete log[key];
-      else log[key] = { ...entry, loggedAt: Date.now() };
+      if (entry == null) { delete log[key]; return { ...v, log }; }
+      const merged = { ...entry, loggedAt: Date.now() };
+      merged.withinTrellis = deriveWithin(merged, v.bounds);
+      log[key] = merged;
       return { ...v, log };
     }));
   }, [setVines]);
 
-  // Last 7 days as an array of { date, stayed: true/false/null }
+  // Last 7 days. Returns an array of { date, entry, within }
   const recent7 = useCallback((id) => {
     const v = vines.find((x) => x.id === id);
     if (!v) return [];
@@ -66,8 +142,8 @@ export function useVines() {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      const r = v.log?.[key];
-      out.push({ date: key, stayed: r ? !!r.stayed : null });
+      const entry = v.log?.[key] || null;
+      out.push({ date: key, entry, within: entry ? entry.withinTrellis : null });
     }
     return out;
   }, [vines]);

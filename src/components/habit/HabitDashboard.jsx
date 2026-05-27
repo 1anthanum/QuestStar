@@ -1352,11 +1352,12 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         />
       )}
 
-      {/* Phase 4 — grape-vine trellises */}
+      {/* Phase 4 — grape-vine trellises (Phase 2 hard rule: tracking + bounds together) */}
       {showVines && (
         <VinesPanel
           vines={vines}
           theme={theme}
+          chapterId={chapters.active?.id || null}
           onClose={() => setShowVines(false)}
         />
       )}

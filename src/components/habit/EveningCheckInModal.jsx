@@ -1,13 +1,18 @@
 import { useState, useEffect } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { useLanguage } from "../../hooks/useLanguage";
 import { getHabitById, HABIT_CATEGORIES } from "../../utils/habitCatalog";
 import { analyzeDailyHabits } from "../../utils/aiService";
 import { EMOTION_QUADRANTS } from "../../utils/emotionVocab";
+import { SPRING_SOFT } from "../../utils/motion";
 import RichModalBackdrop from "./RichModalBackdrop";
 
 // ── EveningCheckInModal — daily summary + unfinished + AI insight + mood ──
+// Phase 3 F2: sunset ritual at the top — the sun descends into the modal
+// header on open as a quiet marker that "today is being closed."
 export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
   const { t, lang } = useLanguage();
+  const reduce = useReducedMotion();
   const accent = theme?.accent || "#6366f1";
 
   const progress = habits.getTodayProgress();
@@ -108,10 +113,32 @@ export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
       <RichModalBackdrop accent={accent} zIndex={-1} onClick={onClose} />
       <div className="relative w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-black text-gray-800">📊 {t("habit.evening.title")}</h3>
-          <button onClick={onClose} className="text-gray-300 hover:text-gray-500 text-lg">✕</button>
+        {/* F2 — sunset ritual: the sun descends + tints amber as the day closes */}
+        <div className="relative h-16 -mx-6 -mt-6 mb-3 overflow-hidden rounded-t-3xl"
+          style={{ background: "linear-gradient(180deg, #fde68a 0%, #fdba74 50%, #fb923c 100%)" }}>
+          <motion.div
+            className="absolute left-1/2 -translate-x-1/2"
+            initial={reduce ? { top: 18 } : { top: -28 }}
+            animate={{ top: 22 }}
+            transition={reduce ? { duration: 0 } : { duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+            style={{ width: 44, height: 44, borderRadius: "50%", background: "radial-gradient(circle at 38% 32%, #fff3b0, #f97316 70%, #c2410c)", boxShadow: "0 6px 18px rgba(249, 115, 22, 0.5)" }}
+          />
+          {/* horizon line — soft band underneath */}
+          <div className="absolute inset-x-0 bottom-0 h-3" style={{ background: "linear-gradient(180deg, rgba(120,53,15,0) 0%, rgba(120,53,15,0.4) 100%)" }} />
         </div>
+
+        <motion.div
+          initial={reduce ? { opacity: 1 } : { opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={reduce ? { duration: 0 } : { ...SPRING_SOFT, delay: 0.8 }}
+          className="flex items-center justify-between mb-4"
+        >
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("evening.sunset.eyebrow")}</div>
+            <h3 className="text-base font-black text-gray-800">📊 {t("habit.evening.title")}</h3>
+          </div>
+          <button onClick={onClose} className="text-gray-300 hover:text-gray-500 text-lg">✕</button>
+        </motion.div>
 
         {/* Daily story (qt_daily_story) */}
         {story && (
