@@ -610,6 +610,34 @@ Rules: be encouraging and non-judgmental, never shaming. Reference actual number
 }
 
 /**
+ * Augment a chapter-close letter. Takes the template skeleton + structured
+ * context and asks the AI to produce a final 3–5 sentence letter. Returns
+ * the rewritten text, or the original template on any failure — so the
+ * caller can queue the template immediately and let the augmentation patch
+ * in later when (and if) it arrives.
+ *
+ * @param template string  the template letter the user already saw
+ * @param context  { intention, total, longest, mood, identity, chapterN }
+ */
+export async function augmentChapterCloseLetter(template, context, provider, model, apiKey, lang = "en") {
+  if (!apiKey) return template;
+  const systemPrompt = `You are writing a short, warm letter from "the system" to a person with ADHD who just finished a 12-week chapter of self-management work. ${lang === "zh" ? "Write in natural Chinese (中文). " : "Write in English. "}3–5 sentences, second person ("you"), no advice, no shame, no markdown. Reference at least one real number from the context. End with something gentle. Do NOT echo the template verbatim — improve on it, but keep its facts.`;
+  const user = `Template (what they already saw):\n${template}\n\nContext (real data):\n${JSON.stringify(context)}\n\nRewrite the letter.`;
+  try {
+    const text = await callAI({
+      provider, model, apiKey,
+      systemPrompt,
+      messages: [{ role: "user", content: user }],
+      maxTokens: 320,
+    });
+    const clean = String(text || "").trim();
+    return clean.length > 20 ? clean : template;
+  } catch {
+    return template;
+  }
+}
+
+/**
  * Generate a warm second-person monthly narrative from habit stats.
  * @returns string
  */

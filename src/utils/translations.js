@@ -1124,6 +1124,7 @@ const translations = {
     "letters.from.milestone": "A milestone moment",
     "letters.from.observation": "A pattern the system noticed",
     "letters.from.anniversary": "An anniversary note",
+    "letters.template.firstStreak7d": "You hit a 7-day streak with {habit}.\n\nThe first one matters most — it's the day your body started believing the pattern is real. The rest gets easier from here.\n\nKeep going gently.",
     // Garden additions (Phase 3)
     "garden.focus": "Chapter focus",
     "garden.compost.title": "Compost",
@@ -2610,6 +2611,7 @@ const translations = {
     "letters.from.milestone": "一个里程碑时刻",
     "letters.from.observation": "系统注意到的一个规律",
     "letters.from.anniversary": "一封周年纪念信",
+    "letters.template.firstStreak7d": "{habit} 已经连续 7 天了。\n\n第一次的 7 天最重要 —— 这是身体开始相信这件事真的算数的那一天。后面会越来越轻。\n\n继续，温柔一点。",
     // 花园补充（Phase 3）
     "garden.focus": "章节核心",
     "garden.compost.title": "堆肥",

@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useLanguage } from "../../hooks/useLanguage";
 import { getHabitById, HABIT_CATEGORIES } from "../../utils/habitCatalog";
+import { augmentChapterCloseLetter } from "../../utils/aiService";
 import { SPRING_POP, SPRING_SOFT } from "../../utils/motion";
 import RichModalBackdrop from "./RichModalBackdrop";
 
@@ -18,7 +19,7 @@ import RichModalBackdrop from "./RichModalBackdrop";
 const MOODS_EN = ["calm", "scattered", "steady", "rushed", "soft", "strong"];
 const MOODS_ZH = ["平静", "散乱", "稳", "急", "柔", "稳健"];
 
-export default function ChapterCloseModal({ chapters, habits, theme, compost, letters, dormancyMinDays = 1, onClose }) {
+export default function ChapterCloseModal({ chapters, habits, theme, compost, letters, ai, dormancyMinDays = 1, onClose }) {
   const { t, lang } = useLanguage();
   const reduce = useReducedMotion();
   const accent = theme?.accent || "#6366f1";
@@ -73,16 +74,38 @@ export default function ChapterCloseModal({ chapters, habits, theme, compost, le
 
     // 2. Queue a system letter for delivery after the dormancy window
     //    (so it surfaces just before / at the next chapter's start).
+    //    Template goes in immediately. If an AI key is available, fire
+    //    augmentChapterCloseLetter in the background and updateLetter
+    //    when it returns — the user sees the better version when they
+    //    open it tomorrow, but the template is always present as fallback.
     if (letters?.queue) {
       const deliverDate = new Date();
       deliverDate.setDate(deliverDate.getDate() + dormancyMinDays);
       const deliverOn = `${deliverDate.getFullYear()}-${String(deliverDate.getMonth() + 1).padStart(2, "0")}-${String(deliverDate.getDate()).padStart(2, "0")}`;
-      letters.queue({
+      const queued = letters.queue({
         type: "chapter_close",
         deliverOn,
         text: letter.text,
-        meta: { chapterId: c.id, chapterN: c.n, mood, retiredCount: retired.length },
+        meta: { chapterId: c.id, chapterN: c.n, mood, retiredCount: retired.length, source: "template" },
       });
+      // Fire-and-forget AI rewrite — failures fall back to the template.
+      if (ai?.hasApiKey && queued?.id) {
+        const ctx = {
+          intention: c.intention,
+          total: totalDone,
+          longest: longestStreak,
+          mood,
+          identity: habits.identity || null,
+          chapterN: c.n,
+        };
+        augmentChapterCloseLetter(letter.text, ctx, ai.aiProvider, ai.aiModel, ai.resolvedKey, lang)
+          .then((augmented) => {
+            if (augmented && augmented !== letter.text) {
+              letters.updateLetter?.(queued.id, { text: augmented, meta: { ...queued.meta, source: "ai" } });
+            }
+          })
+          .catch(() => { /* keep template */ });
+      }
     }
 
     // 3. Seal the chapter itself

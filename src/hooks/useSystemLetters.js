@@ -51,6 +51,12 @@ export function useSystemLetters() {
     setLetters((prev) => prev.map((l) => (l.id === id ? { ...l, delivered: true, deliveredAt: Date.now() } : l)));
   }, [setLetters]);
 
+  // updateLetter — patch a queued letter (used by background AI augmentation
+  // to swap in better text after the template is already queued).
+  const updateLetter = useCallback((id, patch) => {
+    setLetters((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  }, [setLetters]);
+
   const deleteLetter = useCallback((id) => {
     setLetters((prev) => prev.filter((l) => l.id !== id));
   }, [setLetters]);
@@ -66,5 +72,5 @@ export function useSystemLetters() {
   // Helpful for the sun-pulse signal — true the moment any letter is due
   const hasPending = pending.length > 0;
 
-  return { letters, pending, archive, hasPending, queue, markDelivered, deleteLetter };
+  return { letters, pending, archive, hasPending, queue, markDelivered, deleteLetter, updateLetter };
 }

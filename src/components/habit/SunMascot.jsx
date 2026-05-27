@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useLanguage } from "../../hooks/useLanguage";
 import { SPRING_POP, SPRING_SOFT } from "../../utils/motion";
@@ -23,12 +23,34 @@ const STATE = {
   twilight:      { core: "#a78bfa", glow: "#c4b5fd66", aura: 0.35, labelKey: "sun.twilight",  tagKey: "sun.twilightTag" },
 };
 
-export default function SunMascot({ world, identity, weekActions, topObservation, completed, total, theme, letterPending, onOpenLetters, onClick }) {
+export default function SunMascot({ world, identity, weekActions, topObservation, completed, total, theme, letterPending, onOpenLetters, chapterStatus, chapterId, onClick }) {
   const { t } = useLanguage();
   const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
   const cfg = STATE[world.sunState] || STATE.growing;
   const rayCount = Math.max(0, Math.min(8, world.sunRays.length));
+
+  // Phase 3.1: chapter overlay — closing tints warmer (sunset), overdue
+  // tints amber-urgent. Active / opening stay neutral.
+  const isClosing = chapterStatus === "closing";
+  const isOverdue = chapterStatus === "overdue";
+  const chapterOverlay = isClosing
+    ? "radial-gradient(circle at 50% 80%, rgba(251,146,60,0.35) 0%, transparent 70%)"
+    : isOverdue
+      ? "radial-gradient(circle at 50% 80%, rgba(249,115,22,0.45) 0%, transparent 70%)"
+      : null;
+
+  // Sunrise on chapter change — when chapterId changes (a new chapter just
+  // started), fire a one-shot expand. We use a key bump so framer-motion
+  // re-runs the initial animation cleanly.
+  const lastChapterRef = useRef(chapterId);
+  const [riseKey, setRiseKey] = useState(0);
+  useEffect(() => {
+    if (chapterId && chapterId !== lastChapterRef.current) {
+      lastChapterRef.current = chapterId;
+      setRiseKey((k) => k + 1);
+    }
+  }, [chapterId]);
 
   // SVG geometry: core radius 16, rays start at r=20, max extend to r=34.
   const RING = 70; // viewBox size
@@ -59,6 +81,23 @@ export default function SunMascot({ world, identity, weekActions, topObservation
           animate={reduce ? {} : { scale: world.sunState === "radiant" ? [1, 1.25, 1] : [1, 1.08, 1] }}
           transition={reduce ? { duration: 0 } : { duration: world.sunState === "radiant" ? 1.2 : 3.5, repeat: Infinity, ease: "easeInOut" }}
         />
+
+        {/* Chapter overlay — sunset tint for closing/overdue (Phase 3.1) */}
+        {chapterOverlay && (
+          <div className="absolute inset-0 rounded-full pointer-events-none" style={{ background: chapterOverlay }} />
+        )}
+
+        {/* Sunrise burst on chapter change — one-shot expanding ring */}
+        {riseKey > 0 && !reduce && (
+          <motion.div
+            key={`rise-${riseKey}`}
+            className="absolute inset-0 rounded-full pointer-events-none"
+            style={{ border: `2px solid ${cfg.core}` }}
+            initial={{ scale: 0.6, opacity: 0.9 }}
+            animate={{ scale: 2.2, opacity: 0 }}
+            transition={{ duration: 1.0, ease: "easeOut" }}
+          />
+        )}
 
         {/* SVG sun */}
         <svg viewBox={`0 0 ${RING} ${RING}`} width="100%" height="100%" className="relative">

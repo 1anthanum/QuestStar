@@ -26,6 +26,7 @@ import { useLivingWorld } from "../../hooks/useLivingWorld";
 import { useChapters } from "../../hooks/useChapters";
 import { useCompost } from "../../hooks/useCompost";
 import { useSystemLetters } from "../../hooks/useSystemLetters";
+import { useMilestoneProducer } from "../../hooks/useMilestoneProducer";
 import ReminderSettings from "./ReminderSettings";
 import BodyScanModal from "./BodyScanModal";
 import BodyDoubling from "./BodyDoubling";
@@ -72,6 +73,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const chapters = useChapters();
   const compost = useCompost();
   const letters = useSystemLetters();
+  // Phase 3.1 — milestone producer (queues a one-time letter on first 7d streak)
+  useMilestoneProducer({ habits, letters, t, lang });
   const [coreOnly, setCoreOnly] = useState(false);
   const [layout, setLayout] = useLocalStorage("qt_life_layout", "stacked"); // stacked | split | todoFirst | focus
   const [skin, setSkin] = useLocalStorage("qt_life_skin", "soft"); // soft | glass | aurora | vivid | outline
@@ -1317,7 +1320,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         />
       )}
 
-      {/* Living World Phase 2 — close the active chapter */}
+      {/* Living World Phase 2 — close the active chapter (Phase 3.1: ai augment) */}
       {showChapterClose && (
         <ChapterCloseModal
           chapters={chapters}
@@ -1325,6 +1328,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           theme={theme}
           compost={compost}
           letters={letters}
+          ai={ai}
           dormancyMinDays={chapters.dormancyMinDays}
           onClose={() => setShowChapterClose(false)}
         />
@@ -1381,7 +1385,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   return (
     <div className="space-y-3 pb-24" data-skin={skin}>
       {/* Living World Phase 1 — your sun, persistent in the corner.
-          Phase 3: a small envelope badge pulses when a system letter is due. */}
+          Phase 3: envelope pulses when a letter is due.
+          Phase 3.1: closing/overdue gets a sunset tint; new chapter id → sunrise. */}
       <SunMascot
         world={livingWorld}
         identity={habits.identity}
@@ -1392,6 +1397,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         theme={theme}
         letterPending={letters.hasPending}
         onOpenLetters={() => setShowLetters(true)}
+        chapterStatus={chapters.status}
+        chapterId={chapters.active?.id || null}
       />
 
       {/* Living World Phase 2 — chapter strip (read-only banner; flows live in modals) */}
