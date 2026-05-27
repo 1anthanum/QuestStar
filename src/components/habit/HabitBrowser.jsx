@@ -169,8 +169,18 @@ export default function HabitBrowser({ habits, onClose, theme, defaultTimeSlot }
 function HabitRow({ habit, isActive, lang, t, accent, activeHabits, exploreBudget, medicationAdjustment, onAdd }) {
   const cat = HABIT_CATEGORIES[habit.category];
   const name = lang === "zh" ? habit.name : (habit.nameEn || habit.name);
+  const description = lang === "zh" ? habit.description : (habit.descriptionEn || habit.description);
+  const tutorial = lang === "zh" ? habit.tutorial : (habit.tutorialEn || habit.tutorial);
+  const hasGuide = !!(description || (tutorial && tutorial.length > 0));
+  const tiers = habit.tiers || {};
+  const tierText = (key) => {
+    const tt = tiers[key];
+    if (!tt) return null;
+    return lang === "zh" ? tt.text : (tt.textEn || tt.text);
+  };
   const [added, setAdded] = useState(isActive);
   const [error, setError] = useState(null);
+  const [expanded, setExpanded] = useState(false);
 
   const tryAdd = (layer) => {
     const check = validateLayerLimits(activeHabits, layer, exploreBudget, medicationAdjustment);
@@ -184,34 +194,89 @@ function HabitRow({ habit, isActive, lang, t, accent, activeHabits, exploreBudge
   };
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50">
-      <span className="text-sm">{cat?.icon}</span>
-      <span className="flex-1 text-[13px] text-gray-700">{name}</span>
-      {added ? (
-        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-600">
-          ✓ {t("habit.browser.active")}
-        </span>
-      ) : error ? (
-        <span className="text-[10px] font-semibold text-red-500">{error}</span>
-      ) : (
-        <div className="flex gap-1">
-          {/* Suggested layer first, then explore */}
-          <button
-            onClick={() => tryAdd(habit.suggestedLayer || 3)}
-            className="text-[10px] font-bold px-2 py-1 rounded-full text-white"
-            style={{ background: accent }}
-            title={t("habit.browser.addAs", { layer: { 1: t("habit.layerCore"), 2: t("habit.layerForming"), 3: t("habit.layerExplore") }[habit.suggestedLayer || 3] })}
-          >
-            + {{ 1: t("habit.layerCore"), 2: t("habit.layerForming"), 3: t("habit.layerExplore") }[habit.suggestedLayer || 3]}
-          </button>
-          {(habit.suggestedLayer || 3) !== 3 && (
-            <button
-              onClick={() => tryAdd(3)}
-              className="text-[10px] font-semibold px-2 py-1 rounded-full bg-gray-200 text-gray-500"
-              title={t("habit.browser.addAs", { layer: t("habit.layerExplore") })}
+    <div className="rounded-xl bg-gray-50">
+      <div className="flex items-center gap-2 px-3 py-2">
+        <span className="text-sm">{cat?.icon}</span>
+        <button
+          type="button"
+          onClick={() => hasGuide && setExpanded((v) => !v)}
+          className="flex-1 text-left text-[13px] text-gray-700 flex items-center gap-1.5 min-w-0"
+          aria-expanded={expanded}
+          title={hasGuide ? t("habit.browser.detailsTip") : undefined}
+        >
+          <span className="truncate">{name}</span>
+          {hasGuide && (
+            <span
+              className="shrink-0 text-[10px] font-bold rounded-full px-1.5 py-0.5 transition-colors"
+              style={{ background: expanded ? `${accent}1f` : "#e5e7eb", color: expanded ? accent : "#6b7280" }}
+              aria-hidden
             >
-              ✦
+              {expanded ? "−" : "?"}
+            </span>
+          )}
+        </button>
+        {added ? (
+          <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-600">
+            ✓ {t("habit.browser.active")}
+          </span>
+        ) : error ? (
+          <span className="text-[10px] font-semibold text-red-500">{error}</span>
+        ) : (
+          <div className="flex gap-1">
+            {/* Suggested layer first, then explore */}
+            <button
+              onClick={() => tryAdd(habit.suggestedLayer || 3)}
+              className="text-[10px] font-bold px-2 py-1 rounded-full text-white"
+              style={{ background: accent }}
+              title={t("habit.browser.addAs", { layer: { 1: t("habit.layerCore"), 2: t("habit.layerForming"), 3: t("habit.layerExplore") }[habit.suggestedLayer || 3] })}
+            >
+              + {{ 1: t("habit.layerCore"), 2: t("habit.layerForming"), 3: t("habit.layerExplore") }[habit.suggestedLayer || 3]}
             </button>
+            {(habit.suggestedLayer || 3) !== 3 && (
+              <button
+                onClick={() => tryAdd(3)}
+                className="text-[10px] font-semibold px-2 py-1 rounded-full bg-gray-200 text-gray-500"
+                title={t("habit.browser.addAs", { layer: t("habit.layerExplore") })}
+              >
+                ✦
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Expanded preview — description + tutorial + L/M/H tiers */}
+      {expanded && hasGuide && (
+        <div className="px-3 pb-3 pt-1 border-t border-gray-200/60 space-y-2.5">
+          {description && (
+            <p className="text-[11.5px] leading-relaxed text-gray-600">{description}</p>
+          )}
+          {tutorial && tutorial.length > 0 && (
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">
+                {t("habit.detail.howTo")}
+              </div>
+              <ol className="space-y-0.5 text-[11px] leading-snug text-gray-700">
+                {tutorial.map((step, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="font-bold tabular-nums shrink-0" style={{ color: accent }}>{i + 1}.</span>
+                    <span className="flex-1">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+          {(tierText("L") || tierText("M") || tierText("H")) && (
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">
+                {t("habit.browser.tiers")}
+              </div>
+              <div className="space-y-0.5 text-[11px] text-gray-600">
+                {tierText("L") && <div><span className="font-bold text-gray-400 mr-1.5">L</span>{tierText("L")}</div>}
+                {tierText("M") && <div><span className="font-bold mr-1.5" style={{ color: accent }}>M</span>{tierText("M")}</div>}
+                {tierText("H") && <div><span className="font-bold text-amber-500 mr-1.5">H</span>{tierText("H")}</div>}
+              </div>
+            </div>
           )}
         </div>
       )}

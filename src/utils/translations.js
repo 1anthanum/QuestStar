@@ -1026,6 +1026,8 @@ const translations = {
     "habit.browser.noResults": "No habits match.",
     "habit.browser.addAs": "Add as {layer}",
     "habit.browser.intoSlot": "Adding into {slot}",
+    "habit.browser.detailsTip": "Tap to preview — what it is and how to do it",
+    "habit.browser.tiers": "Intensity tiers",
     // Do-now / suggestions / encouragement / chat
     "habit.doNow.title": "Do now",
     "habit.doNow.empty": "All caught up — rest easy 🌙",
@@ -2633,6 +2635,8 @@ const translations = {
     "habit.browser.noResults": "没有匹配的 habit。",
     "habit.browser.addAs": "添加为{layer}",
     "habit.browser.intoSlot": "添加到{slot}",
+    "habit.browser.detailsTip": "点击预览 —— 这是什么、怎么做",
+    "habit.browser.tiers": "强度档位",
     // Do-now / suggestions / encouragement / chat
     "habit.doNow.title": "现在可以做",
     "habit.doNow.empty": "全部完成了 — 好好休息 🌙",
