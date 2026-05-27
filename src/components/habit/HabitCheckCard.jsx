@@ -161,7 +161,22 @@ function HabitCheckCard({
 
             <span className="text-sm shrink-0">{icon}</span>
             <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-semibold text-gray-800 truncate">{name}</div>
+              <div className="text-[13px] font-semibold text-gray-800 truncate flex items-center gap-1.5">
+                <span className="truncate">{name}</span>
+                {/* "?" chip — visible affordance for tutorial / description */}
+                {(cat?.description || (cat?.tutorial && cat.tutorial.length > 0)) && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setShowDetail(true); }}
+                    className="shrink-0 text-[10px] font-bold rounded-full px-1.5 py-0.5 transition-colors"
+                    style={{ background: `${hColor}1f`, color: hColor }}
+                    title={t("habit.browser.detailsTip")}
+                    aria-label={t("habit.browser.detailsTip")}
+                  >
+                    ?
+                  </button>
+                )}
+              </div>
               <div className="text-[10px] text-gray-400 truncate">
                 {layerLabel}{streak > 0 ? ` · ${t("habit.streakDays", { n: streak })}` : ""}
               </div>
@@ -179,7 +194,7 @@ function HabitCheckCard({
               ))}
             </div>
 
-            <button onClick={() => setShowDetail(true)} className="shrink-0 text-gray-300 hover:text-gray-500" title={t("habit.detail.title")}><Icon name="more" size={16} strokeWidth={3} /></button>
+            <button onClick={() => setShowDetail(true)} className="shrink-0 text-gray-400 hover:text-gray-600 -mr-0.5 p-1 rounded-full hover:bg-gray-100" title={t("habit.detail.title")}><Icon name="more" size={16} strokeWidth={3} /></button>
           </div>
 
           {/* Inline tier picker (A) */}
