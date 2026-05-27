@@ -638,6 +638,54 @@ export async function augmentChapterCloseLetter(template, context, provider, mod
 }
 
 /**
+ * Generate a 3-line haiku-shaped reflection of the user's day.
+ * No fallback — bad poetry is worse than absence. Returns "" on failure.
+ *
+ * Context shape: { date, intensity, completedNames[], focusName, mood?, weather?, season? }
+ *   intensity ∈ "rough" | "low" | "steady" | "high"  — already mood-aware
+ *   completedNames — localized habit names actually done today
+ *   focusName — this week's focus habit, if any
+ *
+ * @returns string  (three lines separated by \n; "" on any failure)
+ */
+export async function generateDailyHaiku(context, provider, model, apiKey, lang = "en") {
+  if (!apiKey) return "";
+  const systemPrompt = `You write three-line poetic reflections in the spirit of haiku — concrete imagery, no abstractions, no advice, no metaphors about "journeys" or "paths".
+${lang === "zh" ? "Write in natural Chinese (中文)." : "Write in English."}
+Strict rules:
+- Exactly 3 lines, separated by single newlines.
+- No title, no quotes, no markdown, no emoji.
+- Second person OR no person — never first person.
+- Reference at least one concrete habit or moment from the context. Do not name numbers.
+- Tone scales with intensity: "rough" → quiet, accepting; "low" → soft; "steady" → grounded; "high" → bright but not loud.
+- If the day was empty, write a haiku of stillness — do not invent activity. Do not say "you did nothing" — find the dignity in rest.`;
+  const user = `Day context (real data, not template):\n${JSON.stringify(context)}\n\nWrite the three lines.`;
+  try {
+    const text = await callAI({
+      provider, model, apiKey,
+      systemPrompt,
+      messages: [{ role: "user", content: user }],
+      maxTokens: 120,
+    });
+    const clean = String(text || "")
+      .trim()
+      .replace(/^["「『]+|["」』]+$/g, "")
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .slice(0, 3)
+      .join("\n");
+    // Sanity check — must be three short-ish lines, not a paragraph.
+    if (!clean || clean.split("\n").length < 2) return "";
+    const tooLong = clean.split("\n").some((l) => l.length > 40);
+    if (tooLong) return "";
+    return clean;
+  } catch {
+    return "";
+  }
+}
+
+/**
  * Generate a warm second-person monthly narrative from habit stats.
  * @returns string
  */

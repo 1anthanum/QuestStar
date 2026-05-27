@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useLanguage } from "../../hooks/useLanguage";
+import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { getHabitById, HABIT_CATEGORIES } from "../../utils/habitCatalog";
-import { analyzeDailyHabits } from "../../utils/aiService";
+import { analyzeDailyHabits, generateDailyHaiku } from "../../utils/aiService";
 import { EMOTION_QUADRANTS } from "../../utils/emotionVocab";
 import { SPRING_SOFT } from "../../utils/motion";
 import { useGhost } from "../../hooks/useGhost";
@@ -121,6 +122,46 @@ export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
   const userDoneTodayIds = todayView.filter((v) => v.done).map((v) => v.habitId);
   const ghostComparison = ghost.enabled ? ghost.compareToday(userDoneTodayIds) : null;
 
+  // ── Daily haiku (Phase 5 / G2) — 3-line poetic reflection, cached per day ──
+  // No template fallback: if the AI fails or there's no key, the section just
+  // doesn't render. Bad poetry is worse than absence.
+  const [haikuCache, setHaikuCache] = useLocalStorage("qt_daily_haiku", null);
+  const [haikuLoading, setHaikuLoading] = useState(false);
+  const haiku = haikuCache?.date === todayKey ? haikuCache.text : null;
+  useEffect(() => {
+    if (haiku || haikuLoading) return undefined;
+    if (!ai?.hasApiKey) return undefined;
+    // Don't ask for a haiku of a totally fresh day — wait until there's something
+    // to reflect on. Empty days still allowed if mood was logged (rest has dignity).
+    if (replay.length === 0 && !habits.todayMeta?.mood) return undefined;
+    let cancelled = false;
+    setHaikuLoading(true);
+    const intensity = ghost?.intensity || (mood <= 3 ? "rough" : mood <= 5 ? "low" : mood <= 7 ? "steady" : "high");
+    const month = new Date().getMonth() + 1;
+    const season = month <= 2 || month === 12 ? (lang === "zh" ? "冬" : "winter")
+                  : month <= 5 ? (lang === "zh" ? "春" : "spring")
+                  : month <= 8 ? (lang === "zh" ? "夏" : "summer")
+                  : (lang === "zh" ? "秋" : "autumn");
+    const context = {
+      date: todayKey,
+      intensity,
+      season,
+      completedNames: replay.map((r) => r.name).slice(0, 8),
+      completedCount: replay.length,
+      focusName: habits.weekPlan?.intention || null,
+      mood: habits.todayMeta?.mood || null,
+    };
+    generateDailyHaiku(context, ai.aiProvider, ai.aiModel, ai.resolvedKey, lang)
+      .then((text) => {
+        if (cancelled) return;
+        if (text && text.length > 0) setHaikuCache({ date: todayKey, text });
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setHaikuLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
       <RichModalBackdrop accent={accent} zIndex={-1} onClick={onClose} />
@@ -158,6 +199,28 @@ export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1">📖 {t("story.title")}</p>
             <p className="text-[13px] text-gray-700 leading-relaxed">{story}</p>
           </div>
+        )}
+
+        {/* Daily haiku (Phase 5 / G2) — only when AI returns something usable */}
+        {(haiku || haikuLoading) && (
+          <motion.div
+            initial={reduce ? { opacity: 1 } : { opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={reduce ? { duration: 0 } : SPRING_SOFT}
+            className="mb-5 rounded-2xl px-4 py-3.5"
+            style={{ background: "#fdf6ec", border: "1px solid #f3e2c0" }}
+          >
+            <p className="text-[10.5px] font-bold uppercase tracking-widest text-amber-700/70 mb-1.5">
+              ✒︎ {t("haiku.title")}
+            </p>
+            {haikuLoading && !haiku ? (
+              <p className="text-[12px] text-amber-700/60 italic animate-pulse">{t("haiku.loading")}</p>
+            ) : (
+              <div className="whitespace-pre-line text-[13.5px] text-amber-900 leading-relaxed font-serif tracking-wide">
+                {haiku}
+              </div>
+            )}
+          </motion.div>
         )}
 
         {/* Ghost comparison (Phase 6) — only when enabled */}

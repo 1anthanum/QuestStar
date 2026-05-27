@@ -236,6 +236,7 @@ function HabitCheckCard({
 
       {showDetail && (
         <HabitDetailPopover habit={habit} name={name} icon={icon} layerLabel={layerLabel} streak={streak}
+          cat={cat} lang={lang}
           history={habits?.getHabitHistory?.(habit.habitId, 7) || history}
           dist={habits?.getTierDistribution?.(habit.habitId)}
           grad={habits?.getGraduationProgress?.(habit.habitId)}
@@ -250,10 +251,13 @@ function HabitCheckCard({
 export default memo(HabitCheckCard);
 
 // ── Detail popover (#6) — 7-day history, layer + graduation, tier mix, streak ──
-function HabitDetailPopover({ habit, name, icon, layerLabel, streak, history, dist, grad, stats, accent, t, onEdit, onClose }) {
+function HabitDetailPopover({ habit, name, icon, layerLabel, streak, cat, lang, history, dist, grad, stats, accent, t, onEdit, onClose }) {
+  const description = cat ? (lang === "zh" ? cat.description : (cat.descriptionEn || cat.description)) : null;
+  const tutorial = cat ? (lang === "zh" ? cat.tutorial : (cat.tutorialEn || cat.tutorial)) : null;
+  const hasGuide = !!(description || (tutorial && tutorial.length > 0));
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 animate-fade-in" onClick={onClose}>
-      <div className="w-full max-w-xs bg-white rounded-3xl p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-xs max-h-[85vh] overflow-y-auto bg-white rounded-3xl p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xl">{icon}</span>
           <span className="flex-1 text-[14px] font-black text-gray-800">{name}</span>
@@ -267,6 +271,28 @@ function HabitDetailPopover({ habit, name, icon, layerLabel, streak, history, di
           {stats?.longestStreak > 0 && <span className="text-gray-500">🏆 {t("habit.detail.best", { n: stats.longestStreak })}</span>}
           {stats?.totalDone > 0 && <span className="text-gray-500">✓ {t("habit.detail.total", { n: stats.totalDone })}</span>}
         </div>
+
+        {/* Description + tutorial (#new) — only when catalog provides them */}
+        {hasGuide && (
+          <div className="mb-3 rounded-2xl p-3" style={{ background: `${accent}0c`, border: `1px solid ${accent}1f` }}>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1.5">
+              {t("habit.detail.howTo")}
+            </div>
+            {description && (
+              <p className="text-[12px] leading-relaxed text-gray-700 mb-2">{description}</p>
+            )}
+            {tutorial && tutorial.length > 0 && (
+              <ol className="space-y-1 text-[11.5px] leading-snug text-gray-700">
+                {tutorial.map((step, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="font-bold tabular-nums shrink-0" style={{ color: accent }}>{i + 1}.</span>
+                    <span className="flex-1">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        )}
 
         {/* 7-day bars (bigger) */}
         <div className="mb-3">

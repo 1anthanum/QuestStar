@@ -25,6 +25,8 @@ import LettersInbox from "./LettersInbox";
 import VinesPanel from "./VinesPanel";
 import ShelterModal from "./ShelterModal";
 import BurnItModal from "./BurnItModal";
+import NoticedThread from "./NoticedThread";
+import { useNoticedThread } from "../../hooks/useNoticedThread";
 import { useLivingWorld } from "../../hooks/useLivingWorld";
 import { useChapters } from "../../hooks/useChapters";
 import { useCompost } from "../../hooks/useCompost";
@@ -80,6 +82,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [showShelter, setShowShelter] = useState(false); // Phase 4 — "today is hard" overlay
   const [showBurn, setShowBurn] = useState(false); // Phase 4 — write-and-burn
   const [showGhost, setShowGhost] = useState(false); // Phase 6 — Ghost template editor
+  const [showNoticed, setShowNoticed] = useState(false); // Phase 5 / I3 — Noticed thread reader
   const chapters = useChapters();
   const compost = useCompost();
   const letters = useSystemLetters();
@@ -627,6 +630,9 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     }
   };
   const observations = habits.getObservations?.() || [];
+  // Phase 5 / I3 — thread of past observations (append-only). Hook itself
+  // captures new observations whenever they change, so just consume the view.
+  const noticedThread = useNoticedThread({ observations });
 
   // ── Living World (Phase 1) — sun + garden derivations ──
   const livingWorld = useLivingWorld({ habits, perfectFlash: !!perfectFlash });
@@ -1399,6 +1405,17 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         />
       )}
 
+      {/* Phase 5 / I3 — Noticed thread (read-only) */}
+      {showNoticed && (
+        <NoticedThread
+          thread={noticedThread}
+          schedule={habits.schedule}
+          theme={theme}
+          lang={lang}
+          onClose={() => setShowNoticed(false)}
+        />
+      )}
+
       {/* Energy re-assess modal */}
       {showEnergy && (
         <EnergyQuickModal
@@ -1717,6 +1734,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
                 { icon: "mail", label: t("letters.title"), act: () => setShowLetters(true), active: letters.hasPending },
                 { icon: "tools", label: t("vines.title"), act: () => setShowVines(true) },
                 { icon: "users", label: t("ghost.title"), act: () => setShowGhost(true), active: ghost.enabled },
+                { icon: "scroll", label: t("noticed.title"), act: () => setShowNoticed(true), active: (noticedThread?.count || 0) > 0 },
                 { icon: "moon", label: t("shelter.title"), act: () => setShowShelter(true) },
                 { icon: "zap", label: t("burn.title"), act: () => setShowBurn(true) },
                 { icon: "browse", label: t("habit.browse"), act: onBrowse },
