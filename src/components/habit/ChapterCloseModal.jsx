@@ -18,7 +18,7 @@ import RichModalBackdrop from "./RichModalBackdrop";
 const MOODS_EN = ["calm", "scattered", "steady", "rushed", "soft", "strong"];
 const MOODS_ZH = ["平静", "散乱", "稳", "急", "柔", "稳健"];
 
-export default function ChapterCloseModal({ chapters, habits, theme, onClose }) {
+export default function ChapterCloseModal({ chapters, habits, theme, compost, letters, dormancyMinDays = 1, onClose }) {
   const { t, lang } = useLanguage();
   const reduce = useReducedMotion();
   const accent = theme?.accent || "#6366f1";
@@ -53,6 +53,39 @@ export default function ChapterCloseModal({ chapters, habits, theme, onClose }) 
   }), [c.intention, totalDone, longestStreak, mood, t]);
 
   const seal = () => {
+    // 1. Retired habits become compost (carries their stats forward to the
+    //    next chapter's garden) AND get archived in active habits (layer -1).
+    if (compost?.add && retired.length > 0) {
+      const composted = retired.map((id) => {
+        const stats = habits.getStreakStats?.(id) || {};
+        return {
+          habitId: id,
+          retiredAt: Date.now(),
+          chapterId: c.id,
+          chapterN: c.n,
+          totalDone: stats.totalDone || 0,
+          longestStreak: stats.longestStreak || 0,
+        };
+      });
+      compost.add(composted);
+      retired.forEach((id) => habits.archiveHabit?.(id));
+    }
+
+    // 2. Queue a system letter for delivery after the dormancy window
+    //    (so it surfaces just before / at the next chapter's start).
+    if (letters?.queue) {
+      const deliverDate = new Date();
+      deliverDate.setDate(deliverDate.getDate() + dormancyMinDays);
+      const deliverOn = `${deliverDate.getFullYear()}-${String(deliverDate.getMonth() + 1).padStart(2, "0")}-${String(deliverDate.getDate()).padStart(2, "0")}`;
+      letters.queue({
+        type: "chapter_close",
+        deliverOn,
+        text: letter.text,
+        meta: { chapterId: c.id, chapterN: c.n, mood, retiredCount: retired.length },
+      });
+    }
+
+    // 3. Seal the chapter itself
     chapters.closeChapter({ letter, retiredHabits: retired, mood });
     onClose();
   };

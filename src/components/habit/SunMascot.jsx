@@ -23,7 +23,7 @@ const STATE = {
   twilight:      { core: "#a78bfa", glow: "#c4b5fd66", aura: 0.35, labelKey: "sun.twilight",  tagKey: "sun.twilightTag" },
 };
 
-export default function SunMascot({ world, identity, weekActions, topObservation, completed, total, theme, onClick }) {
+export default function SunMascot({ world, identity, weekActions, topObservation, completed, total, theme, letterPending, onOpenLetters, onClick }) {
   const { t } = useLanguage();
   const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
@@ -100,6 +100,20 @@ export default function SunMascot({ world, identity, weekActions, topObservation
             <ellipse cx={cx} cy={cy + 4} rx={22} ry={10} fill="#f1f5f9" opacity="0.85" />
           )}
         </svg>
+
+        {/* Pending-letter badge — small envelope at lower-right when due */}
+        {letterPending && (
+          <motion.span
+            className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white shadow-md flex items-center justify-center text-[10px]"
+            style={{ border: `2px solid ${cfg.core}` }}
+            animate={reduce ? {} : { scale: [1, 1.18, 1] }}
+            transition={reduce ? { duration: 0 } : { duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+            onClick={(e) => { e.stopPropagation(); onOpenLetters?.(); }}
+            title={t("sun.letterPending")}
+          >
+            ✉
+          </motion.span>
+        )}
       </motion.button>
 
       {/* Expansion: "今日之光" mini panel — drops down from the sun */}

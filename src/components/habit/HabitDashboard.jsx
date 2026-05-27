@@ -21,8 +21,11 @@ import HabitGarden from "./HabitGarden";
 import ChapterStrip from "./ChapterStrip";
 import ChapterOpenModal from "./ChapterOpenModal";
 import ChapterCloseModal from "./ChapterCloseModal";
+import LettersInbox from "./LettersInbox";
 import { useLivingWorld } from "../../hooks/useLivingWorld";
 import { useChapters } from "../../hooks/useChapters";
+import { useCompost } from "../../hooks/useCompost";
+import { useSystemLetters } from "../../hooks/useSystemLetters";
 import ReminderSettings from "./ReminderSettings";
 import BodyScanModal from "./BodyScanModal";
 import BodyDoubling from "./BodyDoubling";
@@ -65,7 +68,10 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [showGarden, setShowGarden] = useState(false); // Phase 1 Living World — 花园
   const [showChapterOpen, setShowChapterOpen] = useState(false); // Phase 2 — open a new chapter
   const [showChapterClose, setShowChapterClose] = useState(false); // Phase 2 — close ceremony
+  const [showLetters, setShowLetters] = useState(false); // Phase 3 — system-letters inbox
   const chapters = useChapters();
+  const compost = useCompost();
+  const letters = useSystemLetters();
   const [coreOnly, setCoreOnly] = useState(false);
   const [layout, setLayout] = useLocalStorage("qt_life_layout", "stacked"); // stacked | split | todoFirst | focus
   const [skin, setSkin] = useLocalStorage("qt_life_skin", "soft"); // soft | glass | aurora | vivid | outline
@@ -1284,13 +1290,19 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         />
       )}
 
-      {/* Living World — full garden view */}
+      {/* Living World — full garden view (Phase 3: compost + chapter focus markers) */}
       {showGarden && (
         <HabitGarden
           world={livingWorld}
           habits={habits}
           theme={theme}
           lang={lang}
+          compost={compost}
+          chapter={chapters.active}
+          onRevive={(c) => {
+            habits.restoreHabit?.(c.habitId, 3);
+            compost.revive(c.habitId);
+          }}
           onClose={() => setShowGarden(false)}
         />
       )}
@@ -1311,7 +1323,20 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           chapters={chapters}
           habits={habits}
           theme={theme}
+          compost={compost}
+          letters={letters}
+          dormancyMinDays={chapters.dormancyMinDays}
           onClose={() => setShowChapterClose(false)}
+        />
+      )}
+
+      {/* Living World Phase 3 — system letters inbox */}
+      {showLetters && (
+        <LettersInbox
+          letters={letters}
+          theme={theme}
+          lang={lang}
+          onClose={() => setShowLetters(false)}
         />
       )}
 
@@ -1355,7 +1380,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
 
   return (
     <div className="space-y-3 pb-24" data-skin={skin}>
-      {/* Living World Phase 1 — your sun, persistent in the corner */}
+      {/* Living World Phase 1 — your sun, persistent in the corner.
+          Phase 3: a small envelope badge pulses when a system letter is due. */}
       <SunMascot
         world={livingWorld}
         identity={habits.identity}
@@ -1364,6 +1390,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         completed={progress.completed}
         total={progress.total}
         theme={theme}
+        letterPending={letters.hasPending}
+        onOpenLetters={() => setShowLetters(true)}
       />
 
       {/* Living World Phase 2 — chapter strip (read-only banner; flows live in modals) */}
@@ -1624,6 +1652,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
               {[
                 { icon: "bed", label: t("habit.restDay"), act: habits.toggleRestDay, active: !!habits.todayMeta.restDay, dismissAfter: false },
                 { icon: "sprout", label: t("garden.title"), act: () => setShowGarden(true) },
+                { icon: "mail", label: t("letters.title"), act: () => setShowLetters(true), active: letters.hasPending },
                 { icon: "browse", label: t("habit.browse"), act: onBrowse },
                 { icon: "tools", label: t("habit.prn"), act: () => setShowPRN(true) },
                 { icon: "users", label: t("habit.bodyDouble.title"), act: () => setShowBodyDouble(true) },

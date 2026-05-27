@@ -1,5 +1,6 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { useLanguage } from "../../hooks/useLanguage";
+import { getHabitById } from "../../utils/habitCatalog";
 import { staggerContainer, staggerItem, SPRING_POP } from "../../utils/motion";
 import RichModalBackdrop from "./RichModalBackdrop";
 
@@ -21,11 +22,12 @@ const STATE = {
   wilted:  { scale: 0.78, opacity: 0.50, glow: 0.00, labelKey: "garden.state.wilted" },
 };
 
-export default function HabitGarden({ world, habits, theme, lang, onClose }) {
+export default function HabitGarden({ world, habits, theme, lang, compost, chapter, onRevive, onClose }) {
   const { t } = useLanguage();
   const reduce = useReducedMotion();
   const accent = theme?.accent || "#10b981";
   const plants = world.plants;
+  const focusSet = new Set(chapter?.focusHabits || []);
 
   return (
     <div className="fixed inset-0 z-[55] overflow-y-auto">
@@ -66,7 +68,12 @@ export default function HabitGarden({ world, habits, theme, lang, onClose }) {
                   key={p.habitId}
                   variants={staggerItem}
                   className="qt-card rounded-2xl p-4 flex flex-col items-center text-center relative overflow-hidden bg-white/95 shadow-sm"
+                  style={focusSet.has(p.habitId) ? { boxShadow: `inset 0 0 0 1.5px ${p.color}88, 0 1px 3px rgba(0,0,0,0.08)` } : undefined}
                 >
+                  {/* Focus marker — this plant is one of the chapter's 1-3 leads */}
+                  {focusSet.has(p.habitId) && (
+                    <span className="absolute top-1.5 right-1.5 text-[10px]" title={t("garden.focus")}>⭐</span>
+                  )}
                   {/* Glow ring tinted by habit color */}
                   {s.glow > 0 && (
                     <div
@@ -95,6 +102,34 @@ export default function HabitGarden({ world, habits, theme, lang, onClose }) {
               );
             })}
           </motion.div>
+        )}
+
+        {/* Compost — retired habits live on as buried mounds; tap to revive */}
+        {compost?.compost?.length > 0 && (
+          <div className="w-full max-w-2xl mt-6">
+            <div className="text-[10.5px] font-bold uppercase tracking-widest text-amber-700 mb-1.5 px-1">
+              🍂 {t("garden.compost.title")} · {compost.compost.length}
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {compost.compost.map((c) => {
+                const cat = getHabitById(c.habitId);
+                const compostName = cat ? (lang === "zh" ? cat.name : cat.nameEn || cat.name) : c.habitId;
+                return (
+                  <button
+                    key={c.habitId}
+                    onClick={() => onRevive?.(c)}
+                    className="rounded-xl px-2.5 py-2 bg-amber-50/80 border border-amber-200/60 text-center flex flex-col items-center gap-0.5 active:scale-95 transition-transform"
+                    title={t("garden.compost.reviveTip")}
+                  >
+                    <span className="text-2xl opacity-60" style={{ filter: "grayscale(0.7)" }}>🪴</span>
+                    <span className="text-[10.5px] font-semibold text-amber-700 truncate w-full">{compostName}</span>
+                    <span className="text-[9px] text-amber-600 tabular-nums">{t("garden.compost.ch", { n: c.chapterN })} · ✓{c.totalDone}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="text-[10px] text-gray-400 mt-1.5 px-1">{t("garden.compost.legend")}</div>
+          </div>
         )}
 
         {/* Footer legend */}
