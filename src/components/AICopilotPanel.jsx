@@ -234,7 +234,7 @@ export default function AICopilotPanel({
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
 
-  const { messages, isLoading, error, setError, sendMessage, quickCheckIn, clearHistory, newSession, sessions, deleteSession } = copilot;
+  const { messages, isLoading, error, setError, sendMessage, quickCheckIn, clearHistory, newSession, resumeSession, sessions, deleteSession } = copilot;
   const [showHistory, setShowHistory] = useState(false);
   const [viewingSession, setViewingSession] = useState(null);
 
@@ -386,13 +386,28 @@ export default function AICopilotPanel({
               </span>
               <div className="flex items-center gap-2">
                 {viewingSession && (
-                  <button
-                    onClick={() => setViewingSession(null)}
-                    className="text-[11px] px-2 py-1 rounded-lg opacity-70 hover:opacity-100"
-                    style={{ background: "rgba(255,255,255,0.1)" }}
-                  >
-                    ← {t("copilot.history.back")}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        if (resumeSession?.(viewingSession.id)) {
+                          setShowHistory(false);
+                          setViewingSession(null);
+                        }
+                      }}
+                      className="text-[11px] font-bold px-2.5 py-1 rounded-lg"
+                      style={{ background: accent, color: "#fff" }}
+                      title={t("copilot.history.resumeTip")}
+                    >
+                      ↻ {t("copilot.history.resume")}
+                    </button>
+                    <button
+                      onClick={() => setViewingSession(null)}
+                      className="text-[11px] px-2 py-1 rounded-lg opacity-70 hover:opacity-100"
+                      style={{ background: "rgba(255,255,255,0.1)" }}
+                    >
+                      ← {t("copilot.history.back")}
+                    </button>
+                  </>
                 )}
                 <button
                   onClick={() => { setShowHistory(false); setViewingSession(null); }}
@@ -439,6 +454,12 @@ export default function AICopilotPanel({
                             {t("copilot.history.messages", { n: s.messages.length })}
                           </div>
                         </button>
+                        <button
+                          onClick={() => { if (resumeSession?.(s.id)) { setShowHistory(false); setViewingSession(null); } }}
+                          className="text-[11px] opacity-60 hover:opacity-100 px-2 py-1 font-bold"
+                          style={{ color: accent }}
+                          title={t("copilot.history.resume")}
+                        >↻</button>
                         <button
                           onClick={() => deleteSession(s.id)}
                           className="text-[11px] opacity-40 hover:opacity-90 px-2 py-1"

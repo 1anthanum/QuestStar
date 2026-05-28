@@ -33,7 +33,9 @@ export default function InlineChat({ copilot, theme, onExpand }) {
   const scrollRef = useRef(null);
   const taRef = useRef(null);
 
-  const { messages, isLoading, error, sendMessage } = copilot;
+  const { messages, isLoading, error, sendMessage, sessions, resumeSession, deleteSession } = copilot;
+  const [showHistory, setShowHistory] = useState(false);
+  const [viewing, setViewing] = useState(null); // session being read
 
   // Auto-scroll to newest message
   useEffect(() => {
@@ -80,6 +82,15 @@ export default function InlineChat({ copilot, theme, onExpand }) {
         <span className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: `${accent}22`, color: accent }}><Icon name="chat" size={14} /></span>
         <span className="text-[13px] font-black text-gray-800">{t("habit.chat.title")}</span>
         <span className="flex-1" />
+        {sessions && sessions.length > 0 && (
+          <button
+            onClick={() => setShowHistory(true)}
+            className="text-[11px] font-bold text-gray-500 hover:text-gray-700"
+            title={t("copilot.history.tip")}
+          >
+            📜 {sessions.length}
+          </button>
+        )}
         {hasChat && (
           <button
             onClick={() => setCollapsed((c) => !c)}
@@ -188,6 +199,107 @@ export default function InlineChat({ copilot, theme, onExpand }) {
           ↑
         </button>
       </div>
+
+      {/* History drawer — same vocabulary as the AICopilotPanel one,
+          scoped to the embedded chat. Click a session to read; resume
+          to pull it back as the active conversation; trash to delete. */}
+      {showHistory && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 animate-fade-in"
+          onClick={() => { setShowHistory(false); setViewing(null); }}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-3xl shadow-2xl max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+              <span className="text-[14px] font-black text-gray-800">
+                {viewing ? viewing.title : t("copilot.history.title")}
+              </span>
+              <div className="flex items-center gap-2">
+                {viewing && (
+                  <>
+                    <button
+                      onClick={() => { if (resumeSession?.(viewing.id)) { setShowHistory(false); setViewing(null); } }}
+                      className="text-[11px] font-bold px-2.5 py-1 rounded-lg text-white"
+                      style={{ background: accent }}
+                      title={t("copilot.history.resumeTip")}
+                    >
+                      ↻ {t("copilot.history.resume")}
+                    </button>
+                    <button
+                      onClick={() => setViewing(null)}
+                      className="text-[11px] font-semibold text-gray-500 px-2 py-1 rounded-lg bg-gray-100"
+                    >
+                      ← {t("copilot.history.back")}
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => { setShowHistory(false); setViewing(null); }}
+                  className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500"
+                ><Icon name="close" size={14} /></button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 py-3">
+              {viewing ? (
+                viewing.messages.length === 0 ? (
+                  <p className="text-[12px] text-gray-400 text-center py-6">{t("copilot.history.empty")}</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {viewing.messages.map((m, i) => (
+                      <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                        <div
+                          className={`max-w-[80%] rounded-2xl px-3 py-2 text-[12.5px] leading-snug whitespace-pre-wrap break-words ${m.role === "user" ? "" : ""}`}
+                          style={m.role === "user"
+                            ? { background: `${accent}1f`, color: "#1f2937" }
+                            : { background: "#f3f4f6", color: "#1f2937" }}
+                        >
+                          {typeof m.content === "string" ? m.content : JSON.stringify(m.content)}
+                          {m.timestamp && (
+                            <div className="text-[9px] opacity-50 mt-1 tabular-nums">{new Date(m.timestamp).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                (sessions || []).length === 0 ? (
+                  <p className="text-[12px] text-gray-400 text-center py-6">{t("copilot.history.none")}</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {sessions.slice().reverse().map((s) => (
+                      <div key={s.id} className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors">
+                        <button onClick={() => setViewing(s)} className="flex-1 text-left">
+                          <div className="text-[12.5px] font-semibold text-gray-800 truncate">{s.title}</div>
+                          <div className="text-[10px] text-gray-400 tabular-nums">
+                            {new Date(s.startedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            {" · "}
+                            {t("copilot.history.messages", { n: s.messages.length })}
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => { if (resumeSession?.(s.id)) { setShowHistory(false); setViewing(null); } }}
+                          className="text-[12px] font-bold px-2 py-1"
+                          style={{ color: accent }}
+                          title={t("copilot.history.resume")}
+                        >↻</button>
+                        <button
+                          onClick={() => deleteSession?.(s.id)}
+                          className="text-[12px] opacity-40 hover:opacity-90 px-2 py-1 text-gray-500"
+                          title={t("copilot.history.delete")}
+                        >🗑</button>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

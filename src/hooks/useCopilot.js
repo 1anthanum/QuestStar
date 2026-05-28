@@ -492,6 +492,36 @@ Guidelines:
   // browse archived sessions if they want to revisit.
   const newSession = clearHistory;
 
+  // resumeSession — load a past session's messages as the current one.
+  // Archives the current conversation first (if any), removes the resumed
+  // session from the archived list (so it's not duplicated), and rehydrates
+  // the persisted HISTORY_KEY so the next reload still sees it as current.
+  const resumeSession = useCallback((sessionId) => {
+    const target = sessions.find((s) => s.id === sessionId);
+    if (!target) return false;
+    // Archive current first so the user doesn't lose it.
+    if (messages.length) {
+      const firstUser = messages.find((m) => m.role === "user");
+      const rawTitle = firstUser ? String(firstUser.content || "").trim() : "";
+      const title = rawTitle ? rawTitle.slice(0, 60) : "(no title)";
+      const startedAt = messages[0]?.timestamp || Date.now();
+      const endedAt = messages[messages.length - 1]?.timestamp || Date.now();
+      setSessions((prev) => [
+        ...prev.slice(-SESSIONS_CAP + 1).filter((s) => s.id !== sessionId),
+        { id: `s-${startedAt}-${endedAt}`, title, startedAt, endedAt, messages: messages.slice() },
+      ]);
+    } else {
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+    }
+    setMessages(target.messages || []);
+    setError(null);
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify((target.messages || []).slice(-HISTORY_CAP)));
+    } catch { /* noop */ }
+    return true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, messages]);
+
   return {
     messages,
     isLoading,
@@ -501,6 +531,7 @@ Guidelines:
     quickCheckIn,
     clearHistory,
     newSession,
+    resumeSession,
     sessions,
     deleteSession,
   };
