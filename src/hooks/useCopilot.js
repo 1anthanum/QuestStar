@@ -61,6 +61,18 @@ function executeHabitActions(structured, habits) {
       habits.customizeTiers(habitId, tiers);
       return { type: "tierCustomize", habitId };
     }
+    // ── New: persistent fixed item (e.g., \"add 200ml water every day at 14:00\") ──
+    if (structured.fixedItemAdd) {
+      const { blockId, time, text, textEn, icon } = structured.fixedItemAdd;
+      const res = habits.addFixedItemToSchedule?.(blockId, { time, text, textEn, icon });
+      return { type: "fixedItemAdd", ok: !!res?.ok, id: res?.id, blockId, text };
+    }
+    // ── New: today-only special activity (\"go to the gym at 18:00\") ──
+    if (structured.todayActivityAdd) {
+      const { label, time, note } = structured.todayActivityAdd;
+      const res = habits.addSpecialActivityToday?.({ label, time, note });
+      return { type: "todayActivityAdd", ok: !!res?.ok, id: res?.id, label };
+    }
   } catch (e) {
     console.warn("Copilot: habit action failed", e);
   }
@@ -97,7 +109,14 @@ ${list}
 - {"plan": [{"habitId": "xxx", "layer": 1|2|3, "timeSlot": "..."}, ...]}  ← 规划一整天时用这个，一次加入多个
 - {"habitArchive": {"habitId": "xxx"}}
 - {"tierCustomize": {"habitId": "xxx", "L": "...", "M": "...", "H": "..."}}
-说明：habitId 必须来自上面列表（添加新 habit 时用 catalog id）。timeSlot 可选，用户说"下午/晚上做"时填对应时段。当用户让你"规划今天/安排一天"时，用 plan 一次性把多个 habit 加入今天。操作会立即生效。
+- {"fixedItemAdd": {"blockId": "morning_prep|upper_morning|noon|peak_cognitive|evening|sleep_prep", "time": "HH:mm", "text": "中文显示", "textEn": "English label", "icon": "⏰"}}
+  ↑ 写入用户的 schedule，每天固定时段都会出现（适合"每天早上 8 点服药"这种长期固定项）
+- {"todayActivityAdd": {"label": "去健身房", "time": "18:00", "note": "可选备注"}}
+  ↑ 只针对今天的一次性活动（适合"今晚去看演唱会"这种临时事项）
+说明：habitId 必须来自上面列表（添加新 habit 时用 catalog id）。timeSlot 可选，用户说"下午/晚上做"时填对应时段。当用户让你"规划今天/安排一天"时，用 plan 一次性把多个 habit 加入今天。
+注意：fixedItemAdd 是长期生效的（写入数据库每天都会出现），todayActivityAdd 只今天有效。如果用户说"以后每天"用前者，"今天/今晚"用后者。
+积极地给出额外建议：当用户在记录一件事的时候，如果你看到一个与他们身份或最近模式相关的小行动，可以主动提出来。建议要具体、可执行，并且 ≤ 30 分钟。
+操作会立即生效。
 `;
   }
   return `
@@ -116,7 +135,14 @@ ${list}
 - {"plan": [{"habitId": "xxx", "layer": 1|2|3, "timeSlot": "..."}, ...]}  ← use this to plan a whole day (adds several at once)
 - {"habitArchive": {"habitId": "xxx"}}
 - {"tierCustomize": {"habitId": "xxx", "L": "...", "M": "...", "H": "..."}}
-Note: habitId must come from the list above (use catalog id when adding). timeSlot is optional — set it when the user says when to do it. When the user asks you to "plan my day", use plan to add multiple habits to today at once. Actions take effect immediately.
+- {"fixedItemAdd": {"blockId": "morning_prep|upper_morning|noon|peak_cognitive|evening|sleep_prep", "time": "HH:mm", "text": "label", "textEn": "label", "icon": "⏰"}}
+  ↑ Writes into the user's persistent schedule — the item shows up every day in the chosen block's 固定 list. Use for ongoing fixtures (\"every morning take Vitamin D at 08:00\").
+- {"todayActivityAdd": {"label": "Gym session", "time": "18:00", "note": "optional"}}
+  ↑ A one-off activity scoped to TODAY only (\"going to a concert tonight\"). Tomorrow it's gone.
+Note: habitId must come from the list above (use catalog id when adding). timeSlot is optional — set it when the user says when to do it. When the user asks you to \"plan my day\", use plan to add multiple habits to today at once.
+fixedItemAdd persists every day; todayActivityAdd is one-off. If the user says \"every day\" use the former; if they say \"today/tonight\" use the latter.
+Proactively offer extra suggestions: when the user is recording or planning, if you see a small action that fits their identity or recent pattern, surface it. Suggestions should be specific, actionable, and ≤ 30 minutes.
+Actions take effect immediately.
 `;
 }
 

@@ -956,6 +956,42 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         );
       })()}
 
+      {/* Today's special activities — AI-added one-offs (or future manual). */}
+      {(todayMeta.specialActivities || []).length > 0 && (
+        <div className="qt-card p-3.5">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: `${accent}1f`, color: accent }}>✦</span>
+            <span className="text-[13px] font-black text-gray-800">{t("habit.special.title")}</span>
+            <span className="text-[10.5px] text-gray-400">· {t("habit.special.todayOnly")}</span>
+          </div>
+          <div className="space-y-1.5">
+            {(todayMeta.specialActivities || []).map((a) => (
+              <div key={a.id} className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-gray-50">
+                {a.time && <span className="text-[10px] font-mono w-12 shrink-0 text-gray-400">{a.time}</span>}
+                <span className="flex-1 min-w-0">
+                  <span className={`text-[13px] font-semibold ${a.done ? "text-gray-400 line-through" : "text-gray-700"} truncate block`}>{a.label}</span>
+                  {a.note && <span className="text-[10.5px] text-gray-400 leading-snug block truncate">{a.note}</span>}
+                </span>
+                <button
+                  onClick={() => habits.toggleSpecialActivityToday?.(a.id)}
+                  className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90 ${a.done ? "text-white" : "border-2 border-gray-200 hover:border-gray-300"}`}
+                  style={a.done ? { background: accent } : undefined}
+                >
+                  {a.done && <span className="text-[13px] font-bold">✓</span>}
+                </button>
+                <button
+                  onClick={() => habits.removeSpecialActivityToday?.(a.id)}
+                  className="shrink-0 text-[10px] text-gray-300 hover:text-gray-500"
+                  title={t("habit.special.remove")}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Do now — what's left right now */}
       <div className="qt-card p-4">
         <div className="flex items-center gap-2 mb-2.5">

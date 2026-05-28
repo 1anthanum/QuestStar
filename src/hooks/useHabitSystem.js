@@ -43,7 +43,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
   const [habitLog, setHabitLog] = useLocalStorage("qt_habit_log", {});
   const [graduations, setGraduations] = useLocalStorage("qt_habit_graduations", []);
   const [exploreBudget, setExploreBudget] = useLocalStorage("qt_habit_explore_budget", {});
-  const [schedule] = useLocalStorage("qt_daily_schedule", null); // null → DEFAULT_SCHEDULE
+  const [schedule, setSchedule] = useLocalStorage("qt_daily_schedule", null); // null → DEFAULT_SCHEDULE
   const [identity, setIdentity] = useLocalStorage("qt_habit_identity", ""); // #8 identity statement
   const [identityTemplate, setIdentityTemplate] = useLocalStorage("qt_habit_identity_template", null); // optional template id from identityTemplates.js
   // User-edited DISPLAY overrides — { [id]: { label?: string, time?: string } }
@@ -423,6 +423,44 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     [today, setActiveHabits]
   );
 
+  // ── AI-added structural surface ──
+  // The Copilot can add things in two flavors:
+  //   1. addFixedItemToSchedule — persistent, written into qt_daily_schedule
+  //      so the item shows up every day in the chosen block's 固定 list.
+  //      Idempotent on id (no-op if the item id already exists).
+  //   2. addSpecialActivityToday — one-off, written into today's _meta
+  //      under specialActivities[]. Survives only until midnight by virtue
+  //      of being scoped to today's date entry in habit_log.
+  const VALID_BLOCK_IDS = ["morning_prep", "upper_morning", "noon", "peak_cognitive", "evening", "sleep_prep"];
+  const addFixedItemToSchedule = useCallback((blockId, item) => {
+    if (!VALID_BLOCK_IDS.includes(blockId) || !item) return { ok: false, reason: "bad_input" };
+    const base = (schedule || DEFAULT_SCHEDULE).map((b) => ({ ...b, fixedItems: [...(b.fixedItems || [])] }));
+    const id = item.id || `f_custom_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const newItem = {
+      id,
+      icon: item.icon || "⏰",
+      time: item.time || "",
+      text: (item.text || "").toString().slice(0, 80),
+      textEn: (item.textEn || item.text || "").toString().slice(0, 80),
+      mirrorId: null,
+    };
+    const target = base.find((b) => b.id === blockId);
+    if (!target) return { ok: false, reason: "no_block" };
+    if (target.fixedItems.some((it) => it.id === id)) return { ok: false, reason: "dup_id" };
+    target.fixedItems.push(newItem);
+    setSchedule(base);
+    return { ok: true, id };
+  }, [schedule, setSchedule]);
+
+  const removeFixedItemFromSchedule = useCallback((itemId) => {
+    if (!itemId) return false;
+    const base = (schedule || DEFAULT_SCHEDULE).map((b) => ({ ...b, fixedItems: (b.fixedItems || []).filter((it) => it.id !== itemId) }));
+    setSchedule(base);
+    return true;
+  }, [schedule, setSchedule]);
+
+  // Special-activity functions live AFTER todayMeta is declared (see below).
+
   // ── Display-only label / time overrides ──
   // Caller passes a patch like { label: "晨间快走" } or { time: "07:15" }.
   // Underlying habitId / mirrorId / catalog entry are NEVER modified — only
@@ -651,6 +689,36 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
 
   const todayMeta = useMemo(() => habitLog[today]?._meta || {}, [habitLog, today]);
   const todayLogEntry = useMemo(() => habitLog[today] || {}, [habitLog, today]);
+
+  // ── AI-added one-off activities (live here so todayMeta is in scope) ──
+  const addSpecialActivityToday = useCallback((activity) => {
+    if (!activity || !activity.label) return { ok: false, reason: "bad_input" };
+    const id = activity.id || `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    setDayMeta({
+      specialActivities: [
+        ...(todayMeta.specialActivities || []),
+        {
+          id,
+          label: String(activity.label).slice(0, 80),
+          time: activity.time || null,
+          note: activity.note ? String(activity.note).slice(0, 200) : null,
+          createdAt: Date.now(),
+          done: false,
+        },
+      ],
+    });
+    return { ok: true, id };
+  }, [todayMeta.specialActivities, setDayMeta]);
+
+  const toggleSpecialActivityToday = useCallback((id) => {
+    const list = (todayMeta.specialActivities || []).map((a) => (a.id === id ? { ...a, done: !a.done, completedAt: !a.done ? Date.now() : null } : a));
+    setDayMeta({ specialActivities: list });
+  }, [todayMeta.specialActivities, setDayMeta]);
+
+  const removeSpecialActivityToday = useCallback((id) => {
+    const list = (todayMeta.specialActivities || []).filter((a) => a.id !== id);
+    setDayMeta({ specialActivities: list });
+  }, [todayMeta.specialActivities, setDayMeta]);
 
   const getTodayView = useCallback(
     () => getDailyView(activeHabits, todayLogEntry, todayMeta.energyMode || "normal"),
@@ -1300,6 +1368,11 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     setLabelOverride,
     clearLabelOverride,
     getLabelOverride,
+    addFixedItemToSchedule,
+    removeFixedItemFromSchedule,
+    addSpecialActivityToday,
+    toggleSpecialActivityToday,
+    removeSpecialActivityToday,
     addQuickLog,
     removeQuickLog,
     getQuickLog,
