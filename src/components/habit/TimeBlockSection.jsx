@@ -1,8 +1,14 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { useLanguage } from "../../hooks/useLanguage";
 import FixedItemRow from "./FixedItemRow";
 import HabitCheckCard from "./HabitCheckCard";
+
+// Hover dwell delay — mouse must rest on the block this many ms before
+// the body auto-expands. Snappy enough that intent is clear, slow enough
+// that a cursor moving across the list doesn't pop every block open.
+const HOVER_OPEN_DELAY_MS = 450;
+const HOVER_CLOSE_DELAY_MS = 120;
 
 // Per-block signature color (shown only when the block is "now") — D
 const BLOCK_COLOR = {
@@ -70,7 +76,7 @@ export default function TimeBlockSection({
 
   // Two-state expansion:
   //   pinned  — user explicitly clicked the header to keep it open
-  //   hovered — mouse is currently over the block
+  //   hovered — mouse is currently dwelling on the block (after delay)
   // effectiveExpanded = pinned || hovered (peek-on-hover, click to lock).
   // Clicking the header toggles `pinned`; if it WAS pinned it collapses.
   // On touch devices hover does nothing, so click-to-pin still works.
@@ -79,6 +85,31 @@ export default function TimeBlockSection({
   const [hovered, setHovered] = useState(false);
   const expanded = pinned || hovered;
   const [confirmAll, setConfirmAll] = useState(false);
+
+  // Hover dwell — wait HOVER_OPEN_DELAY_MS of mouse-resting before opening
+  // and a brief grace period before closing, so a cursor sliding across
+  // the list doesn't pop every block open or snap shut mid-aim.
+  const openTimerRef = useRef(null);
+  const closeTimerRef = useRef(null);
+  const clearOpenTimer = () => { if (openTimerRef.current) { clearTimeout(openTimerRef.current); openTimerRef.current = null; } };
+  const clearCloseTimer = () => { if (closeTimerRef.current) { clearTimeout(closeTimerRef.current); closeTimerRef.current = null; } };
+  const handleMouseEnter = () => {
+    clearCloseTimer();
+    if (hovered) return; // already open
+    clearOpenTimer();
+    openTimerRef.current = setTimeout(() => {
+      setHovered(true);
+      openTimerRef.current = null;
+    }, HOVER_OPEN_DELAY_MS);
+  };
+  const handleMouseLeave = () => {
+    clearOpenTimer();
+    clearCloseTimer();
+    closeTimerRef.current = setTimeout(() => {
+      setHovered(false);
+      closeTimerRef.current = null;
+    }, HOVER_CLOSE_DELAY_MS);
+  };
 
   // Color: done=emerald; now=block's signature color; future=its color (muted); past-undone=slate
   const blockColor = BLOCK_COLOR[block.id] || "#f59e0b";
@@ -108,8 +139,8 @@ export default function TimeBlockSection({
   return (
     <div
       ref={droppable.setNodeRef}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       className="qt-card overflow-hidden transition-shadow"
       style={{
         ...(isNow
@@ -120,11 +151,23 @@ export default function TimeBlockSection({
         ...(dropRing || {}),
       }}
     >
-      {/* Header — click toggles `pinned`. Hover (mouse-only) auto-expands
-          via the wrapper's onMouseEnter/Leave; once pinned, expansion
-          persists after the cursor leaves. */}
+      {/* Header — click toggles open/closed authoritatively. If the block
+          is currently shown (pinned OR hovered), the click collapses it
+          fully and cancels any pending dwell timers, so a second click
+          on an open header is always a "close now" gesture (per user:
+          "再点击一次时间段顶部应该可以收回"). If currently collapsed,
+          the click pins it open. */}
       <button
-        onClick={() => setPinned((p) => !p)}
+        onClick={() => {
+          if (expanded) {
+            clearOpenTimer();
+            clearCloseTimer();
+            setPinned(false);
+            setHovered(false);
+          } else {
+            setPinned(true);
+          }
+        }}
         className="w-full flex items-center gap-2.5 px-3.5 py-3 hover:bg-gray-50/40 transition-colors"
       >
         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: dotColor }} />
