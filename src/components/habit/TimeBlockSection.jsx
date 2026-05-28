@@ -48,9 +48,21 @@ export default function TimeBlockSection({
   const doneCount = fixedDoneCount + habitDoneCount;
   const allDone = totalCount > 0 && doneCount === totalCount;
 
+  // "漏了" only counts MANDATORY items — fixed items (meds/meals/etc.) +
+  // Layer-1 (核心) habits. Layer-2 (养成中) and Layer-3 (探索) are
+  // optional / experimental; skipping them isn't a miss, just a no-op.
+  // (User: "可选项被错误计算为必须项计算在「漏了」条目中".)
+  const mandatoryHabits = habitsInBlock.filter((h) => h.layer === 1);
+  const mandatoryHabitsDone = mandatoryHabits.filter((h) => h.done).length;
+  const mandatoryCount = fixedCount + mandatoryHabits.length;
+  const mandatoryDone = fixedDoneCount + mandatoryHabitsDone;
+  const mandatoryMissed = Math.max(0, mandatoryCount - mandatoryDone);
+
   const isNow = status === "now";
   const isFuture = status === "future";
-  const missed = status === "past" && !allDone && totalCount > 0; // #26
+  // A past block is only "missed" if mandatory items were left undone.
+  // Past blocks with only undone EXPLORE/FORMING habits are not penalized.
+  const missed = status === "past" && mandatoryMissed > 0;
   const [expanded, setExpanded] = useState(defaultExpanded ?? (isNow || (!allDone && !missed)));
   const [confirmAll, setConfirmAll] = useState(false);
 
@@ -109,11 +121,17 @@ export default function TimeBlockSection({
         {isNow && (
           <span className="text-[9.5px] font-black px-2 py-0.5 rounded-full" style={{ background: blockColor, color: "#fff" }}>NOW</span>
         )}
-        {/* completion pill */}
+        {/* completion pill — when missed, count only MANDATORY items
+            (fixed + Layer-1 核心), not optional habits. */}
         {allDone ? (
           <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">✓ {doneCount}/{totalCount}</span>
         ) : missed ? (
-          <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-500">{totalCount - doneCount} {t("habit.block.missed")}</span>
+          <span
+            className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-500"
+            title={t("habit.block.missedTip")}
+          >
+            {mandatoryMissed} {t("habit.block.missed")}
+          </span>
         ) : isFuture && doneCount === 0 ? (
           <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">{totalCount} {t("habit.block.upcoming")}</span>
         ) : (
