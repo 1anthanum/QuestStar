@@ -393,6 +393,20 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     [activeHabits, habitLog, today, game, rewards, setActiveHabits, setGraduations]
   );
 
+  // Manual layer override — user moves a habit between 核心 / 养成中 / 探索
+  // without waiting for the auto-graduation threshold. Used by the
+  // detail popover and the drag-to-promote handle.
+  const setHabitLayer = useCallback(
+    (habitId, newLayer) => {
+      if (![1, 2, 3].includes(newLayer)) return false;
+      setActiveHabits((prev) =>
+        prev.map((h) => (h.habitId === habitId ? { ...h, layer: newLayer, assignedAt: today } : h))
+      );
+      return true;
+    },
+    [today, setActiveHabits]
+  );
+
   const archiveHabit = useCallback(
     (habitId) => {
       setActiveHabits((prev) =>
@@ -1195,6 +1209,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     autoArchiveStale,
     autoDefer,
     deferHabitTo,
+    setHabitLayer,
     addQuickLog,
     removeQuickLog,
     getQuickLog,

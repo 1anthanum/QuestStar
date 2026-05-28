@@ -148,6 +148,8 @@ function HabitCheckCard({
     <>
       <div
         ref={dnd.setNodeRef}
+        {...dnd.listeners}
+        {...dnd.attributes}
         style={{
           // CRITICAL: only apply transform when actively dragging. Any
           // computed `transform` other than `none` makes this row a
@@ -162,6 +164,8 @@ function HabitCheckCard({
           touchAction: dnd.isDragging ? "none" : undefined,
           zIndex: dnd.isDragging ? 30 : undefined,
           position: "relative",
+          // Visual cursor for the long-press affordance.
+          cursor: habit.done ? "default" : "grab",
         }}
         className="relative rounded-xl overflow-hidden"
       >
@@ -172,9 +176,15 @@ function HabitCheckCard({
         </div>
 
         <animated.div
-          {...bind()}
+          {...(dnd.isDragging ? {} : bind())}
           className="px-3 py-2.5 rounded-xl bg-white border border-gray-100 touch-pan-y select-none transform-gpu"
-          style={{ x, touchAction: "pan-y" }}
+          style={{
+            // Suppress the swipe-x translation while dnd-kit is dragging
+            // the outer wrapper — otherwise both libraries translate the
+            // same card and the visual stacks.
+            x: dnd.isDragging ? 0 : x,
+            touchAction: "pan-y",
+          }}
         >
           <div className="flex items-center gap-2.5">
             {/* completion circle — tap to reveal tiers, springs on press.
@@ -229,30 +239,17 @@ function HabitCheckCard({
               ))}
             </div>
 
-            {/* Drag handle — move habit to a later time block.
-                Disabled for already-done habits (they read as compact pill above).
-
-                Pointer / touch events on the grip MUST stop propagating before
-                they bubble up to the parent <animated.div {...bind()}> — the
-                @use-gesture handler on the row claims pointermove as a swipe
-                and cancels the @dnd-kit drag. We manually compose listeners
-                so stopPropagation runs first, then dnd-kit's own handlers. */}
+            {/* Drag affordance — purely visual now. The whole row is the
+                drag activator (long-press 300ms). Showing the grip glyph
+                gives the user a hint that the row is draggable. */}
             {!habit.done && (
-              <button
-                ref={dnd.setActivatorNodeRef}
-                {...dnd.attributes}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  dnd.listeners?.onPointerDown?.(e);
-                }}
-                onKeyDown={dnd.listeners?.onKeyDown}
-                className="shrink-0 text-gray-300 hover:text-gray-500 p-1 rounded touch-none cursor-grab active:cursor-grabbing"
+              <span
+                className="shrink-0 text-gray-400 p-1 pointer-events-none"
                 title={t("habit.drag.title")}
-                aria-label={t("habit.drag.title")}
-                onClick={(e) => e.preventDefault()}
+                aria-hidden
               >
                 <Icon name="grip" size={14} strokeWidth={2.5} />
-              </button>
+              </span>
             )}
 
             <button
@@ -324,7 +321,8 @@ function HabitCheckCard({
           dist={habits?.getTierDistribution?.(habit.habitId)}
           grad={habits?.getGraduationProgress?.(habit.habitId)}
           stats={habits?.getStreakStats?.(habit.habitId)}
-          accent={accent} t={t} onEdit={() => { setShowDetail(false); onCustomize?.(habit.habitId); }} onClose={() => setShowDetail(false)} />
+          accent={accent} t={t} onEdit={() => { setShowDetail(false); onCustomize?.(habit.habitId); }} onClose={() => setShowDetail(false)}
+          onSetLayer={(layer) => habits?.setHabitLayer?.(habit.habitId, layer)} />
       )}
     </>
   );
@@ -334,7 +332,7 @@ function HabitCheckCard({
 export default memo(HabitCheckCard);
 
 // ── Detail popover (#6) — 7-day history, layer + graduation, tier mix, streak ──
-function HabitDetailPopover({ habit, name, icon, layerLabel, streak, cat, lang, history, dist, grad, stats, accent, t, onEdit, onClose }) {
+function HabitDetailPopover({ habit, name, icon, layerLabel, streak, cat, lang, history, dist, grad, stats, accent, t, onEdit, onClose, onSetLayer }) {
   const description = cat ? (lang === "zh" ? cat.description : (cat.descriptionEn || cat.description)) : null;
   const tutorial = cat ? (lang === "zh" ? cat.tutorial : (cat.tutorialEn || cat.tutorial)) : null;
   const hasGuide = !!(description || (tutorial && tutorial.length > 0));
@@ -357,6 +355,43 @@ function HabitDetailPopover({ habit, name, icon, layerLabel, streak, cat, lang, 
           {stats?.longestStreak > 0 && <span className="text-gray-500">🏆 {t("habit.detail.best", { n: stats.longestStreak })}</span>}
           {stats?.totalDone > 0 && <span className="text-gray-500">✓ {t("habit.detail.total", { n: stats.totalDone })}</span>}
         </div>
+
+        {/* Manual layer override (#promote) — user can move habit between
+            核心 / 养成中 / 探索 without waiting for the auto-graduation
+            threshold. The user explicitly asked for this:
+            "手动可以从『三个点』按钮中调整为必选". */}
+        {onSetLayer && (
+          <div className="mb-3 rounded-xl p-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
+              {t("habit.detail.layerChange")}
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { layer: 1, glyph: "◆", labelKey: "habit.layerCore" },
+                { layer: 2, glyph: "◇", labelKey: "habit.layerForming" },
+                { layer: 3, glyph: "✦", labelKey: "habit.layerExplore" },
+              ].map((opt) => {
+                const active = habit.layer === opt.layer;
+                return (
+                  <button
+                    key={opt.layer}
+                    onClick={() => { if (!active) onSetLayer(opt.layer); }}
+                    className="flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-bold transition-colors"
+                    style={active
+                      ? { background: accent, color: "#fff" }
+                      : { background: "#fff", color: "#475569", border: "1px solid #cbd5e1" }}
+                  >
+                    <span>{opt.glyph}</span>
+                    <span>{t(opt.labelKey)}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="text-[10px] text-slate-400 mt-1.5 leading-snug">
+              {t("habit.detail.layerHint")}
+            </div>
+          </div>
+        )}
 
         {/* Description + tutorial — neutral surface so it reads as INFO,
             not as the success/completed-state tint. The previous accent
