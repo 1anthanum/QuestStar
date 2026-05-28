@@ -167,51 +167,87 @@ export default function PastDaysModal({ habits, onClose, theme, focusDate = null
                     </div>
                   )}
 
-                  {/* R12 backfill: missing active habits → tap to log retroactively */}
-                  {day.missing && day.missing.length > 0 && (
-                    <div className="rounded-xl p-2.5 border border-dashed border-gray-200">
-                      <div className="text-[10.5px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">
+                  {/* R12 backfill — split into 固定 + 可选·养成 buckets per
+                      user request ("往日快速补签要按照固定+可选/养成
+                      这两个部分快速"). Two compact rows; one-tap for
+                      fixed (no tier picker), L/M/H picker for habits. */}
+                  {((day.missingFixed && day.missingFixed.length > 0) || (day.missing && day.missing.length > 0)) && (
+                    <div className="rounded-xl p-2.5 border border-dashed border-gray-200 space-y-2">
+                      <div className="text-[10.5px] font-bold text-gray-400 uppercase tracking-wide">
                         ↶ {t("habit.past.backfillTitle")}
                       </div>
-                      <div className="space-y-1">
-                        {day.missing.map((m) => {
-                          const key = `${day.date}|${m.habitId}`;
-                          const open = backfillPick === key;
-                          return (
-                            <div key={m.habitId} className="flex items-center gap-2">
-                              <span className="text-[13px]">{iconOf(m.habitId)}</span>
-                              <span className="flex-1 text-[12px] text-gray-600 truncate">{nameOf(m.habitId)}</span>
-                              {open ? (
-                                <div className="flex items-center gap-1 shrink-0">
-                                  {["L", "M", "H"].map((k) => (
-                                    <button
-                                      key={k}
-                                      onClick={() => {
-                                        habits.completeHabitForDate?.(m.habitId, k, day.date);
-                                        setBackfillPick(null);
-                                      }}
-                                      className="text-[10px] font-black w-6 h-6 rounded-full"
-                                      style={k === (m.suggestedTier || "M")
-                                        ? { background: theme?.btnGrad || accent, color: "#fff" }
-                                        : { background: "#fff", color: accent, border: `1px solid ${accent}40` }}
-                                    >{k}</button>
-                                  ))}
-                                  <button onClick={() => setBackfillPick(null)} className="text-gray-300 hover:text-gray-500 text-[10px] ml-0.5">✕</button>
-                                </div>
-                              ) : (
+
+                      {/* 固定 — fixed items missed that day */}
+                      {day.missingFixed && day.missingFixed.length > 0 && (
+                        <div>
+                          <div className="text-[9.5px] font-bold text-gray-400 mb-1 px-0.5">{t("habit.group.fixed")}</div>
+                          <div className="flex flex-wrap gap-1">
+                            {day.missingFixed.map((f) => {
+                              const label = lang === "zh" ? f.text : (f.textEn || f.text);
+                              return (
                                 <button
-                                  onClick={() => setBackfillPick(key)}
-                                  className="text-[10.5px] font-bold px-2.5 py-1 rounded-full text-white shrink-0"
-                                  style={{ background: accent }}
-                                  title={t("habit.past.backfillTip")}
+                                  key={f.id}
+                                  onClick={() => habits.setFixedItemForDate?.(f.id, day.date, true)}
+                                  className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full transition-colors"
+                                  style={{ background: `${accent}10`, color: accent, border: `1px solid ${accent}33` }}
+                                  title={t("habit.past.backfillFixedTip")}
                                 >
-                                  ↶ {t("habit.past.backfillBtn")}
+                                  <span>{f.icon}</span>
+                                  {f.time && <span className="opacity-60 font-mono text-[10px]">{f.time}</span>}
+                                  <span className="truncate max-w-[120px]">{label}</span>
+                                  <span className="opacity-60 font-bold">+</span>
                                 </button>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 可选·养成 — flexible habits missed that day */}
+                      {day.missing && day.missing.length > 0 && (
+                        <div className={day.missingFixed && day.missingFixed.length > 0 ? "pt-1.5 border-t border-dashed border-gray-100" : ""}>
+                          <div className="text-[9.5px] font-bold text-gray-400 mb-1 px-0.5">{t("habit.past.backfill.flexible")}</div>
+                          <div className="space-y-1">
+                            {day.missing.map((m) => {
+                              const key = `${day.date}|${m.habitId}`;
+                              const open = backfillPick === key;
+                              return (
+                                <div key={m.habitId} className="flex items-center gap-2">
+                                  <span className="text-[13px]">{iconOf(m.habitId)}</span>
+                                  <span className="flex-1 text-[12px] text-gray-600 truncate">{nameOf(m.habitId)}</span>
+                                  {open ? (
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      {["L", "M", "H"].map((k) => (
+                                        <button
+                                          key={k}
+                                          onClick={() => {
+                                            habits.completeHabitForDate?.(m.habitId, k, day.date);
+                                            setBackfillPick(null);
+                                          }}
+                                          className="text-[10px] font-black w-6 h-6 rounded-full"
+                                          style={k === (m.suggestedTier || "M")
+                                            ? { background: theme?.btnGrad || accent, color: "#fff" }
+                                            : { background: "#fff", color: accent, border: `1px solid ${accent}40` }}
+                                        >{k}</button>
+                                      ))}
+                                      <button onClick={() => setBackfillPick(null)} className="text-gray-300 hover:text-gray-500 text-[10px] ml-0.5">✕</button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => setBackfillPick(key)}
+                                      className="text-[10.5px] font-bold px-2.5 py-1 rounded-full text-white shrink-0"
+                                      style={{ background: accent }}
+                                      title={t("habit.past.backfillTip")}
+                                    >
+                                      ↶ {t("habit.past.backfillBtn")}
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 

@@ -1802,14 +1802,13 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           </span>
         </button>
 
-        {/* Quick actions — 2×2 grid */}
-        <div className="grid grid-cols-3 gap-2 mt-3">
-          {/* Rest-day toggle moved to the FAB → "More" sheet per user feedback —
-              it's an occasional override, not a daily action, so it no longer
-              earns a home-page slot. */}
+        {/* Quick actions — Rest day + End Day live in the More drawer
+            now. Only the proactive "plan my day" and "chat with AI"
+            stays on the home page, per user feedback that End Day is
+            an end-of-day action and belongs with the other settings. */}
+        <div className="grid grid-cols-2 gap-2 mt-3">
           {[
             { icon: "sunrise", color: "#f59e0b", label: t("habit.planMyDay"), onClick: onPlanDay },
-            { icon: "moon", color: "#8b5cf6", label: t("habit.endDay"), onClick: onEndDay },
             { icon: "chat", color: "#ec4899", label: t("habit.tab.ai"), onClick: () => onOpenCopilot?.() },
           ].map((a) => (
             <button
@@ -1912,6 +1911,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
             </div>
             <div className="grid grid-cols-4 gap-3">
               {[
+                { icon: "moon", label: t("habit.endDay"), act: onEndDay },
                 { icon: "bed", label: t("habit.restDay"), act: habits.toggleRestDay, active: !!habits.todayMeta.restDay, dismissAfter: false },
                 { icon: "sprout", label: t("garden.title"), act: () => setShowGarden(true) },
                 { icon: "mail", label: t("letters.title"), act: () => setShowLetters(true), active: letters.hasPending },

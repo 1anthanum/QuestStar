@@ -189,6 +189,31 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     [habitLog, game, setHabitLog]
   );
 
+  // Retroactive fixed-item check — used by PastDaysModal to backfill a
+  // 固定 item the user forgot to tick on the day. Writes the same
+  // \`_fixed\` boolean map the live toggle uses, plus a \`_fixedAt\` stamp
+  // (= now, since the actual click happens today even though the data
+  // is being attributed to a past day).
+  const setFixedItemForDate = useCallback((itemId, dateKey, done = true) => {
+    if (!itemId || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey || "")) return { ok: false, reason: "bad_input" };
+    setHabitLog((prev) => {
+      const day = { ...(prev[dateKey] || {}) };
+      const fixed = { ...(day._fixed || {}) };
+      const fixedAt = { ...(day._fixedAt || {}) };
+      if (done) {
+        fixed[itemId] = true;
+        fixedAt[itemId] = Date.now();
+      } else {
+        delete fixed[itemId];
+        delete fixedAt[itemId];
+      }
+      day._fixed = fixed;
+      day._fixedAt = fixedAt;
+      return { ...prev, [dateKey]: day };
+    });
+    return { ok: true };
+  }, [setHabitLog]);
+
   const uncompleteHabitForDate = useCallback(
     (habitId, dateKey) => {
       const entry = habitLog[dateKey]?.[habitId];
@@ -1287,6 +1312,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     activateHabit,
     completeHabit,
     completeHabitForDate,
+    setFixedItemForDate,
     uncompleteHabit,
     uncompleteHabitForDate,
     skipHabit,
