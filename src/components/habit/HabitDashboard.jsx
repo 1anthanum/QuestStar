@@ -1508,21 +1508,18 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   );
 
   // ── DnD: move a habit from one time block to another ──
-  // Long-press activation (300ms with <8px movement). User asked for
-  // "长按拖动" — press and hold anywhere on a habit row, then drag to a
-  // different time block. The previous distance-only constraint required
-  // the user to find the small grip handle; this allows whole-row activation.
+  // Distance-based activation: drag starts the moment the pointer travels
+  // 8px from the down-position. A stationary tap NEVER arms the sensor,
+  // so click handlers on inner buttons always win. Press-then-drag still
+  // works because the user has to MOVE the cursor to drag anyway — moving
+  // 8px naturally activates it.
   //
-  // Buttons inside the row (completion circle, "?", "···") call
-  // stopPropagation on pointerdown so a quick tap on them doesn't arm
-  // this sensor at all — they fire as clicks immediately.
-  //
-  // This delay (300ms) is shorter than the existing @use-gesture radial
-  // menu trigger (450ms); the drag UX takes precedence over the radial
-  // menu now. Skip / tier-change remain available via swipe-left and the
-  // inline tier picker.
+  // The previous delay-based constraint (300ms hold) caused a regression
+  // where a slow click on the inline L/M/H tier buttons activated drag
+  // mid-tap and ate the click; user reported "可选部分的完成按钮点击
+  // 又没有作用了". Distance-based has no such race.
   const dndSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { delay: 300, tolerance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
   const handleDragEnd = (event) => {
     const { active, over } = event;

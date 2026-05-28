@@ -262,7 +262,8 @@ function HabitCheckCard({
             </button>
           </div>
 
-          {/* Inline tier picker (A) */}
+          {/* Inline tier picker (A) — stopPropagation on every button so
+              clicks here never bubble to the row-level DnD listeners. */}
           {picking && (
             <div className="flex items-center gap-1.5 mt-2 animate-fade-in">
               {["L", "M", "H"].filter((key) => !locked || key === "L").map((key) => {
@@ -270,7 +271,8 @@ function HabitCheckCard({
                 return (
                   <button
                     key={key}
-                    onClick={() => choose(key)}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); choose(key); }}
                     className="flex-1 px-1.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all hover:scale-[1.03] text-left"
                     style={{ background: isRec ? accent + "18" : "#f8fafc", color: isRec ? accent : "#94a3b8", border: isRec ? `1px solid ${accent}40` : "1px solid transparent" }}
                     title={tierText(key)}
@@ -280,7 +282,14 @@ function HabitCheckCard({
                   </button>
                 );
               })}
-              <button onClick={() => onCustomize?.(habit.habitId)} className="shrink-0 text-gray-300 hover:text-gray-500 px-1" title={t("habit.customize")}><Icon name="edit" size={13} /></button>
+              <button
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); onCustomize?.(habit.habitId); }}
+                className="shrink-0 text-gray-300 hover:text-gray-500 px-1"
+                title={t("habit.customize")}
+              >
+                <Icon name="edit" size={13} />
+              </button>
             </div>
           )}
         </animated.div>

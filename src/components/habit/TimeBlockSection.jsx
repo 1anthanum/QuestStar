@@ -18,9 +18,13 @@ const ENERGY_TAG = {
 };
 
 // ── TimeBlockSection — one time block: fixed items + flexible habits ──
-// Current block expands by default. Once expanded (manually or via batch
-// "全部" completion), it stays expanded — never auto-collapses on
-// all-done, so the user can still see + undo what they just marked.
+// Expansion has two layers:
+//   - hover  : mouse over the block auto-expands (peek). Mouse leaves → collapses.
+//   - pinned : clicking the header pins the block open; click again to unpin.
+// effectiveExpanded = pinned || hovered. Touch devices get pinned-only.
+// Current block + batch "全部" completion both default to pinned, so the
+// user can still see + undo what they just marked without keeping the
+// cursor over the card.
 export default function TimeBlockSection({
   block,            // { id, label, labelEn, icon, timeRange, fixedItems }
   fixedDone,        // { fixedId: true }
@@ -63,7 +67,17 @@ export default function TimeBlockSection({
   // A past block is only "missed" if mandatory items were left undone.
   // Past blocks with only undone EXPLORE/FORMING habits are not penalized.
   const missed = status === "past" && mandatoryMissed > 0;
-  const [expanded, setExpanded] = useState(defaultExpanded ?? (isNow || (!allDone && !missed)));
+
+  // Two-state expansion:
+  //   pinned  — user explicitly clicked the header to keep it open
+  //   hovered — mouse is currently over the block
+  // effectiveExpanded = pinned || hovered (peek-on-hover, click to lock).
+  // Clicking the header toggles `pinned`; if it WAS pinned it collapses.
+  // On touch devices hover does nothing, so click-to-pin still works.
+  const initialPinned = defaultExpanded ?? (isNow || (!allDone && !missed));
+  const [pinned, setPinned] = useState(initialPinned);
+  const [hovered, setHovered] = useState(false);
+  const expanded = pinned || hovered;
   const [confirmAll, setConfirmAll] = useState(false);
 
   // Color: done=emerald; now=block's signature color; future=its color (muted); past-undone=slate
@@ -74,11 +88,9 @@ export default function TimeBlockSection({
   const completeAll = () => {
     block.fixedItems.forEach((it) => { if (!fixedDone[it.id]) habits.toggleFixedItem(it); });
     habitsInBlock.forEach((h) => { if (!h.done) habits.completeHabit(h.habitId, energyMode === "low" ? "L" : (h.recommendedTier || "M")); });
-    // User explicitly batched the block — keep it expanded so they can
-    // still see (and undo) what they just marked. Previously the block's
-    // initial-state heuristic (`!allDone`) made later renders pick a
-    // collapsed default and gave the impression that 可选 was hidden.
-    setExpanded(true);
+    // User explicitly batched the block — pin it open so they can still
+    // see (and undo) what they just marked even after the mouse leaves.
+    setPinned(true);
   };
 
   // Drop target — a dragged habit from another block can land here.
@@ -96,6 +108,8 @@ export default function TimeBlockSection({
   return (
     <div
       ref={droppable.setNodeRef}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       className="qt-card overflow-hidden transition-shadow"
       style={{
         ...(isNow
@@ -106,9 +120,11 @@ export default function TimeBlockSection({
         ...(dropRing || {}),
       }}
     >
-      {/* Header */}
+      {/* Header — click toggles `pinned`. Hover (mouse-only) auto-expands
+          via the wrapper's onMouseEnter/Leave; once pinned, expansion
+          persists after the cursor leaves. */}
       <button
-        onClick={() => setExpanded((e) => !e)}
+        onClick={() => setPinned((p) => !p)}
         className="w-full flex items-center gap-2.5 px-3.5 py-3 hover:bg-gray-50/40 transition-colors"
       >
         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: dotColor }} />
