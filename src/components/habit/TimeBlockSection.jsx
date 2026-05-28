@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { useLanguage } from "../../hooks/useLanguage";
+import { getHabitById } from "../../utils/habitCatalog";
 import FixedItemRow from "./FixedItemRow";
 import HabitCheckCard from "./HabitCheckCard";
 
@@ -86,6 +87,19 @@ export default function TimeBlockSection({
   const [hovered, setHovered] = useState(false);
   const expanded = pinned || hovered;
   const [confirmAll, setConfirmAll] = useState(false);
+
+  // ── Optional-habit recommendation (\"快进 ⏩ / 停止 ✋\") ──
+  // Picks ONE undone Layer-2/3 habit in this block to highlight as
+  // \"试试这个\". Skipping bumps to the next; stopping hides the card
+  // until the next page load. Per-session state — intentional, so a
+  // page refresh always gives the user a fresh suggestion.
+  const [skippedRecs, setSkippedRecs] = useState(() => new Set());
+  const [stopRec, setStopRec] = useState(false);
+  const flexibleUndone = habitsInBlock.filter((h) => h.layer >= 2 && !h.done);
+  const recommended = flexibleUndone.find((h) => !skippedRecs.has(h.habitId)) || null;
+  const skipRec = () => {
+    if (recommended) setSkippedRecs((prev) => { const next = new Set(prev); next.add(recommended.habitId); return next; });
+  };
 
   // Hover dwell — wait HOVER_OPEN_DELAY_MS of mouse-resting before opening
   // and a brief grace period before closing, so a cursor sliding across
@@ -203,6 +217,57 @@ export default function TimeBlockSection({
       {/* Body */}
       {expanded && (
         <div className="px-2 pb-2 space-y-0.5">
+          {/* Optional-habit recommendation card — \"试试这个\".
+              Shows one undone Layer-2/3 habit at a time with ⏩ / ✋
+              controls. Hidden once the user stops or all optional
+              habits in this block are accounted for. */}
+          {recommended && !stopRec && (() => {
+            const recCat = getHabitById(recommended.habitId);
+            const recName = recCat ? (lang === "zh" ? recCat.name : (recCat.nameEn || recCat.name)) : recommended.habitId;
+            const recIcon = (recCat?.category && habits?.getHabitColor ? null : null) || "✦";
+            const layerGlyph = recommended.layer === 2 ? "◇" : "✦";
+            return (
+              <div className="px-1.5 pt-1 pb-1">
+                <div
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-2xl"
+                  style={{ background: `${accent}10`, border: `1px solid ${accent}26` }}
+                >
+                  <span className="text-[10.5px] font-black uppercase tracking-wide shrink-0" style={{ color: accent }}>
+                    💡 {t("habit.rec.try")}
+                  </span>
+                  <span className="shrink-0 text-[11px]">{layerGlyph}</span>
+                  <span className="flex-1 text-[12.5px] font-bold text-gray-800 truncate">{recName}</span>
+                  <button
+                    onClick={() => habits.completeHabit?.(recommended.habitId, energyMode === "low" ? "L" : (recommended.recommendedTier || "M"))}
+                    className="shrink-0 text-[10.5px] font-bold px-2.5 py-1 rounded-full text-white"
+                    style={{ background: accent }}
+                    title={t("habit.rec.complete")}
+                  >
+                    ✓
+                  </button>
+                  <button
+                    onClick={skipRec}
+                    className="shrink-0 text-[12px] px-2 py-1 rounded-full transition-transform active:scale-95"
+                    style={{ background: "#fff", color: "#475569", border: "1px solid #cbd5e1" }}
+                    title={t("habit.rec.skip")}
+                  >
+                    ⏩
+                  </button>
+                  <button
+                    onClick={() => setStopRec(true)}
+                    className="shrink-0 text-[12px] px-2 py-1 rounded-full transition-transform active:scale-95"
+                    style={{ background: "#fff", color: "#475569", border: "1px solid #cbd5e1" }}
+                    title={t("habit.rec.stop")}
+                  >
+                    ✋
+                  </button>
+                </div>
+                <div className="text-[10px] text-gray-400 mt-1 px-3 leading-snug">
+                  {t("habit.rec.hint")}
+                </div>
+              </div>
+            );
+          })()}
           {block.fixedItems.length > 0 && (
             <div className="text-[9px] font-bold text-gray-300 uppercase tracking-wide px-1.5 pt-1 pb-0.5">{t("habit.group.fixed")}</div>
           )}
