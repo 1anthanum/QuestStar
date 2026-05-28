@@ -329,6 +329,19 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
 
   const totalPct = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
 
+  // ── Today's rhythm split — 固定 (% of fixed items done) + 可选 (count
+  //    of optional / forming / explore habits cultivated). User feedback:
+  //    \"今日节奏可以分为两个仪表，第一个为固定，第二个为可选（这里不
+  //    按照 100 % 显示，而是按照完成的额外习惯养成体现\". ──
+  const fixedTotalCount = schedule.reduce((n, b) => n + ((b.fixedItems || []).length), 0);
+  const fixedDoneCount2 = Object.keys(fixedDone).filter((id) => fixedDone[id]).length;
+  const fixedPct = fixedTotalCount > 0 ? Math.round((fixedDoneCount2 / fixedTotalCount) * 100) : 0;
+  // Bonus habits cultivated today = sum of Layer-2 + Layer-3 completions.
+  // Layer-1 (核心) overlaps with \"mandatory\" / fixed semantics so we
+  // exclude it from the bonus count — a focused chip, not a duplicate.
+  const bonusDone = (progress.byLayer[2]?.done || 0) + (progress.byLayer[3]?.done || 0);
+  const bonusTotal = (progress.byLayer[2]?.total || 0) + (progress.byLayer[3]?.total || 0);
+
   // ── Encouragement message by progress tier ──
   const encourageKey = useMemo(() => {
     if (progress.total === 0) return "habit.encourage.start";
@@ -1740,32 +1753,62 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
 
       {/* Header bar — hero ring + time-of-day wash */}
       <div className="rounded-2xl p-4 border border-white/60 shadow-sm" style={{ background: timeOfDayPalette().headerBg }}>
-        {/* Hero row: progress ring + day status */}
-        <div className="flex items-center gap-4 mb-3">
-          <ProgressRing progress={totalPct / 100} size={72} stroke={5} accentColor={accent} id="lifeHeroRing">
-            <div className="text-center leading-none">
-              <AnimatePresence mode="popLayout">
-                <motion.div
-                  key={totalPct}
-                  initial={{ opacity: 0, scale: 0.7, y: -6 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.7, y: 6 }}
-                  transition={SPRING_POP}
-                  className="text-[16px] font-black text-gray-800"
-                >
-                  {totalPct}%
-                </motion.div>
-              </AnimatePresence>
+        {/* Hero row: two gauges (fixed % + bonus count) + day status */}
+        <div className="flex items-center gap-3 mb-3">
+          {/* Gauge 1 — 固定 (% scale) */}
+          <div className="flex flex-col items-center shrink-0">
+            <ProgressRing progress={fixedPct / 100} size={58} stroke={4} accentColor={accent} id="lifeHeroRing">
+              <div className="text-center leading-none">
+                <AnimatePresence mode="popLayout">
+                  <motion.div
+                    key={fixedPct}
+                    initial={{ opacity: 0, scale: 0.7, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.7, y: 4 }}
+                    transition={SPRING_POP}
+                    className="text-[13px] font-black text-gray-800"
+                  >
+                    {fixedPct}%
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </ProgressRing>
+            <div className="text-[9.5px] font-bold uppercase tracking-wide text-gray-400 mt-0.5">{t("habit.group.fixed")}</div>
+            <div className="text-[9px] text-gray-400 tabular-nums">{fixedDoneCount2}/{fixedTotalCount}</div>
+          </div>
+
+          {/* Gauge 2 — 可选 (count of bonus habits cultivated, no % cap) */}
+          <div
+            className="flex flex-col items-center shrink-0 px-3 py-2 rounded-2xl"
+            style={{ background: `${accent}10`, border: `1px solid ${accent}26` }}
+          >
+            <div className="text-[10px] font-bold uppercase tracking-wide" style={{ color: accent }}>
+              {t("habit.bonus.title")}
             </div>
-          </ProgressRing>
+            <AnimatePresence mode="popLayout">
+              <motion.div
+                key={bonusDone}
+                initial={{ opacity: 0, scale: 0.7, y: -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.7, y: 4 }}
+                transition={SPRING_POP}
+                className="flex items-baseline gap-1"
+              >
+                <span className="text-[22px] font-black leading-none" style={{ color: accent }}>{bonusDone}</span>
+                {bonusTotal > 0 && <span className="text-[10px] text-gray-400 tabular-nums">/ {bonusTotal}</span>}
+              </motion.div>
+            </AnimatePresence>
+            <div className="text-[9px] text-gray-400 mt-0.5">{t("habit.bonus.cultivated")}</div>
+          </div>
+
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-[17px] font-black text-gray-800 tracking-tight">{t("habit.todayRhythm")}</span>
+              <span className="text-[15px] font-black text-gray-800 tracking-tight">{t("habit.todayRhythm")}</span>
               {habits.todayMeta.restDay && (
                 <span className="text-[10.5px] font-bold text-indigo-500 px-1.5 py-0.5 rounded-full bg-indigo-50">🛌 {t("habit.restDay")}</span>
               )}
             </div>
-            <div className="text-[12.5px] text-gray-500 font-medium mt-0.5">
+            <div className="text-[11.5px] text-gray-500 font-medium mt-0.5">
               {t("habit.habitsDone", { done: progress.completed, total: progress.total })}
             </div>
             <button onClick={() => setShowEnergy(true)} className="flex items-center gap-1 mt-1.5" title={t("energy.update")}>
