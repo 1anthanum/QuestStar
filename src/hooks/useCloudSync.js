@@ -71,6 +71,9 @@ export function useCloudSync() {
     qt_habit_identity: { table: "extra_state", column: "habit_identity" },
     qt_habit_letters: { table: "extra_state", column: "habit_letters" },
     qt_habit_week_plan: { table: "extra_state", column: "habit_week_plan" },
+    // Display-only label / time overrides (per habit-id or fixed-item-id).
+    // Requires column: ALTER TABLE extra_state ADD COLUMN label_overrides JSONB;
+    qt_label_overrides: { table: "extra_state", column: "label_overrides" },
   };
 
   // ── Step 1: On authentication, run migration then pull ──
@@ -267,6 +270,7 @@ export function useCloudSync() {
         if (ex.habit_identity != null) safeSet("qt_habit_identity", ex.habit_identity);
         if (ex.habit_letters) safeSet("qt_habit_letters", ex.habit_letters);
         if (ex.habit_week_plan) safeSet("qt_habit_week_plan", ex.habit_week_plan);
+        if (ex.label_overrides) safeSet("qt_label_overrides", ex.label_overrides);
       }
 
       lastPullRef.current = Date.now();
@@ -408,6 +412,7 @@ export function useCloudSync() {
           habit_identity: safeGet("qt_habit_identity", ""),
           habit_letters: safeGet("qt_habit_letters", []),
           habit_week_plan: safeGet("qt_habit_week_plan", {}),
+          label_overrides: safeGet("qt_label_overrides", {}),
         }, { onConflict: "user_id" })
       );
 

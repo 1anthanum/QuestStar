@@ -278,6 +278,7 @@ export default function TimeBlockSection({
               done={!!fixedDone[item.id]}
               completedAt={fixedAt[item.id] || null}
               onToggle={habits.toggleFixedItem}
+              habits={habits}
               theme={theme}
             />
           ))}

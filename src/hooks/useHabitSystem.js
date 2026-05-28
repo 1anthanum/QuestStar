@@ -46,6 +46,10 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
   const [schedule] = useLocalStorage("qt_daily_schedule", null); // null → DEFAULT_SCHEDULE
   const [identity, setIdentity] = useLocalStorage("qt_habit_identity", ""); // #8 identity statement
   const [identityTemplate, setIdentityTemplate] = useLocalStorage("qt_habit_identity_template", null); // optional template id from identityTemplates.js
+  // User-edited DISPLAY overrides — { [id]: { label?: string, time?: string } }
+  // Only changes what the user sees; underlying habitId / mirrorId / catalog
+  // entries are never modified. Applies to both habit ids and fixed-item ids.
+  const [labelOverrides, setLabelOverrides] = useLocalStorage("qt_label_overrides", {});
   const [letters, setLetters] = useLocalStorage("qt_habit_letters", []);    // #9 letters to future self
   const [weekPlans, setWeekPlans] = useLocalStorage("qt_habit_week_plan", {}); // #12 weekly intentions
   const [habitColors, setHabitColors] = useLocalStorage("qt_habit_colors", {}); // per-habit hue overrides (local-only; base hue is deterministic)
@@ -418,6 +422,39 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     },
     [today, setActiveHabits]
   );
+
+  // ── Display-only label / time overrides ──
+  // Caller passes a patch like { label: "晨间快走" } or { time: "07:15" }.
+  // Underlying habitId / mirrorId / catalog entry are NEVER modified — only
+  // what the row displays. Pass null to clear an override.
+  const setLabelOverride = useCallback((id, patch) => {
+    if (!id) return;
+    setLabelOverrides((prev) => {
+      const next = { ...(prev || {}) };
+      const existing = next[id] || {};
+      const merged = { ...existing };
+      ["label", "time"].forEach((key) => {
+        if (patch && Object.prototype.hasOwnProperty.call(patch, key)) {
+          const v = patch[key];
+          if (v == null || (typeof v === "string" && v.trim() === "")) delete merged[key];
+          else merged[key] = typeof v === "string" ? v.trim() : v;
+        }
+      });
+      if (Object.keys(merged).length === 0) delete next[id];
+      else next[id] = merged;
+      return next;
+    });
+  }, [setLabelOverrides]);
+
+  const clearLabelOverride = useCallback((id) => {
+    setLabelOverrides((prev) => {
+      const next = { ...(prev || {}) };
+      delete next[id];
+      return next;
+    });
+  }, [setLabelOverrides]);
+
+  const getLabelOverride = useCallback((id) => (labelOverrides && labelOverrides[id]) || null, [labelOverrides]);
 
   const archiveHabit = useCallback(
     (habitId) => {
@@ -1238,6 +1275,10 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     deferHabitTo,
     deferFixedItemTo,
     setHabitLayer,
+    labelOverrides,
+    setLabelOverride,
+    clearLabelOverride,
+    getLabelOverride,
     addQuickLog,
     removeQuickLog,
     getQuickLog,

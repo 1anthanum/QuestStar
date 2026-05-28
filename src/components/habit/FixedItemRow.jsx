@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { useLanguage } from "../../hooks/useLanguage";
@@ -23,11 +24,42 @@ function isOverdue(timeStr) {
   return minsNow() > parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 }
 
-export default function FixedItemRow({ item, done, completedAt = null, onToggle, theme }) {
+export default function FixedItemRow({ item, done, completedAt = null, onToggle, theme, habits = null }) {
   const { lang, t } = useLanguage();
   const accent = theme?.accent || "#6366f1";
-  const text = lang === "zh" ? item.text : (item.textEn || item.text);
-  const overdue = !done && isOverdue(item.time);
+
+  // ── Display overrides ──
+  // Read user-edited label / time from qt_label_overrides. The catalog
+  // entry is never mutated; only what the row displays changes. This
+  // keeps mirrorId, the iOS Medication widget queries, and the schedule
+  // identity intact when the user just wants a friendlier name.
+  const override = habits?.getLabelOverride?.(item.id) || null;
+  const baseText = lang === "zh" ? item.text : (item.textEn || item.text);
+  const text = override?.label || baseText;
+  const time = override?.time || item.time;
+  const overdue = !done && isOverdue(time);
+
+  const [expanded, setExpanded] = useState(false);
+  const [labelDraft, setLabelDraft] = useState(text);
+  const [timeDraft, setTimeDraft] = useState(time || "");
+  const openEdit = () => {
+    setLabelDraft(text);
+    setTimeDraft(time || "");
+    setExpanded(true);
+  };
+  const saveEdit = () => {
+    const labelChanged = (labelDraft || "").trim() !== baseText;
+    const timeChanged = (timeDraft || "") !== (item.time || "");
+    habits?.setLabelOverride?.(item.id, {
+      label: labelChanged ? labelDraft : null,
+      time: timeChanged ? timeDraft : null,
+    });
+    setExpanded(false);
+  };
+  const resetEdit = () => {
+    habits?.clearLabelOverride?.(item.id);
+    setExpanded(false);
+  };
 
   // ── Completion-time annotation (on-time / delayed) ──
   // Compare the moment the checkbox was tapped against the item's
@@ -40,8 +72,8 @@ export default function FixedItemRow({ item, done, completedAt = null, onToggle,
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
     let delayMin = null;
-    if (item.time) {
-      const m = String(item.time).match(/(\d{1,2}):(\d{2})/);
+    if (time) {
+      const m = String(time).match(/(\d{1,2}):(\d{2})/);
       if (m) {
         const sched = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
         const actual = d.getHours() * 60 + d.getMinutes();
@@ -70,16 +102,14 @@ export default function FixedItemRow({ item, done, completedAt = null, onToggle,
 
   // M4: only the checkbox toggles (not the whole row) — prevents accidental
   // medication check/uncheck from trackpad drift or mis-taps.
+  // Wrapper holds the dnd + clickable area; expanded edit panel renders below.
   return (
     <div
       ref={dnd.setNodeRef}
       {...dnd.listeners}
       {...dnd.attributes}
-      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl"
+      className="w-full rounded-xl"
       style={{
-        // Same conditional-transform pattern as HabitCheckCard: dropping
-        // the property entirely when not dragging avoids creating a
-        // containing block for any fixed-position descendants.
         transform: dnd.transform ? CSS.Translate.toString(dnd.transform) : undefined,
         opacity: dnd.isDragging ? 0.4 : 1,
         zIndex: dnd.isDragging ? 30 : undefined,
@@ -88,10 +118,15 @@ export default function FixedItemRow({ item, done, completedAt = null, onToggle,
         ...(overdue ? { background: "#fef2f2" } : {}),
       }}
     >
-      <span className={`text-[10px] font-mono w-12 shrink-0 ${overdue ? "text-red-500 font-bold" : "text-gray-300"}`}>{item.time}</span>
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget || !e.target.closest("button,input,a")) (expanded ? setExpanded(false) : openEdit()); }}
+      className="w-full flex items-center gap-3 px-3 py-2"
+    >
+      <span className={`text-[10px] font-mono w-12 shrink-0 ${overdue ? "text-red-500 font-bold" : "text-gray-300"}`}>{time}</span>
       <span className="text-base shrink-0">{overdue ? "⏰" : item.icon}</span>
       <span className={`flex-1 text-[13px] leading-snug ${done ? "text-gray-400 line-through" : overdue ? "text-red-600 font-semibold" : "text-gray-700"}`}>
         {text}
+        {override && <span className="ml-1 text-[10px] font-normal opacity-50 not-italic">✎</span>}
       </span>
       {overdue && (
         <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 shrink-0">{t("habit.overdue")}</span>
@@ -119,6 +154,67 @@ export default function FixedItemRow({ item, done, completedAt = null, onToggle,
       >
         {done && <span className="text-[13px] font-bold">✓</span>}
       </button>
+    </div>
+
+    {expanded && (
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="mx-2 mb-2 rounded-lg p-2.5"
+        style={{ background: "#fff", border: "1px solid #e5e7eb" }}
+      >
+        <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-2 items-center">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{t("habit.fixed.editTime")}</span>
+          <input
+            type="time"
+            value={(timeDraft || "").includes("–") ? "" : timeDraft}
+            onChange={(e) => setTimeDraft(e.target.value)}
+            className="text-[12.5px] font-mono rounded-md px-2 py-1 bg-slate-50 outline-none"
+            style={{ border: "1px solid #e5e7eb" }}
+          />
+          <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{t("habit.fixed.editLabel")}</span>
+          <input
+            type="text"
+            value={labelDraft}
+            onChange={(e) => setLabelDraft(e.target.value)}
+            placeholder={baseText}
+            maxLength={60}
+            className="text-[12.5px] rounded-md px-2 py-1 bg-slate-50 outline-none"
+            style={{ border: "1px solid #e5e7eb" }}
+          />
+        </div>
+        <div className="flex items-center gap-2 mt-2.5">
+          <button
+            onClick={saveEdit}
+            className="text-[11px] font-bold px-3 py-1 rounded-full text-white"
+            style={{ background: theme?.btnGrad || accent }}
+          >
+            {t("habit.fixed.editSave")}
+          </button>
+          <button
+            onClick={() => setExpanded(false)}
+            className="text-[11px] font-semibold px-3 py-1 rounded-full text-slate-500 bg-slate-100"
+          >
+            {t("habit.fixed.editCancel")}
+          </button>
+          {override && (
+            <>
+              <span className="flex-1" />
+              <button
+                onClick={resetEdit}
+                className="text-[10.5px] font-semibold text-slate-400 hover:text-slate-600"
+                title={t("habit.fixed.editReset")}
+              >
+                ↺ {t("habit.fixed.editReset")}
+              </button>
+            </>
+          )}
+        </div>
+        <div className="text-[10px] text-slate-400 mt-1.5 leading-snug">
+          {t("habit.fixed.editHint")}
+        </div>
+      </div>
+    )}
     </div>
   );
 }
