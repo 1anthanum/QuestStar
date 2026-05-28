@@ -29,6 +29,7 @@ import BurnItModal from "./BurnItModal";
 import NoticedThread from "./NoticedThread";
 import QuickLogModal from "./QuickLogModal";
 import IdentityTemplatePicker from "./IdentityTemplatePicker";
+import BadHabitClassifier from "./BadHabitClassifier";
 import { useNoticedThread } from "../../hooks/useNoticedThread";
 import { useLivingWorld } from "../../hooks/useLivingWorld";
 import { useChapters } from "../../hooks/useChapters";
@@ -89,6 +90,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [showNoticed, setShowNoticed] = useState(false); // Phase 5 / I3 — Noticed thread reader
   const [showQuickLog, setShowQuickLog] = useState(false); // null | true | "YYYY-MM-DD" focus date
   const [showIdentityPicker, setShowIdentityPicker] = useState(false);
+  const [showBadHabit, setShowBadHabit] = useState(false);
   const chapters = useChapters();
   const compost = useCompost();
   const letters = useSystemLetters();
@@ -1259,6 +1261,15 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           onClose={() => setShowIdentityPicker(false)}
         />
       )}
+      {/* Bad-habit classifier — anti-pattern view against identity direction */}
+      {showBadHabit && (
+        <BadHabitClassifier
+          habits={habits}
+          theme={theme}
+          lang={lang}
+          onClose={() => setShowBadHabit(false)}
+        />
+      )}
       {showReminders && <ReminderSettings habits={habits} onClose={() => setShowReminders(false)} theme={theme} />}
       {showBodyScan && <BodyScanModal onClose={() => setShowBodyScan(false)} theme={theme} />}
       {showLetter && (
@@ -1963,6 +1974,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
                 { icon: "scroll", label: t("noticed.title"), act: () => setShowNoticed(true), active: (noticedThread?.count || 0) > 0 },
                 { icon: "plus", label: t("habit.quickLog.tool"), act: () => setShowQuickLog(true) },
                 { icon: "target", label: t("identity.tool"), act: () => setShowIdentityPicker(true), active: !!habits.identityTemplate },
+                { icon: "zap", label: t("badHabit.tool"), act: () => setShowBadHabit(true) },
                 { icon: "moon", label: t("shelter.title"), act: () => setShowShelter(true) },
                 { icon: "zap", label: t("burn.title"), act: () => setShowBurn(true) },
                 { icon: "browse", label: t("habit.browse"), act: onBrowse },
