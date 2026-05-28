@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useLanguage } from "../../hooks/useLanguage";
 import { getHabitById, HABIT_CATEGORIES } from "../../utils/habitCatalog";
+import { getTodayStr } from "../../utils/gameLogic";
 import { energyWeather, energyAverage, capTierByEnergy } from "../../utils/energyModel";
 import { timeOfDayPalette } from "../../utils/timeOfDay";
 import { generateDailyBriefing } from "../../utils/aiService";
@@ -49,7 +50,8 @@ export default function DailyBriefingModal({ habits, ai, theme, studyQuests = []
   const firstUndone = habits.getTodayView().find((h) => !h.done);
 
   const dueQuests = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    // R6-C1: LOCAL date — matches what useHabitSystem + iOS Config write under.
+    const today = getTodayStr();
     return (studyQuests || [])
       .filter((q) => q.deadline && q.deadline <= today && (q.steps || []).some((s) => !s.done))
       .map((q) => ({ name: q.name, when: q.deadline === today ? "today" : "overdue" }));

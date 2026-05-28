@@ -46,6 +46,7 @@ import Icon from "../Icon";
 import ProgressRing from "../ProgressRing";
 import { timeOfDayPalette } from "../../utils/timeOfDay";
 import { HABIT_XP } from "../../utils/layerEngine";
+import { getTodayStr } from "../../utils/gameLogic";
 import { ENERGY_DIMENSIONS, energyColor, deriveEnergyMode, defaultEnergy, energyWeather, capTierByEnergy, socialAllowsInteraction, cognitiveAllowsDeep } from "../../utils/energyModel";
 
 // ═══════════════════════════════════════════════════════════
@@ -1867,6 +1868,11 @@ function SuggestionAddModal({ habit, schedule, theme, onConfirm, onClose }) {
   );
 }
 
+// R6-C1: must be LOCAL date, matching what useHabitSystem writes under via
+// getTodayStr(). The previous toISOString() returned UTC, so any user past
+// their UTC-offset cutoff (e.g., a Pacific user after ~17:00 PDT) read
+// fixedDone from a different date bucket than toggleFixedItem wrote to,
+// and every fixed-item checkbox click looked unresponsive in the UI.
 function todayKeyLocal() {
-  return new Date().toISOString().split("T")[0];
+  return getTodayStr();
 }

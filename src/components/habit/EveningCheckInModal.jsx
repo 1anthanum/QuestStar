@@ -67,8 +67,9 @@ export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
     let cancelled = false;
     setInsightLoading(true);
     const log = habits.habitLog || {};
-    const today = new Date().toISOString().split("T")[0];
-    analyzeDailyHabits(log, log[today] || {}, habits.activeHabits, ai.aiProvider, ai.aiModel, ai.resolvedKey, lang)
+    // R6-C1: read with the SAME local date key the rest of the app writes to.
+    // todayKey defined earlier in this component is already LOCAL.
+    analyzeDailyHabits(log, log[todayKey] || {}, habits.activeHabits, ai.aiProvider, ai.aiModel, ai.resolvedKey, lang)
       .then((res) => { if (!cancelled) setInsight(res); })
       .catch(() => {})
       .finally(() => { if (!cancelled) setInsightLoading(false); });
