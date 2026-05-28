@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLanguage } from "../../hooks/useLanguage";
 import { getHabitById, HABIT_CATEGORIES } from "../../utils/habitCatalog";
 import { ENERGY_DIMENSIONS, energyColor } from "../../utils/energyModel";
@@ -6,11 +6,22 @@ import { ENERGY_DIMENSIONS, energyColor } from "../../utils/energyModel";
 // ── PastDaysModal ("往日") — review past days + repeat ad-hoc additions ──
 // Surfaces what was done each day, with special attention to one-off / trial
 // additions, and offers a "do again today" action for them.
-export default function PastDaysModal({ habits, onClose, theme }) {
+//
+// focusDate (optional): when set (e.g., user tapped a day in the weekly
+// rhythm heatmap), the modal scrolls to that day on open and gives it a
+// short attention-pulse so the user knows where they landed.
+export default function PastDaysModal({ habits, onClose, theme, focusDate = null }) {
   const { t, lang } = useLanguage();
   const accent = theme?.accent || "#6366f1";
   const [repeated, setRepeated] = useState({}); // habitId → true (added back today)
   const [backfillPick, setBackfillPick] = useState(null); // "{date}|{habitId}" of expanded row
+  const focusRef = useRef(null);
+
+  useEffect(() => {
+    if (!focusDate || !focusRef.current) return undefined;
+    focusRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    return undefined;
+  }, [focusDate]);
 
   // includeEmpty: true so empty past days are listed for backfill;
   // habits.habitLog in deps re-derives after each backfill/undo.
@@ -56,8 +67,16 @@ export default function PastDaysModal({ habits, onClose, theme }) {
           {days.map((day) => {
             const [, mo, dd] = day.date.split("-");
             const doneCount = day.completed.length + day.fixedDone.length;
+            const isFocused = focusDate === day.date;
             return (
-              <div key={day.date} className="rounded-2xl border border-gray-100 overflow-hidden">
+              <div
+                key={day.date}
+                ref={isFocused ? focusRef : undefined}
+                className="rounded-2xl border overflow-hidden transition-shadow"
+                style={isFocused
+                  ? { borderColor: accent, boxShadow: `0 0 0 2px ${accent}40, 0 8px 24px -10px ${accent}80` }
+                  : { borderColor: "#f3f4f6" }}
+              >
                 {/* Day header */}
                 <div className="flex items-center gap-2 px-3.5 py-2.5 bg-gray-50">
                   <span className="text-[13px] font-black text-gray-700">{mo}/{dd}</span>

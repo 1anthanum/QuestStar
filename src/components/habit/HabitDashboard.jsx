@@ -829,15 +829,18 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
             <div className="flex gap-1.5">
               {weekRates.map((d, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <span
-                    className="w-full rounded-md cursor-pointer transition-transform"
+                  <button
+                    type="button"
+                    disabled={d.future}
+                    onClick={() => { if (!d.future) setShowPast(d.key); }}
+                    className="w-full rounded-md transition-transform disabled:cursor-not-allowed enabled:cursor-pointer enabled:hover:scale-110"
                     style={{ aspectRatio: "1", background: d.future ? "#f1f5f9" : rateColor(d.rate), outline: d.isToday ? `2px solid ${accent}` : "none", outlineOffset: -1, transform: hoveredCell === i ? "scale(1.18)" : undefined }}
                     onMouseEnter={() => setHoveredCell(i)}
                     onMouseLeave={() => setHoveredCell((cur) => (cur === i ? null : cur))}
                     onFocus={() => setHoveredCell(i)}
                     onBlur={() => setHoveredCell((cur) => (cur === i ? null : cur))}
-                    tabIndex={0}
-                    aria-label={d.future ? `${d.key} (upcoming)` : `${d.key}: ${d.done} of ${d.total}`}
+                    aria-label={d.future ? `${d.key} (upcoming)` : `${d.key}: ${d.done} of ${d.total} — ${t("habit.past.backfillBtn")}`}
+                    title={d.future ? d.key : t("habit.weekRhythm.openDay", { date: d.key })}
                   />
                   <span className="text-[9px] text-gray-400">{DOW_SHORT[i]}</span>
                 </div>
@@ -1098,7 +1101,14 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       )}
 
       {showPRN && <PRNToolbox habits={habits} onClose={() => setShowPRN(false)} theme={theme} />}
-      {showPast && <PastDaysModal habits={habits} onClose={() => setShowPast(false)} theme={theme} />}
+      {showPast && (
+        <PastDaysModal
+          habits={habits}
+          onClose={() => setShowPast(false)}
+          theme={theme}
+          focusDate={typeof showPast === "string" ? showPast : null}
+        />
+      )}
       {showReminders && <ReminderSettings habits={habits} onClose={() => setShowReminders(false)} theme={theme} />}
       {showBodyScan && <BodyScanModal onClose={() => setShowBodyScan(false)} theme={theme} />}
       {showLetter && (
