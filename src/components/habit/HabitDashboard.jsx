@@ -102,6 +102,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [dismissedInvisible, setDismissedInvisible] = useState(false);
   const [slotNudgeDismissed, setSlotNudgeDismissed] = useState(null);
   const [doNowPick, setDoNowPick] = useState(null); // habitId whose tier picker is open in "Do now"
+  const [doNowDetail, setDoNowDetail] = useState(null); // habitId whose tutorial is expanded in "Do now"
   const [addingSuggestion, setAddingSuggestion] = useState(null); // catalog habit pending slot pick
   const [suggestion, setSuggestion] = useState(null);
   const [dismissedSuggestion, setDismissedSuggestion] = useState(false);
@@ -980,6 +981,10 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
               const icon = HABIT_CATEGORIES[cat?.category]?.icon || "◆";
               const recTier = capTierByEnergy(h.recommendedTier || "M", energy);
               const open = doNowPick === h.habitId;
+              const description = cat ? (lang === "zh" ? cat.description : cat.descriptionEn || cat.description) : null;
+              const tutorial = cat ? (lang === "zh" ? cat.tutorial : cat.tutorialEn || cat.tutorial) : null;
+              const hasGuide = !!(description || (tutorial && tutorial.length > 0));
+              const detailOpen = doNowDetail === h.habitId;
               return (
                 <motion.div
                   key={h.habitId}
@@ -988,10 +993,22 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, x: 28, scale: 0.96, transition: { duration: 0.22 } }}
                   transition={SPRING_SOFT}
-                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-gray-50"
+                  className="rounded-xl bg-gray-50"
                 >
+                <div className="flex items-center gap-2.5 px-2.5 py-2">
                   <span className="text-base">{icon}</span>
                   <span className="flex-1 text-[13px] font-semibold text-gray-700 truncate">{name}</span>
+                  {hasGuide && (
+                    <button
+                      onClick={() => setDoNowDetail((cur) => (cur === h.habitId ? null : h.habitId))}
+                      className="shrink-0 text-[10px] font-bold rounded-full px-1.5 py-0.5 transition-colors"
+                      style={detailOpen ? { background: accent, color: "#fff" } : { background: `${accent}1f`, color: accent }}
+                      title={t("habit.detail.howTo")}
+                      aria-label={t("habit.detail.howTo")}
+                    >
+                      {detailOpen ? "−" : "?"}
+                    </button>
+                  )}
                   <AnimatePresence mode="wait" initial={false}>
                     {open ? (
                       <motion.div
@@ -1032,6 +1049,27 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
                       </motion.button>
                     )}
                   </AnimatePresence>
+                </div>
+                {detailOpen && hasGuide && (
+                  <div
+                    className="mx-2.5 mb-2 rounded-lg p-2.5"
+                    style={{ background: "#fff", border: "1px solid #e5e7eb" }}
+                  >
+                    {description && (
+                      <p className="text-[11.5px] leading-relaxed text-slate-700 mb-1.5">{description}</p>
+                    )}
+                    {tutorial && tutorial.length > 0 && (
+                      <ol className="space-y-0.5 text-[11px] leading-snug text-slate-600">
+                        {tutorial.map((step, i) => (
+                          <li key={i} className="flex gap-1.5">
+                            <span className="font-bold shrink-0" style={{ color: accent }}>{i + 1}.</span>
+                            <span>{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                  </div>
+                )}
                 </motion.div>
               );
             })}
