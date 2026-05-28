@@ -222,12 +222,22 @@ function HabitCheckCard({
             </div>
 
             {/* Drag handle — move habit to a later time block.
-                Disabled for already-done habits (they read as compact pill above). */}
+                Disabled for already-done habits (they read as compact pill above).
+
+                Pointer / touch events on the grip MUST stop propagating before
+                they bubble up to the parent <animated.div {...bind()}> — the
+                @use-gesture handler on the row claims pointermove as a swipe
+                and cancels the @dnd-kit drag. We manually compose listeners
+                so stopPropagation runs first, then dnd-kit's own handlers. */}
             {!habit.done && (
               <button
                 ref={dnd.setActivatorNodeRef}
-                {...dnd.listeners}
                 {...dnd.attributes}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  dnd.listeners?.onPointerDown?.(e);
+                }}
+                onKeyDown={dnd.listeners?.onKeyDown}
                 className="shrink-0 text-gray-300 hover:text-gray-500 p-1 rounded touch-none cursor-grab active:cursor-grabbing"
                 title={t("habit.drag.title")}
                 aria-label={t("habit.drag.title")}
@@ -321,8 +331,11 @@ function HabitDetailPopover({ habit, name, icon, layerLabel, streak, cat, lang, 
   const tutorial = cat ? (lang === "zh" ? cat.tutorial : (cat.tutorialEn || cat.tutorial)) : null;
   const hasGuide = !!(description || (tutorial && tutorial.length > 0));
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 animate-fade-in" onClick={onClose}>
-      <div className="w-full max-w-xs max-h-[85vh] overflow-y-auto bg-white rounded-3xl p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    // Backdrop bumped from 30% → 55% black + light blur so the dashboard
+    // greens behind the popover don't bleed into the card and the user
+    // can read the tutorial against a calmer background.
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4 animate-fade-in" onClick={onClose}>
+      <div className="w-full max-w-xs max-h-[85vh] overflow-y-auto bg-white rounded-3xl p-5 shadow-2xl ring-1 ring-black/5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xl">{icon}</span>
           <span className="flex-1 text-[14px] font-black text-gray-800">{name}</span>
@@ -380,7 +393,7 @@ function HabitDetailPopover({ habit, name, icon, layerLabel, streak, cat, lang, 
             {history.map((d, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
                 <span className="w-full rounded-sm" style={{ height: d.done ? "100%" : d.skipped ? "45%" : "25%", background: d.done ? "#10b981" : d.skipped ? "#fca5a5" : "#e5e7eb" }} />
-                <span className="text-[8px] text-gray-300">{["日", "一", "二", "三", "四", "五", "六"][d.dow]}</span>
+                <span className="text-[9px] text-gray-500">{["日", "一", "二", "三", "四", "五", "六"][d.dow]}</span>
               </div>
             ))}
           </div>
