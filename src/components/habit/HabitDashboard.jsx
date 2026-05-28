@@ -253,6 +253,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [energy, habits.habitLog]);
   const fixedDone = habits.habitLog[todayKeyLocal()]?._fixed || {};
+  const fixedAt = habits.habitLog[todayKeyLocal()]?._fixedAt || {};
 
   // Group active habits by timeSlot; Core-only filter when on.
   // R7-N1: deferrals only apply while a habit is PENDING. Once completed, the
@@ -1035,6 +1036,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           key={block.id}
           block={{ ...block, fixedItems: fixedItemsBySlot[block.id] || [] }}
           fixedDone={fixedDone}
+          fixedAt={fixedAt}
           habitsInBlock={habitsBySlot[block.id] || []}
           habits={habits}
           onCompleteHabit={tryCompleteHabit}
@@ -1074,6 +1076,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
             <TimeBlockSection
               block={{ ...block, fixedItems: fixedItemsBySlot[block.id] || [] }}
               fixedDone={fixedDone}
+              fixedAt={fixedAt}
               habitsInBlock={habitsBySlot[block.id] || []}
               habits={habits}
               onCompleteHabit={tryCompleteHabit}

@@ -345,6 +345,10 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
   );
 
   // ── Fixed item check (medication/meals/etc.) ──
+  // Side-stores the actual click timestamp in a parallel \`_fixedAt\` map
+  // so the row can show \"完成于 HH:mm\" and flag on-time vs delayed
+  // against the item's scheduled \`time\` field. Keeping \`_fixed\` as a
+  // boolean map preserves backward-compat with every existing reader.
   const toggleFixedItem = useCallback(
     (fixedItem) => {
       const t = todayStr();
@@ -353,10 +357,17 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
       setHabitLog((prev) => {
         const day = { ...(prev[t] || {}) };
         const fixed = { ...(day._fixed || {}) };
+        const fixedAt = { ...(day._fixedAt || {}) };
         const nowDone = !fixed[id];
-        if (nowDone) fixed[id] = true;
-        else delete fixed[id];
+        if (nowDone) {
+          fixed[id] = true;
+          fixedAt[id] = Date.now();
+        } else {
+          delete fixed[id];
+          delete fixedAt[id];
+        }
         day._fixed = fixed;
+        day._fixedAt = fixedAt;
         return { ...prev, [t]: day };
       });
       // mirror under the iOS-aligned id

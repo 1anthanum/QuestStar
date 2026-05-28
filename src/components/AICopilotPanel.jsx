@@ -234,9 +234,27 @@ export default function AICopilotPanel({
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
 
-  const { messages, isLoading, error, setError, sendMessage, quickCheckIn, clearHistory, sessions, deleteSession } = copilot;
+  const { messages, isLoading, error, setError, sendMessage, quickCheckIn, clearHistory, newSession, sessions, deleteSession } = copilot;
   const [showHistory, setShowHistory] = useState(false);
   const [viewingSession, setViewingSession] = useState(null);
+
+  // Auto-start a fresh session on every panel open.
+  // User feedback: "AI 助手模块每次自动开启会话（快捷任务添加），
+  //                 而不是始终在同一个会话当中".
+  // Each open is treated as an independent quick-task-add context. If
+  // there was a prior conversation, clearHistory archives it under
+  // qt_copilot_sessions first — no data is lost; the user can browse
+  // past sessions via the history toggle.
+  //
+  // The mount-once guard (empty dep array) keeps the panel re-renders
+  // from triggering repeated archives.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (messages && messages.length > 0) {
+      (newSession || clearHistory)?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {

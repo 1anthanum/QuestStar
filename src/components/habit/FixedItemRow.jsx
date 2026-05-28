@@ -23,11 +23,42 @@ function isOverdue(timeStr) {
   return minsNow() > parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 }
 
-export default function FixedItemRow({ item, done, onToggle, theme }) {
+export default function FixedItemRow({ item, done, completedAt = null, onToggle, theme }) {
   const { lang, t } = useLanguage();
   const accent = theme?.accent || "#6366f1";
   const text = lang === "zh" ? item.text : (item.textEn || item.text);
   const overdue = !done && isOverdue(item.time);
+
+  // ── Completion-time annotation (on-time / delayed) ──
+  // Compare the moment the checkbox was tapped against the item's
+  // scheduled \`time\` field. Late by ≥10 min reads as 延迟; otherwise
+  // 按时. Shown only when we have BOTH a scheduled time and a stored
+  // completedAt (older entries pre-_fixedAt still display cleanly).
+  let completionAnnotation = null;
+  if (done && completedAt) {
+    const d = new Date(completedAt);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    let delayMin = null;
+    if (item.time) {
+      const m = String(item.time).match(/(\d{1,2}):(\d{2})/);
+      if (m) {
+        const sched = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+        const actual = d.getHours() * 60 + d.getMinutes();
+        delayMin = actual - sched; // can be negative (early)
+      }
+    }
+    const late = delayMin != null && delayMin >= 10;
+    completionAnnotation = {
+      stamp: `${hh}:${mm}`,
+      label: delayMin == null
+        ? t("habit.fixed.completedAt")
+        : late
+        ? t("habit.fixed.delayedBy", { n: delayMin })
+        : t("habit.fixed.onTime"),
+      tone: late ? "late" : "ok",
+    };
+  }
 
   const dnd = useDraggable({
     id: `fixed-${item.id}`,
@@ -64,6 +95,18 @@ export default function FixedItemRow({ item, done, onToggle, theme }) {
       </span>
       {overdue && (
         <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 shrink-0">{t("habit.overdue")}</span>
+      )}
+      {completionAnnotation && (
+        <span
+          className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+            completionAnnotation.tone === "late"
+              ? "bg-amber-100 text-amber-700"
+              : "bg-emerald-50 text-emerald-600"
+          }`}
+          title={`${completionAnnotation.label} · ${completionAnnotation.stamp}`}
+        >
+          {completionAnnotation.stamp} · {completionAnnotation.label}
+        </span>
       )}
       <button
         onPointerDown={(e) => e.stopPropagation()}

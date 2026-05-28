@@ -34,6 +34,7 @@ const ENERGY_TAG = {
 export default function TimeBlockSection({
   block,            // { id, label, labelEn, icon, timeRange, fixedItems }
   fixedDone,        // { fixedId: true }
+  fixedAt = {},     // { fixedId: epoch ms — when the user toggled it done }
   habitsInBlock,    // [{ habitId, layer, done, ... }] assigned to this block
   habits,           // useHabitSystem instance (for tier/rate lookups + actions)
   onCompleteHabit,  // optional wrapper that toasts on alreadyDone (R12); falls back to habits.completeHabit
@@ -210,6 +211,7 @@ export default function TimeBlockSection({
               key={item.id}
               item={item}
               done={!!fixedDone[item.id]}
+              completedAt={fixedAt[item.id] || null}
               onToggle={habits.toggleFixedItem}
               theme={theme}
             />

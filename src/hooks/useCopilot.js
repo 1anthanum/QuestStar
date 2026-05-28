@@ -166,11 +166,25 @@ export function useCopilot({ game, rewards, energy, appMode, ai, lang, habits = 
     // ── Habit context (Life mode only) ──
     const habitContext = buildHabitContext(habits, appMode, lang);
 
+    // ── Current time / date stamp ──
+    // Injected on EVERY system-prompt build so the AI always knows the
+    // current calendar date when it writes things like deadlines or
+    // "schedule for tonight". Pure local time — matches getTodayStr()
+    // and what the user sees on the dashboard.
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const weekdayZh = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][now.getDay()];
+    const weekdayEn = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][now.getDay()];
+
     if (lang === "zh") {
       const stats = isLife
         ? `- 活跃习惯: ${habitActive} 个\n- 今日习惯完成: ${hp.completed}/${hp.total}`
         : `- 连续天数: ${game.streak || 0} 天\n- 活跃任务: ${activeQuests.length} 个\n- 今天完成: ${todaySteps} 步`;
       return `你是 QuestStar AI 助手，帮助有 ADHD 的人管理任务和反思。
+
+当前时间: ${dateStr} ${timeStr} (${weekdayZh}) — 始终基于这个日期判断"今天 / 明天 / 本周"。
 
 当前用户状态:
 - 等级: Lv.${levelInfo.level} ${levelInfo.name} (${game.xp || 0} XP)
@@ -218,6 +232,8 @@ ${habitContext}
       ? `- Active habits: ${habitActive}\n- Habits done today: ${hp.completed}/${hp.total}`
       : `- Streak: ${game.streak || 0} days\n- Active quests: ${activeQuests.length}\n- Steps completed today: ${todaySteps}`;
     return `You are QuestStar AI, an assistant helping people with ADHD manage tasks and reflect.
+
+Current time: ${dateStr} ${timeStr} (${weekdayEn}) — always interpret "today / tomorrow / this week" against this date.
 
 Current user state:
 - Level: Lv.${levelInfo.level} ${levelInfo.name} (${game.xp || 0} XP)
@@ -443,6 +459,13 @@ Guidelines:
     setSessions((prev) => prev.filter((s) => s.id !== sessionId));
   }, []);
 
+  // newSession — alias for clearHistory; named for the consumer side
+  // where "start a fresh session" reads better than "clear history".
+  // clearHistory already archives the current conversation into sessions,
+  // so calling this on Copilot-panel open is loss-less: the user can
+  // browse archived sessions if they want to revisit.
+  const newSession = clearHistory;
+
   return {
     messages,
     isLoading,
@@ -451,6 +474,7 @@ Guidelines:
     sendMessage,
     quickCheckIn,
     clearHistory,
+    newSession,
     sessions,
     deleteSession,
   };
