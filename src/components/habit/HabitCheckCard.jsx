@@ -2,6 +2,8 @@ import { useRef, useState, memo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useDrag } from "@use-gesture/react";
 import { useSpring, animated } from "@react-spring/web";
+import { useDraggable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import { useLanguage } from "../../hooks/useLanguage";
 import { getHabitById, HABIT_CATEGORIES } from "../../utils/habitCatalog";
 import { HABIT_XP } from "../../utils/layerEngine";
@@ -45,6 +47,16 @@ function HabitCheckCard({
   const [radial, setRadial] = useState(false); // long-press quick-action menu
   const [dx, setDx] = useState(0);              // live drag offset, for swipe hints
   const lpTimer = useRef(null);
+
+  // ── DnD between time blocks ──
+  // Done habits are NOT draggable (they're already committed to the current
+  // bucket). Listeners are wired to the grip handle on the right side of the
+  // row, so taps/swipes elsewhere keep working without conflict.
+  const dnd = useDraggable({
+    id: habit.habitId,
+    data: { habitId: habit.habitId, kind: "habit" },
+    disabled: habit.done,
+  });
 
   // react-spring drives the swipe x (use-gesture feeds it)
   const [{ x }, api] = useSpring(() => ({ x: 0 }));
@@ -134,7 +146,17 @@ function HabitCheckCard({
 
   return (
     <>
-      <div className="relative rounded-xl overflow-hidden">
+      <div
+        ref={dnd.setNodeRef}
+        style={{
+          transform: CSS.Translate.toString(dnd.transform),
+          opacity: dnd.isDragging ? 0.4 : 1,
+          touchAction: dnd.isDragging ? "none" : undefined,
+          zIndex: dnd.isDragging ? 30 : undefined,
+          position: "relative",
+        }}
+        className="relative rounded-xl overflow-hidden"
+      >
         {/* swipe hints */}
         <div className="absolute inset-0 flex items-center justify-between px-4 text-[12px] font-black pointer-events-none">
           <span style={{ color: "#10b981", opacity: dx > 12 ? Math.min(1, dx / SWIPE_THRESHOLD) : 0 }}>✓ {t("habit.swipe.complete")}</span>
@@ -198,6 +220,22 @@ function HabitCheckCard({
                 />
               ))}
             </div>
+
+            {/* Drag handle — move habit to a later time block.
+                Disabled for already-done habits (they read as compact pill above). */}
+            {!habit.done && (
+              <button
+                ref={dnd.setActivatorNodeRef}
+                {...dnd.listeners}
+                {...dnd.attributes}
+                className="shrink-0 text-gray-300 hover:text-gray-500 p-1 rounded touch-none cursor-grab active:cursor-grabbing"
+                title={t("habit.drag.title")}
+                aria-label={t("habit.drag.title")}
+                onClick={(e) => e.preventDefault()}
+              >
+                <Icon name="grip" size={14} strokeWidth={2.5} />
+              </button>
+            )}
 
             <button
               onPointerDown={(e) => e.stopPropagation()}

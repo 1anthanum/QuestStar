@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useDrag } from "@use-gesture/react";
+import { DndContext, PointerSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
 import confetti from "canvas-confetti";
 import { SPRING_POP, SPRING_SOFT } from "../../utils/motion";
 import { useLanguage } from "../../hooks/useLanguage";
@@ -1455,7 +1456,27 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     </>
   );
 
+  // ── DnD: move a habit from one time block to another ──
+  // PointerSensor with a small distance constraint so a click on the grip
+  // doesn't accidentally start a drag from a stationary tap. On drop, the
+  // target's data.slot is the new effective slot — write it via
+  // deferHabitTo. Dropping back on the original block clears the deferral
+  // for that habit (returning it to its catalog home slot).
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    const habitId = active?.data?.current?.habitId;
+    const targetSlot = over?.data?.current?.slot;
+    if (!habitId || !targetSlot) return;
+    const home = habits.activeHabits.find((h) => h.habitId === habitId)?.timeSlot || "upper_morning";
+    // Dropping on the catalog home slot is the same as clearing the deferral.
+    if (targetSlot === home) habits.deferHabitTo?.(habitId, null);
+    else habits.deferHabitTo?.(habitId, targetSlot);
+  };
+
   return (
+    <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
     <div className="space-y-3 pb-24" data-skin={skin}>
       {/* Living World Phase 1 — your sun, persistent in the corner.
           Phase 3: envelope pulses when a letter is due.
@@ -1762,6 +1783,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         </div>
       )}
     </div>
+    </DndContext>
   );
 }
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useDroppable } from "@dnd-kit/core";
 import { useLanguage } from "../../hooks/useLanguage";
 import FixedItemRow from "./FixedItemRow";
 import HabitCheckCard from "./HabitCheckCard";
@@ -68,10 +69,30 @@ export default function TimeBlockSection({
     setExpanded(true);
   };
 
+  // Drop target — a dragged habit from another block can land here.
+  // The id matches the block id so HabitDashboard's onDragEnd can route
+  // the drop directly to `deferHabitTo(habitId, block.id)`.
+  const droppable = useDroppable({ id: block.id, data: { slot: block.id } });
+
+  // When a habit is being dragged toward this block, draw an accent ring
+  // so the user knows they can drop here. We layer on top of the existing
+  // NOW / missed styles without replacing them.
+  const dropRing = droppable.isOver
+    ? { boxShadow: `0 0 0 2px ${blockColor}, 0 12px 28px -10px ${blockColor}99` }
+    : null;
+
   return (
     <div
-      className="qt-card overflow-hidden"
-      style={isNow ? { border: `2px solid ${blockColor}`, boxShadow: `0 8px 24px -10px ${blockColor}80` } : missed ? { opacity: 0.72, borderLeft: "3px solid #fca5a5" } : undefined}
+      ref={droppable.setNodeRef}
+      className="qt-card overflow-hidden transition-shadow"
+      style={{
+        ...(isNow
+          ? { border: `2px solid ${blockColor}`, boxShadow: `0 8px 24px -10px ${blockColor}80` }
+          : missed
+          ? { opacity: 0.72, borderLeft: "3px solid #fca5a5" }
+          : undefined),
+        ...(dropRing || {}),
+      }}
     >
       {/* Header */}
       <button

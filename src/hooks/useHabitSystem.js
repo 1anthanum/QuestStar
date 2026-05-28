@@ -893,6 +893,17 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
   // Eligible = Core/Forming (layer ≤ 2) & not done; Explore (layer 3) is left behind.
   // Stored as a per-day override in _meta.deferrals so a habit's home slot is unchanged.
   const SLOT_ORDER = ["morning_prep", "upper_morning", "noon", "peak_cognitive", "evening", "sleep_prep"];
+
+  // Manual defer — used by drag-and-drop. Caller passes the target slot id.
+  // A null target removes the deferral (back to the catalog home slot).
+  const deferHabitTo = useCallback((habitId, slotId) => {
+    const existing = todayMeta.deferrals || {};
+    const next = { ...existing };
+    if (slotId == null) delete next[habitId];
+    else next[habitId] = slotId;
+    setDayMeta({ deferrals: next });
+  }, [todayMeta.deferrals, setDayMeta]);
+
   const autoDefer = useCallback(() => {
     const current = hourToSlot(new Date().getHours());
     const ci = SLOT_ORDER.indexOf(current);
@@ -1122,6 +1133,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     pruneLog,
     autoArchiveStale,
     autoDefer,
+    deferHabitTo,
     reconcileFromDailyChecks,
   };
 }

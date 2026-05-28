@@ -52,6 +52,8 @@ const P = {
   sprout: <path d="M12 20V11M12 14c-3 0-5-2-5-4 2 0 5 2 5 4zM12 14c3 0 5-2 5-4-2 0-5 2-5 4z" />,
   // tab bar
   more: <path d="M5 12h.01M12 12h.01M19 12h.01" />,
+  // drag handle — two vertical dot columns (·· ··)
+  grip: <path d="M9 5h.01M9 12h.01M9 19h.01M15 5h.01M15 12h.01M15 19h.01" />,
 };
 
 export default function Icon({ name, size = 18, color, strokeWidth = 2, className = "", style = {} }) {
