@@ -149,7 +149,15 @@ function HabitCheckCard({
       <div
         ref={dnd.setNodeRef}
         style={{
-          transform: CSS.Translate.toString(dnd.transform),
+          // CRITICAL: only apply transform when actively dragging. Any
+          // computed `transform` other than `none` makes this row a
+          // containing block for `position: fixed` descendants — which
+          // means HabitDetailPopover (rendered inside this fragment via
+          // {showDetail && ...} below) gets confined to the row instead
+          // of covering the viewport. `CSS.Translate.toString(null)`
+          // returns "translate3d(0px,0px,0)" which IS a transform value,
+          // so we must conditionally drop the property.
+          transform: dnd.transform ? CSS.Translate.toString(dnd.transform) : undefined,
           opacity: dnd.isDragging ? 0.4 : 1,
           touchAction: dnd.isDragging ? "none" : undefined,
           zIndex: dnd.isDragging ? 30 : undefined,
