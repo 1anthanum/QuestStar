@@ -26,7 +26,10 @@ function HabitCheckCard({
   const accent = theme?.accent || "#6366f1";
   const hColor = habits?.getHabitColor?.(habit.habitId) || accent; // per-habit identity hue
   const cat = getHabitById(habit.habitId);
-  const name = lang === "zh" ? (cat?.name || habit.habitId) : (cat?.nameEn || cat?.name || habit.habitId);
+  const baseName = lang === "zh" ? (cat?.name || habit.habitId) : (cat?.nameEn || cat?.name || habit.habitId);
+  // Display-only override (qt_label_overrides). Doesn't touch the catalog.
+  const labelOverride = habits?.getLabelOverride?.(habit.habitId) || null;
+  const name = labelOverride?.label || baseName;
   const icon = HABIT_CATEGORIES[cat?.category]?.icon || "◆";
   const req = habit.requiresEnergy;
   const locked = req && energy && typeof energy[req.dim] === "number" && energy[req.dim] < req.min;
@@ -47,6 +50,31 @@ function HabitCheckCard({
   const [radial, setRadial] = useState(false); // long-press quick-action menu
   const [dx, setDx] = useState(0);              // live drag offset, for swipe hints
   const lpTimer = useRef(null);
+
+  // Inline expand (row body click) — shows tutorial + label edit.
+  // Independent of the modal popover (showDetail).
+  const [expanded, setExpanded] = useState(false);
+  const [labelDraft, setLabelDraft] = useState(name);
+  const description = lang === "zh" ? cat?.description : (cat?.descriptionEn || cat?.description);
+  const tutorial = lang === "zh" ? cat?.tutorial : (cat?.tutorialEn || cat?.tutorial);
+  const hasGuide = !!(description || (tutorial && tutorial.length > 0));
+  const openInlineDetail = () => {
+    setLabelDraft(name);
+    setExpanded(true);
+  };
+  const saveLabel = () => {
+    const trimmed = (labelDraft || "").trim();
+    if (trimmed === baseName) {
+      habits?.setLabelOverride?.(habit.habitId, { label: null });
+    } else {
+      habits?.setLabelOverride?.(habit.habitId, { label: trimmed });
+    }
+    setExpanded(false);
+  };
+  const resetLabel = () => {
+    habits?.clearLabelOverride?.(habit.habitId);
+    setExpanded(false);
+  };
 
   // ── DnD between time blocks ──
   // Done habits are NOT draggable (they're already committed to the current
@@ -186,7 +214,16 @@ function HabitCheckCard({
             touchAction: "pan-y",
           }}
         >
-          <div className="flex items-center gap-2.5">
+          <div
+            onClick={(e) => {
+              // Row body click → toggle inline expand. Skip when the click
+              // originated on a button, input, or anchor (those have their
+              // own stopPropagation, but defensive double-check here).
+              if (e.target.closest("button,input,a,select,textarea")) return;
+              expanded ? setExpanded(false) : openInlineDetail();
+            }}
+            className="flex items-center gap-2.5 cursor-pointer"
+          >
             {/* completion circle — tap to reveal tiers, springs on press.
                 onPointerDown stops the useDrag handler at the row level from
                 claiming this tap as a swipe-start (visible on some touch
@@ -290,6 +327,84 @@ function HabitCheckCard({
               >
                 <Icon name="edit" size={13} />
               </button>
+            </div>
+          )}
+
+          {/* Inline detail expand (row body click) — tutorial + editable
+              display label. stopPropagation guards so taps inside the panel
+              don't bubble to the row's expand toggle or DnD sensor. */}
+          {expanded && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="mt-2 rounded-xl p-3"
+              style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}
+            >
+              {/* Editable label */}
+              <div className="mb-2">
+                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1">
+                  {t("habit.fixed.editLabel")}
+                </div>
+                <input
+                  value={labelDraft}
+                  onChange={(e) => setLabelDraft(e.target.value)}
+                  placeholder={baseName}
+                  maxLength={60}
+                  className="w-full text-[12.5px] rounded-md px-2 py-1 bg-white outline-none"
+                  style={{ border: "1px solid #e2e8f0" }}
+                />
+              </div>
+
+              {/* Tutorial (read-only, when catalog has one) */}
+              {hasGuide && (
+                <div className="mb-2 rounded-lg p-2.5" style={{ background: "#fff", border: "1px solid #eef2f7" }}>
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1">
+                    {t("habit.detail.howTo")}
+                  </div>
+                  {description && (
+                    <p className="text-[11.5px] leading-relaxed text-slate-700 mb-1.5">{description}</p>
+                  )}
+                  {tutorial && tutorial.length > 0 && (
+                    <ol className="space-y-0.5 text-[11px] leading-snug text-slate-600">
+                      {tutorial.map((step, i) => (
+                        <li key={i} className="flex gap-1.5">
+                          <span className="font-bold shrink-0" style={{ color: accent }}>{i + 1}.</span>
+                          <span>{step}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              )}
+
+              {/* Action row */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={saveLabel}
+                  className="text-[11px] font-bold px-3 py-1 rounded-full text-white"
+                  style={{ background: theme?.btnGrad || accent }}
+                >
+                  {t("habit.fixed.editSave")}
+                </button>
+                <button
+                  onClick={() => setExpanded(false)}
+                  className="text-[11px] font-semibold px-3 py-1 rounded-full text-slate-500 bg-slate-100"
+                >
+                  {t("habit.fixed.editCancel")}
+                </button>
+                <span className="flex-1" />
+                {labelOverride && (
+                  <button
+                    onClick={resetLabel}
+                    className="text-[10.5px] font-semibold text-slate-400 hover:text-slate-600"
+                  >
+                    ↺ {t("habit.fixed.editReset")}
+                  </button>
+                )}
+              </div>
+              <div className="text-[10px] text-slate-400 mt-1.5 leading-snug">
+                {t("habit.fixed.editHint")}
+              </div>
             </div>
           )}
         </animated.div>
