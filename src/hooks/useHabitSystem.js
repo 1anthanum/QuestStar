@@ -1118,6 +1118,27 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
       const missing = activeLayered
         .filter((h) => !completedIds.has(h.habitId))
         .map((h) => ({ habitId: h.habitId, suggestedTier: h.recommendedTier || "M", layer: h.layer }));
+
+      // Same idea for FIXED items — walk the schedule and find anything
+      // the user didn't check off that day. Used by PastDaysModal to
+      // surface a separate \"固定\" backfill bucket alongside habits.
+      const doneFixedSet = new Set(Object.keys(day._fixed || {}));
+      const missingFixed = [];
+      for (const block of (schedule || [])) {
+        for (const item of block.fixedItems || []) {
+          if (!doneFixedSet.has(item.id)) {
+            missingFixed.push({
+              id: item.id,
+              icon: item.icon,
+              time: item.time,
+              text: item.text,
+              textEn: item.textEn,
+              mirrorId: item.mirrorId || item.id,
+              blockId: block.id,
+            });
+          }
+        }
+      }
       // Days with neither a log entry nor a meta entry are skipped by
       // default; opt in via includeEmpty for the backfill UI.
       const hasContent = completed.length > 0 || Object.keys(meta).length > 0 || (day._fixed && Object.keys(day._fixed).length > 0);

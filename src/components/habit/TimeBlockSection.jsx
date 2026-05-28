@@ -88,17 +88,31 @@ export default function TimeBlockSection({
   const expanded = pinned || hovered;
   const [confirmAll, setConfirmAll] = useState(false);
 
-  // ── Optional-habit recommendation (\"快进 ⏩ / 停止 ✋\") ──
+  // ── Optional-habit recommendation (\"加入列表 ✅ / 快进 ⏩ / 停止 ✋\") ──
   // Picks ONE undone Layer-2/3 habit in this block to highlight as
-  // \"试试这个\". Skipping bumps to the next; stopping hides the card
-  // until the next page load. Per-session state — intentional, so a
-  // page refresh always gives the user a fresh suggestion.
+  // \"试试这个\".
+  //
+  // ✅ \"accept\" — the user agreed this is what they'll do; the card
+  //     advances to the next suggestion and the habit is marked
+  //     \"queued\" (acceptedRecs) so the actual habit row gets a small
+  //     accent ring as a discoverability hint. NO immediate completion —
+  //     the user finishes it via the row when they actually do it
+  //     (per user: \"加入列表而不是直接完成\").
+  // ⏩ skip — bumps to the next undone optional habit.
+  // ✋ stop — hides the card for this block until the next page load.
+  //
+  // Per-session state — intentional, so a page refresh always gives
+  // the user a fresh suggestion.
   const [skippedRecs, setSkippedRecs] = useState(() => new Set());
+  const [acceptedRecs, setAcceptedRecs] = useState(() => new Set());
   const [stopRec, setStopRec] = useState(false);
   const flexibleUndone = habitsInBlock.filter((h) => h.layer >= 2 && !h.done);
-  const recommended = flexibleUndone.find((h) => !skippedRecs.has(h.habitId)) || null;
+  const recommended = flexibleUndone.find((h) => !skippedRecs.has(h.habitId) && !acceptedRecs.has(h.habitId)) || null;
   const skipRec = () => {
     if (recommended) setSkippedRecs((prev) => { const next = new Set(prev); next.add(recommended.habitId); return next; });
+  };
+  const acceptRec = () => {
+    if (recommended) setAcceptedRecs((prev) => { const next = new Set(prev); next.add(recommended.habitId); return next; });
   };
 
   // Hover dwell — wait HOVER_OPEN_DELAY_MS of mouse-resting before opening
@@ -238,10 +252,10 @@ export default function TimeBlockSection({
                   <span className="shrink-0 text-[11px]">{layerGlyph}</span>
                   <span className="flex-1 text-[12.5px] font-bold text-gray-800 truncate">{recName}</span>
                   <button
-                    onClick={() => habits.completeHabit?.(recommended.habitId, energyMode === "low" ? "L" : (recommended.recommendedTier || "M"))}
+                    onClick={acceptRec}
                     className="shrink-0 text-[10.5px] font-bold px-2.5 py-1 rounded-full text-white"
                     style={{ background: accent }}
-                    title={t("habit.rec.complete")}
+                    title={t("habit.rec.acceptTip")}
                   >
                     ✓
                   </button>
@@ -288,22 +302,32 @@ export default function TimeBlockSection({
               {block.fixedItems.length > 0 && (
                 <div className="text-[9px] font-bold text-gray-300 uppercase tracking-wide px-1.5 pt-0.5">{t("habit.group.flexible")}</div>
               )}
-              {habitsInBlock.map((h) => (
-                <HabitCheckCard
-                  key={h.habitId}
-                  habit={h}
-                  effectiveTiers={habits.getEffectiveTiers(h.habitId)}
-                  completionRate={habits.getCompletionRate(h.habitId, 28).rate}
-                  energyMode={energyMode}
-                  energy={energy}
-                  onComplete={onCompleteHabit || habits.completeHabit}
-                  onUncomplete={habits.uncompleteHabit}
-                  onSkip={habits.skipHabit}
-                  onCustomize={(id) => habits._onCustomize?.(id)}
-                  habits={habits}
-                  theme={theme}
-                />
-              ))}
+              {habitsInBlock.map((h) => {
+                // \"Accepted from recommendation\" hint — small accent ring +
+                // a 🎯 chip; clears when the habit is completed or the page
+                // reloads. Discoverability cue only; doesn't change behavior.
+                const accepted = acceptedRecs.has(h.habitId) && !h.done;
+                return (
+                  <div
+                    key={h.habitId}
+                    style={accepted ? { borderRadius: 14, boxShadow: `0 0 0 2px ${accent}55, 0 8px 18px -10px ${accent}66` } : undefined}
+                  >
+                    <HabitCheckCard
+                      habit={h}
+                      effectiveTiers={habits.getEffectiveTiers(h.habitId)}
+                      completionRate={habits.getCompletionRate(h.habitId, 28).rate}
+                      energyMode={energyMode}
+                      energy={energy}
+                      onComplete={onCompleteHabit || habits.completeHabit}
+                      onUncomplete={habits.uncompleteHabit}
+                      onSkip={habits.skipHabit}
+                      onCustomize={(id) => habits._onCustomize?.(id)}
+                      habits={habits}
+                      theme={theme}
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
 
