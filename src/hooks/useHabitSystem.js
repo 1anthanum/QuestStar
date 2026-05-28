@@ -204,6 +204,67 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     [habitLog, game, setHabitLog]
   );
 
+  // ── Quick-log — independent "source data" backfill ──
+  //
+  // Records that didn't make it into the active-habit pipeline (one-off
+  // events, bad habits, things you weren't tracking yet). Stored under
+  // `habitLog[date]._quickLog[period][]` so they ride the same cloud-sync
+  // path as everything else in qt_habit_log — no Supabase schema change.
+  //
+  // No XP, no tier — these are sourcedata only, per the user contract
+  // ("快速 log 是独立源数据，不影响今日进度").
+  const addQuickLog = useCallback(
+    (catalogId, dateKey, period, note = "") => {
+      if (!catalogId || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey || "")) {
+        return { ok: false, reason: "bad_input" };
+      }
+      if (!["morning", "afternoon", "evening"].includes(period)) {
+        return { ok: false, reason: "bad_period" };
+      }
+      const entryId = `ql-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      setHabitLog((prev) => {
+        const day = { ...(prev[dateKey] || {}) };
+        const ql = { ...(day._quickLog || {}) };
+        const bucket = [...(ql[period] || [])];
+        bucket.push({ entryId, catalogId, note: String(note || "").slice(0, 80), at: Date.now() });
+        ql[period] = bucket;
+        day._quickLog = ql;
+        return { ...prev, [dateKey]: day };
+      });
+      return { ok: true, entryId };
+    },
+    [setHabitLog]
+  );
+
+  const removeQuickLog = useCallback(
+    (dateKey, period, entryId) => {
+      setHabitLog((prev) => {
+        const day = { ...(prev[dateKey] || {}) };
+        const ql = { ...(day._quickLog || {}) };
+        const bucket = (ql[period] || []).filter((e) => e.entryId !== entryId);
+        if (bucket.length === 0) delete ql[period];
+        else ql[period] = bucket;
+        if (Object.keys(ql).length === 0) delete day._quickLog;
+        else day._quickLog = ql;
+        return { ...prev, [dateKey]: day };
+      });
+    },
+    [setHabitLog]
+  );
+
+  // Returns { morning: [...], afternoon: [...], evening: [...] } (each empty if absent)
+  const getQuickLog = useCallback(
+    (dateKey) => {
+      const ql = habitLog[dateKey]?._quickLog || {};
+      return {
+        morning: ql.morning || [],
+        afternoon: ql.afternoon || [],
+        evening: ql.evening || [],
+      };
+    },
+    [habitLog]
+  );
+
   const uncompleteHabit = useCallback(
     (habitId) => {
       const t = todayStr();
@@ -1134,6 +1195,9 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     autoArchiveStale,
     autoDefer,
     deferHabitTo,
+    addQuickLog,
+    removeQuickLog,
+    getQuickLog,
     reconcileFromDailyChecks,
   };
 }

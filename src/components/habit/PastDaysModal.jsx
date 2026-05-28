@@ -10,7 +10,7 @@ import { ENERGY_DIMENSIONS, energyColor } from "../../utils/energyModel";
 // focusDate (optional): when set (e.g., user tapped a day in the weekly
 // rhythm heatmap), the modal scrolls to that day on open and gives it a
 // short attention-pulse so the user knows where they landed.
-export default function PastDaysModal({ habits, onClose, theme, focusDate = null }) {
+export default function PastDaysModal({ habits, onClose, theme, focusDate = null, onOpenQuickLog }) {
   const { t, lang } = useLanguage();
   const accent = theme?.accent || "#6366f1";
   const [repeated, setRepeated] = useState({}); // habitId → true (added back today)
@@ -83,6 +83,16 @@ export default function PastDaysModal({ habits, onClose, theme, focusDate = null
                   <span className="text-[11px] text-gray-400">{DOW[day.dow]}</span>
                   {day.restDay && <span className="text-[10px] font-bold text-indigo-400">🛌 {t("habit.restDay")}</span>}
                   <span className="flex-1" />
+                  {onOpenQuickLog && (
+                    <button
+                      onClick={() => onOpenQuickLog(day.date)}
+                      className="text-[10.5px] font-bold px-2 py-0.5 rounded-full transition-colors"
+                      style={{ background: `${accent}1f`, color: accent }}
+                      title={t("habit.past.quickLogBtn")}
+                    >
+                      ✦ {t("habit.past.quickLogBtn")}
+                    </button>
+                  )}
                   {day.mood != null && <span className="text-sm">{MOOD[Math.max(0, Math.min(9, day.mood - 1))]}</span>}
                   <span className="text-[11px] font-bold text-gray-400">✅ {doneCount}</span>
                 </div>
