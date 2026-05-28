@@ -17,7 +17,9 @@ const ENERGY_TAG = {
 };
 
 // ── TimeBlockSection — one time block: fixed items + flexible habits ──
-// Auto-collapses when fully complete; current block expands by default.
+// Current block expands by default. Once expanded (manually or via batch
+// "全部" completion), it stays expanded — never auto-collapses on
+// all-done, so the user can still see + undo what they just marked.
 export default function TimeBlockSection({
   block,            // { id, label, labelEn, icon, timeRange, fixedItems }
   fixedDone,        // { fixedId: true }
@@ -59,6 +61,11 @@ export default function TimeBlockSection({
   const completeAll = () => {
     block.fixedItems.forEach((it) => { if (!fixedDone[it.id]) habits.toggleFixedItem(it); });
     habitsInBlock.forEach((h) => { if (!h.done) habits.completeHabit(h.habitId, energyMode === "low" ? "L" : (h.recommendedTier || "M")); });
+    // User explicitly batched the block — keep it expanded so they can
+    // still see (and undo) what they just marked. Previously the block's
+    // initial-state heuristic (`!allDone`) made later renders pick a
+    // collapsed default and gave the impression that 可选 was hidden.
+    setExpanded(true);
   };
 
   return (

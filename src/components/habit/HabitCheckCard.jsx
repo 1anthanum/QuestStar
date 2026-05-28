@@ -147,9 +147,13 @@ function HabitCheckCard({
           style={{ x, touchAction: "pan-y" }}
         >
           <div className="flex items-center gap-2.5">
-            {/* completion circle — tap to reveal tiers, springs on press */}
+            {/* completion circle — tap to reveal tiers, springs on press.
+                onPointerDown stops the useDrag handler at the row level from
+                claiming this tap as a swipe-start (visible on some touch
+                devices as the circle becoming unresponsive). */}
             <motion.button
-              onClick={() => !locked && setPicking((p) => !p)}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); if (!locked) setPicking((p) => !p); }}
               whileTap={reduce || locked ? {} : { scale: 0.82 }}
               transition={SPRING_POP}
               className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0"
@@ -167,6 +171,7 @@ function HabitCheckCard({
                 {(cat?.description || (cat?.tutorial && cat.tutorial.length > 0)) && (
                   <button
                     type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); setShowDetail(true); }}
                     className="shrink-0 text-[10px] font-bold rounded-full px-1.5 py-0.5 transition-colors"
                     style={{ background: `${hColor}1f`, color: hColor }}
@@ -194,7 +199,14 @@ function HabitCheckCard({
               ))}
             </div>
 
-            <button onClick={() => setShowDetail(true)} className="shrink-0 text-gray-400 hover:text-gray-600 -mr-0.5 p-1 rounded-full hover:bg-gray-100" title={t("habit.detail.title")}><Icon name="more" size={16} strokeWidth={3} /></button>
+            <button
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); setShowDetail(true); }}
+              className="shrink-0 text-gray-400 hover:text-gray-600 -mr-0.5 p-1 rounded-full hover:bg-gray-100"
+              title={t("habit.detail.title")}
+            >
+              <Icon name="more" size={16} strokeWidth={3} />
+            </button>
           </div>
 
           {/* Inline tier picker (A) */}
@@ -287,25 +299,39 @@ function HabitDetailPopover({ habit, name, icon, layerLabel, streak, cat, lang, 
           {stats?.totalDone > 0 && <span className="text-gray-500">✓ {t("habit.detail.total", { n: stats.totalDone })}</span>}
         </div>
 
-        {/* Description + tutorial (#new) — only when catalog provides them */}
+        {/* Description + tutorial — neutral surface so it reads as INFO,
+            not as the success/completed-state tint. The previous accent
+            wash (\`${accent}0c\`) blended into the card on green themes
+            and looked low-contrast. Left strip in accent keeps identity. */}
         {hasGuide && (
-          <div className="mb-3 rounded-2xl p-3" style={{ background: `${accent}0c`, border: `1px solid ${accent}1f` }}>
-            <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1.5">
-              {t("habit.detail.howTo")}
+          <div
+            className="mb-3 rounded-xl p-3.5 relative overflow-hidden"
+            style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}
+          >
+            <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: accent }} />
+            <div className="pl-2">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
+                {t("habit.detail.howTo")}
+              </div>
+              {description && (
+                <p className="text-[12.5px] leading-relaxed text-slate-700 mb-2.5">{description}</p>
+              )}
+              {tutorial && tutorial.length > 0 && (
+                <ol className="space-y-1.5 text-[12px] leading-snug text-slate-700">
+                  {tutorial.map((step, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span
+                        className="font-bold tabular-nums shrink-0 text-[11px] w-4 h-4 rounded-full flex items-center justify-center"
+                        style={{ background: `${accent}1f`, color: accent }}
+                      >
+                        {i + 1}
+                      </span>
+                      <span className="flex-1">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
             </div>
-            {description && (
-              <p className="text-[12px] leading-relaxed text-gray-700 mb-2">{description}</p>
-            )}
-            {tutorial && tutorial.length > 0 && (
-              <ol className="space-y-1 text-[11.5px] leading-snug text-gray-700">
-                {tutorial.map((step, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="font-bold tabular-nums shrink-0" style={{ color: accent }}>{i + 1}.</span>
-                    <span className="flex-1">{step}</span>
-                  </li>
-                ))}
-              </ol>
-            )}
           </div>
         )}
 
