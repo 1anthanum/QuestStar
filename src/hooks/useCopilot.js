@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { copilotChat } from "../utils/aiService";
+import { getIdentityTemplate } from "../utils/identityTemplates";
 import { extractText, truncateForAI } from "../utils/fileExtractor";
 import { getHabitById } from "../utils/habitCatalog";
 
@@ -166,6 +167,29 @@ export function useCopilot({ game, rewards, energy, appMode, ai, lang, habits = 
     // ── Habit context (Life mode only) ──
     const habitContext = buildHabitContext(habits, appMode, lang);
 
+    // ── Identity template context — tone + focus areas ──
+    // When the user has picked an identity template (e.g., "我正在成为
+    // 深度专注的人"), surface its focusAreas (so the AI weights related
+    // suggestions) and aiTone (so the voice matches the identity).
+    // No-op when no template is set; the legacy free-form identity
+    // string is still rendered into the prompt below.
+    const tpl = habits?.identityTemplate ? getIdentityTemplate(habits.identityTemplate) : null;
+    const identityBlock = (() => {
+      if (!tpl && !habits?.identity) return "";
+      const lines = [];
+      if (habits?.identity) lines.push(lang === "zh" ? `- 身份: ${habits.identity}` : `- Identity: ${habits.identity}`);
+      if (tpl) {
+        const focus = tpl.focusAreas.join(", ");
+        lines.push(lang === "zh"
+          ? `- 关注: ${focus}`
+          : `- Focus areas: ${focus}`);
+        lines.push(lang === "zh"
+          ? `- 语气: ${tpl.aiTone}`
+          : `- Tone: ${tpl.aiTone}`);
+      }
+      return "\n" + lines.join("\n");
+    })();
+
     // ── Current time / date stamp ──
     // Injected on EVERY system-prompt build so the AI always knows the
     // current calendar date when it writes things like deadlines or
@@ -179,9 +203,10 @@ export function useCopilot({ game, rewards, energy, appMode, ai, lang, habits = 
     const weekdayEn = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][now.getDay()];
 
     if (lang === "zh") {
-      const stats = isLife
+      const stats = (isLife
         ? `- 活跃习惯: ${habitActive} 个\n- 今日习惯完成: ${hp.completed}/${hp.total}`
-        : `- 连续天数: ${game.streak || 0} 天\n- 活跃任务: ${activeQuests.length} 个\n- 今天完成: ${todaySteps} 步`;
+        : `- 连续天数: ${game.streak || 0} 天\n- 活跃任务: ${activeQuests.length} 个\n- 今天完成: ${todaySteps} 步`)
+        + identityBlock;
       return `你是 QuestStar AI 助手，帮助有 ADHD 的人管理任务和反思。
 
 当前时间: ${dateStr} ${timeStr} (${weekdayZh}) — 始终基于这个日期判断"今天 / 明天 / 本周"。
@@ -228,9 +253,10 @@ ${habitContext}
 - 如果用户上传了文件，分析内容后建议合适的任务`;
     }
 
-    const statsEn = isLife
+    const statsEn = (isLife
       ? `- Active habits: ${habitActive}\n- Habits done today: ${hp.completed}/${hp.total}`
-      : `- Streak: ${game.streak || 0} days\n- Active quests: ${activeQuests.length}\n- Steps completed today: ${todaySteps}`;
+      : `- Streak: ${game.streak || 0} days\n- Active quests: ${activeQuests.length}\n- Steps completed today: ${todaySteps}`)
+      + identityBlock;
     return `You are QuestStar AI, an assistant helping people with ADHD manage tasks and reflect.
 
 Current time: ${dateStr} ${timeStr} (${weekdayEn}) — always interpret "today / tomorrow / this week" against this date.

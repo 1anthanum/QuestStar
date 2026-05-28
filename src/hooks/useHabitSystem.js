@@ -45,6 +45,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
   const [exploreBudget, setExploreBudget] = useLocalStorage("qt_habit_explore_budget", {});
   const [schedule] = useLocalStorage("qt_daily_schedule", null); // null → DEFAULT_SCHEDULE
   const [identity, setIdentity] = useLocalStorage("qt_habit_identity", ""); // #8 identity statement
+  const [identityTemplate, setIdentityTemplate] = useLocalStorage("qt_habit_identity_template", null); // optional template id from identityTemplates.js
   const [letters, setLetters] = useLocalStorage("qt_habit_letters", []);    // #9 letters to future self
   const [weekPlans, setWeekPlans] = useLocalStorage("qt_habit_week_plan", {}); // #12 weekly intentions
   const [habitColors, setHabitColors] = useLocalStorage("qt_habit_colors", {}); // per-habit hue overrides (local-only; base hue is deterministic)
@@ -1187,6 +1188,8 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     // identity + letters
     identity,
     setIdentity,
+    identityTemplate,
+    setIdentityTemplate,
     letters,
     addLetter,
     getDueLetters,

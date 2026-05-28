@@ -4,6 +4,7 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { getHabitById, HABIT_CATEGORIES } from "../../utils/habitCatalog";
 import { analyzeDailyHabits, generateDailyHaiku } from "../../utils/aiService";
+import { getIdentityTemplate } from "../../utils/identityTemplates";
 import { EMOTION_QUADRANTS } from "../../utils/emotionVocab";
 import { SPRING_SOFT } from "../../utils/motion";
 import { useGhost } from "../../hooks/useGhost";
@@ -143,6 +144,9 @@ export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
                   : month <= 5 ? (lang === "zh" ? "春" : "spring")
                   : month <= 8 ? (lang === "zh" ? "夏" : "summer")
                   : (lang === "zh" ? "秋" : "autumn");
+    // Identity template (if set) — feed focusAreas + tone into the
+    // haiku so it leans toward what the user is becoming.
+    const tpl = habits?.identityTemplate ? getIdentityTemplate(habits.identityTemplate) : null;
     const context = {
       date: todayKey,
       intensity,
@@ -151,6 +155,9 @@ export default function EveningCheckInModal({ habits, ai, onClose, theme }) {
       completedCount: replay.length,
       focusName: habits.weekPlan?.intention || null,
       mood: habits.todayMeta?.mood || null,
+      identity: habits?.identity || null,
+      identityFocus: tpl?.focusAreas || null,
+      identityTone: tpl?.aiTone || null,
     };
     generateDailyHaiku(context, ai.aiProvider, ai.aiModel, ai.resolvedKey, lang)
       .then((text) => {

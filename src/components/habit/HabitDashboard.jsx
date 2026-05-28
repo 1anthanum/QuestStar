@@ -28,6 +28,7 @@ import ShelterModal from "./ShelterModal";
 import BurnItModal from "./BurnItModal";
 import NoticedThread from "./NoticedThread";
 import QuickLogModal from "./QuickLogModal";
+import IdentityTemplatePicker from "./IdentityTemplatePicker";
 import { useNoticedThread } from "../../hooks/useNoticedThread";
 import { useLivingWorld } from "../../hooks/useLivingWorld";
 import { useChapters } from "../../hooks/useChapters";
@@ -87,6 +88,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [showGhost, setShowGhost] = useState(false); // Phase 6 — Ghost template editor
   const [showNoticed, setShowNoticed] = useState(false); // Phase 5 / I3 — Noticed thread reader
   const [showQuickLog, setShowQuickLog] = useState(false); // null | true | "YYYY-MM-DD" focus date
+  const [showIdentityPicker, setShowIdentityPicker] = useState(false);
   const chapters = useChapters();
   const compost = useCompost();
   const letters = useSystemLetters();
@@ -544,6 +546,14 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       {editingIdentity ? (
         <div className="relative flex items-center gap-2">
           <span className="text-[12px] text-gray-600 shrink-0">{t("habit.identity.becoming")}</span>
+          <button
+            onClick={(e) => { e.stopPropagation(); setEditingIdentity(false); setShowIdentityPicker(true); }}
+            className="shrink-0 text-[10.5px] font-bold px-2 py-1 rounded-full"
+            style={{ background: `${accent}1f`, color: accent }}
+            title={t("identity.tool")}
+          >
+            ✦ {t("identity.tool")}
+          </button>
           <input
             autoFocus
             value={identityDraft}
@@ -1151,6 +1161,15 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           theme={theme}
           focusDate={typeof showQuickLog === "string" ? showQuickLog : null}
           onClose={() => setShowQuickLog(false)}
+        />
+      )}
+      {/* Identity templates — preset directions for "我正在成为…" */}
+      {showIdentityPicker && (
+        <IdentityTemplatePicker
+          habits={habits}
+          theme={theme}
+          lang={lang}
+          onClose={() => setShowIdentityPicker(false)}
         />
       )}
       {showReminders && <ReminderSettings habits={habits} onClose={() => setShowReminders(false)} theme={theme} />}
@@ -1836,6 +1855,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
                 { icon: "users", label: t("ghost.title"), act: () => setShowGhost(true), active: ghost.enabled },
                 { icon: "scroll", label: t("noticed.title"), act: () => setShowNoticed(true), active: (noticedThread?.count || 0) > 0 },
                 { icon: "plus", label: t("habit.quickLog.tool"), act: () => setShowQuickLog(true) },
+                { icon: "target", label: t("identity.tool"), act: () => setShowIdentityPicker(true), active: !!habits.identityTemplate },
                 { icon: "moon", label: t("shelter.title"), act: () => setShowShelter(true) },
                 { icon: "zap", label: t("burn.title"), act: () => setShowBurn(true) },
                 { icon: "browse", label: t("habit.browse"), act: onBrowse },
