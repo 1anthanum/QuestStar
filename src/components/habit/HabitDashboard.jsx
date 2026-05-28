@@ -270,6 +270,34 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [todayView, coreOnly, todayMeta.deferrals]);
+
+  // ── Fixed-item per-day deferrals (parallel to habit deferrals) ──
+  // Same "today only, settles home on completion" rule. Re-bucket each
+  // fixed item to its effective slot for today; pass the override down
+  // to TimeBlockSection as `block.fixedItems`.
+  const fixedDeferrals = todayMeta.fixedDeferrals || {};
+  const homeSlotByFixedId = useMemo(() => {
+    const map = {};
+    for (const block of schedule) {
+      for (const item of block.fixedItems || []) {
+        map[item.id] = block.id;
+      }
+    }
+    return map;
+  }, [schedule]);
+  const fixedItemsBySlot = useMemo(() => {
+    const map = {};
+    for (const block of schedule) {
+      for (const item of block.fixedItems || []) {
+        const isDone = !!fixedDone[item.id];
+        const home = block.id;
+        const slot = (!isDone && fixedDeferrals[item.id]) || home;
+        (map[slot] = map[slot] || []).push(item);
+      }
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schedule, fixedDone, todayMeta.fixedDeferrals]);
   const deferCount = Object.keys(deferrals).length;
 
   // Determine current block by hour — recomputes on the minute tick (C1)
@@ -1005,7 +1033,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       {schedule.map((block) => (
         <TimeBlockSection
           key={block.id}
-          block={block}
+          block={{ ...block, fixedItems: fixedItemsBySlot[block.id] || [] }}
           fixedDone={fixedDone}
           habitsInBlock={habitsBySlot[block.id] || []}
           habits={habits}
@@ -1044,7 +1072,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
               style={{ borderColor: accent, background: state === "future" ? "#fff" : accent }}
             />
             <TimeBlockSection
-              block={block}
+              block={{ ...block, fixedItems: fixedItemsBySlot[block.id] || [] }}
               fixedDone={fixedDone}
               habitsInBlock={habitsBySlot[block.id] || []}
               habits={habits}
@@ -1499,13 +1527,30 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const handleDragEnd = (event) => {
     const { active, over } = event;
     if (!over) return;
-    const habitId = active?.data?.current?.habitId;
+    const data = active?.data?.current;
     const targetSlot = over?.data?.current?.slot;
-    if (!habitId || !targetSlot) return;
-    const home = habits.activeHabits.find((h) => h.habitId === habitId)?.timeSlot || "upper_morning";
-    // Dropping on the catalog home slot is the same as clearing the deferral.
-    if (targetSlot === home) habits.deferHabitTo?.(habitId, null);
-    else habits.deferHabitTo?.(habitId, targetSlot);
+    if (!data || !targetSlot) return;
+
+    if (data.kind === "habit") {
+      const habitId = data.habitId;
+      if (!habitId) return;
+      const home = habits.activeHabits.find((h) => h.habitId === habitId)?.timeSlot || "upper_morning";
+      if (targetSlot === home) habits.deferHabitTo?.(habitId, null);
+      else habits.deferHabitTo?.(habitId, targetSlot);
+      return;
+    }
+
+    if (data.kind === "fixed") {
+      const itemId = data.itemId;
+      if (!itemId) return;
+      // Look up the item's home slot in the schedule (where it was originally defined).
+      let home = null;
+      for (const b of habits.schedule || []) {
+        if ((b.fixedItems || []).some((it) => it.id === itemId)) { home = b.id; break; }
+      }
+      if (targetSlot === home) habits.deferFixedItemTo?.(itemId, null);
+      else habits.deferFixedItemTo?.(itemId, targetSlot);
+    }
   };
 
   return (

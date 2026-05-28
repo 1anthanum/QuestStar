@@ -979,6 +979,19 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     setDayMeta({ deferrals: next });
   }, [todayMeta.deferrals, setDayMeta]);
 
+  // Per-day defer for FIXED items (meds, meals, etc.). Stored separately
+  // from habit deferrals so the two never collide on shared ids.
+  // Today-only: the catalog/schedule home slot is unchanged; tomorrow the
+  // item is back in its home block. To MOVE an item permanently, the user
+  // has to edit the schedule itself (a different surface).
+  const deferFixedItemTo = useCallback((itemId, slotId) => {
+    const existing = todayMeta.fixedDeferrals || {};
+    const next = { ...existing };
+    if (slotId == null) delete next[itemId];
+    else next[itemId] = slotId;
+    setDayMeta({ fixedDeferrals: next });
+  }, [todayMeta.fixedDeferrals, setDayMeta]);
+
   const autoDefer = useCallback(() => {
     const current = hourToSlot(new Date().getHours());
     const ci = SLOT_ORDER.indexOf(current);
@@ -1209,6 +1222,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     autoArchiveStale,
     autoDefer,
     deferHabitTo,
+    deferFixedItemTo,
     setHabitLayer,
     addQuickLog,
     removeQuickLog,
