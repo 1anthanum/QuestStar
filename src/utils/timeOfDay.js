@@ -51,15 +51,15 @@ const PALETTES = {
     orbs: ["rgba(216,180,170,0.12)", "rgba(206,162,170,0.10)", "rgba(196,162,178,0.08)"],
     glow: "rgba(206,162,170,0.20)",
   },
-  // 21–5 — night — dusty rose → warm twilight mauve (user feedback:
-  // \"23点不可以，这个灰色太难看了\"). Stays in the warm rose-mauve
-  // family rather than dropping into cold slate; reads as deep velvet
-  // dusk, not industrial gray.
+  // 21–5 — night — deep velvet twilight (user feedback round 2:
+  // \"23点还是不太行\"). The first mauve attempt was still too washed.
+  // Pushed toward a richer rose-into-purple with real depth so 23:00
+  // reads as \"night arrived\", clearly distinct from dusk's peach.
   night: {
-    pageBg: "linear-gradient(135deg, #e6d1d7 0%, #cebac4 50%, #b09cae 100%)",
-    headerBg: "linear-gradient(135deg, #cebac4, #b09cae)",
-    orbs: ["rgba(176,156,174,0.12)", "rgba(166,142,160,0.10)", "rgba(190,170,184,0.10)"],
-    glow: "rgba(176,156,174,0.22)",
+    pageBg: "linear-gradient(135deg, #dcc4d2 0%, #a08aab 50%, #6e5d80 100%)",
+    headerBg: "linear-gradient(135deg, #a08aab, #6e5d80)",
+    orbs: ["rgba(160,138,171,0.18)", "rgba(110,93,128,0.14)", "rgba(190,160,195,0.12)"],
+    glow: "rgba(160,138,171,0.26)",
   },
 };
 
