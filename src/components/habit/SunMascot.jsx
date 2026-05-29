@@ -58,11 +58,17 @@ function dayArcLiftPx() {
   return Math.round(Math.sin(a) * AMPLITUDE);
 }
 
-export default function SunMascot({ world, identity, weekActions, topObservation, completed, total, theme, letterPending, onOpenLetters, chapterStatus, chapterId, onClick }) {
+export default function SunMascot({ world, identity, weekActions, topObservation, completed, total, theme, identityHue, identityGlow, letterPending, onOpenLetters, chapterStatus, chapterId, onClick }) {
   const { t } = useLanguage();
   const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
-  const cfg = STATE[world.sunState] || STATE.growing;
+  const baseCfg = STATE[world.sunState] || STATE.growing;
+  // M3 — identity tint. When the user has chosen an identity (free text
+  // or template), use its primary hue as the sun's core color. The
+  // per-state glow + aura stay so the time-of-day pulse still reads.
+  const cfg = identityHue
+    ? { ...baseCfg, core: identityHue, glow: identityGlow || baseCfg.glow }
+    : baseCfg;
 
   // Re-arc the sun every 10 min so the position drifts visibly through
   // the day without being a tight re-render loop.

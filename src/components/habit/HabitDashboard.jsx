@@ -35,6 +35,7 @@ const QuickLogModal = lazy(() => import("./QuickLogModal"));
 const IdentityTemplatePicker = lazy(() => import("./IdentityTemplatePicker"));
 const BadHabitClassifier = lazy(() => import("./BadHabitClassifier"));
 import { getQuickLogEntry } from "../../utils/quickLogCatalog";
+import { getIdentityPalette } from "../../utils/identityPalette";
 import { useNoticedThread } from "../../hooks/useNoticedThread";
 import { useLivingWorld } from "../../hooks/useLivingWorld";
 import { useChapters } from "../../hooks/useChapters";
@@ -581,17 +582,28 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const DOT_CAP = 21;
   const nameOfHabit = (id) => { const c = getHabitById(id); return c ? (lang === "zh" ? c.name : c.nameEn || c.name) : id; };
   const fmtActionTime = (ms) => (ms ? new Date(ms).toLocaleTimeString(lang === "zh" ? "zh-CN" : "en-US", { hour: "2-digit", minute: "2-digit" }) : "");
-  const identityGrad = theme?.btnGrad || `linear-gradient(135deg, ${accent}, ${theme?.accentHover || accent})`;
+  // M3 — derive a palette from the user's identity text + template id.
+  // Falls back to the theme accent when no identity is set (default
+  // palette).
+  const identityPalette = useMemo(
+    () => getIdentityPalette(habits.identity, habits.identityTemplate),
+    [habits.identity, habits.identityTemplate]
+  );
+  const idHue = habits.identity ? identityPalette.primary : accent;
+  const identityGrad = `linear-gradient(135deg, ${idHue}, ${idHue}cc)`;
 
   const identityStrip = (
     <div
       className="relative overflow-hidden rounded-3xl px-5 py-4"
-      style={{ background: `linear-gradient(135deg, ${accent}1f, ${accent}08 55%, transparent), radial-gradient(120% 130% at 0% 0%, ${accent}16, transparent 55%)` }}
+      // M3 — card background follows the identity palette's surface
+      // gradient (no longer hard-coded to the theme accent). The dotted
+      // texture inherits the identity hue too.
+      style={{ background: habits.identity ? identityPalette.surface : `linear-gradient(135deg, ${accent}1f, ${accent}08 55%, transparent), radial-gradient(120% 130% at 0% 0%, ${accent}16, transparent 55%)` }}
     >
       {/* subtle dotted texture */}
       <div
         className="absolute inset-0 opacity-[0.05] pointer-events-none"
-        style={{ backgroundImage: "radial-gradient(currentColor 1px, transparent 1px)", backgroundSize: "13px 13px", color: accent }}
+        style={{ backgroundImage: "radial-gradient(currentColor 1px, transparent 1px)", backgroundSize: "13px 13px", color: idHue }}
       />
       {editingIdentity ? (
         <div className="relative flex items-center gap-2">
@@ -1724,6 +1736,8 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         completed={progress.completed}
         total={progress.total}
         theme={theme}
+        identityHue={habits.identity ? identityPalette.primary : null}
+        identityGlow={habits.identity ? identityPalette.glow : null}
         letterPending={letters.hasPending}
         onOpenLetters={() => setShowLetters(true)}
         chapterStatus={chapters.status}
