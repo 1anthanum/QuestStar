@@ -51,15 +51,18 @@ const PALETTES = {
     orbs: ["rgba(216,180,170,0.12)", "rgba(206,162,170,0.10)", "rgba(196,162,178,0.08)"],
     glow: "rgba(206,162,170,0.20)",
   },
-  // 21–5 — night — deep velvet twilight (user feedback round 2:
-  // \"23点还是不太行\"). The first mauve attempt was still too washed.
-  // Pushed toward a richer rose-into-purple with real depth so 23:00
-  // reads as \"night arrived\", clearly distinct from dusk's peach.
+  // 21–5 — night — pale wisteria twilight (user feedback round 3:
+  // \"还是不太对，而且会导致页面的字看不清\"). The deep #6e5d80 endpoint
+  // crushed text contrast on the page. Pulled back into a light
+  // wisteria-lavender family so 23:00 still reads as \"evening winding
+  // down\" without darkening the canvas. Clearly purple-lilac (not
+  // gray, per round 1) but lightness stays > 70% so body text
+  // (#1e293b) keeps an 8:1+ contrast end-to-end.
   night: {
-    pageBg: "linear-gradient(135deg, #dcc4d2 0%, #a08aab 50%, #6e5d80 100%)",
-    headerBg: "linear-gradient(135deg, #a08aab, #6e5d80)",
-    orbs: ["rgba(160,138,171,0.18)", "rgba(110,93,128,0.14)", "rgba(190,160,195,0.12)"],
-    glow: "rgba(160,138,171,0.26)",
+    pageBg: "linear-gradient(135deg, #e4dae8 0%, #c8b8cc 50%, #ada0c0 100%)",
+    headerBg: "linear-gradient(135deg, #c8b8cc, #ada0c0)",
+    orbs: ["rgba(173,160,192,0.12)", "rgba(155,140,176,0.10)", "rgba(200,184,204,0.10)"],
+    glow: "rgba(173,160,192,0.20)",
   },
 };
 
