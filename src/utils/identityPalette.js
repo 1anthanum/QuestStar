@@ -19,11 +19,21 @@
 // caps at ~6% saturation so the card holds color personality without
 // fighting body text.
 
+// Surface gradients use rgba ALPHA — not solid pale hex — so the
+// underlying time-of-day page background bleeds through. That keeps
+// the identity card harmonized with whatever band the clock is in
+// (sage-green-over-purple, the previous version, looked like cake
+// frosting on velvet — no good). The card still reads as the identity
+// family because the alpha tint is the same primary as everything else
+// in the palette, just at low strength.
+const surfaceFor = (rgb) =>
+  `linear-gradient(135deg, rgba(${rgb},0.18) 0%, rgba(${rgb},0.09) 55%, rgba(${rgb},0.03) 100%)`;
+
 const PALETTES = [
   {
     id: "healthy",
     primary: "#7ea884",      // sage green
-    surface: "linear-gradient(135deg, #f3f6f2 0%, #e7efe6 55%, transparent)",
+    surface: surfaceFor("126,168,132"),
     ring: "#7ea884",
     glow: "rgba(126,168,132,0.30)",
     label: { zh: "健康", en: "Healthy" },
@@ -33,7 +43,7 @@ const PALETTES = [
   {
     id: "learner",
     primary: "#c89858",      // warm amber
-    surface: "linear-gradient(135deg, #faf2e5 0%, #f4e6cf 55%, transparent)",
+    surface: surfaceFor("200,152,88"),
     ring: "#c89858",
     glow: "rgba(200,152,88,0.30)",
     label: { zh: "学习", en: "Learner" },
@@ -43,7 +53,7 @@ const PALETTES = [
   {
     id: "warm",
     primary: "#d49d8b",      // soft coral
-    surface: "linear-gradient(135deg, #fbf1ec 0%, #f4e0d6 55%, transparent)",
+    surface: surfaceFor("212,157,139"),
     ring: "#d49d8b",
     glow: "rgba(212,157,139,0.30)",
     label: { zh: "温暖", en: "Warm" },
@@ -53,7 +63,7 @@ const PALETTES = [
   {
     id: "focused",
     primary: "#5c8d8d",      // deep teal
-    surface: "linear-gradient(135deg, #ecf2f1 0%, #d9e7e6 55%, transparent)",
+    surface: surfaceFor("92,141,141"),
     ring: "#5c8d8d",
     glow: "rgba(92,141,141,0.30)",
     label: { zh: "专注", en: "Focused" },
@@ -63,7 +73,7 @@ const PALETTES = [
   {
     id: "creator",
     primary: "#a08bb0",      // dusty plum
-    surface: "linear-gradient(135deg, #f3eef4 0%, #e6dcec 55%, transparent)",
+    surface: surfaceFor("160,139,176"),
     ring: "#a08bb0",
     glow: "rgba(160,139,176,0.30)",
     label: { zh: "创作", en: "Creator" },
@@ -73,7 +83,7 @@ const PALETTES = [
   {
     id: "calm",
     primary: "#8aa0b8",      // misty blue
-    surface: "linear-gradient(135deg, #eef2f6 0%, #dce4ec 55%, transparent)",
+    surface: surfaceFor("138,160,184"),
     ring: "#8aa0b8",
     glow: "rgba(138,160,184,0.30)",
     label: { zh: "平静", en: "Calm" },
@@ -85,7 +95,7 @@ const PALETTES = [
 const DEFAULT_PALETTE = {
   id: "default",
   primary: "#9c9690",        // warm gray
-  surface: "linear-gradient(135deg, #f4f1ed 0%, #ebe6df 55%, transparent)",
+  surface: surfaceFor("156,150,144"),
   ring: "#9c9690",
   glow: "rgba(156,150,144,0.28)",
   label: { zh: "保留", en: "Default" },
