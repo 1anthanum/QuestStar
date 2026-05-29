@@ -33,8 +33,10 @@ const STATE = {
 };
 
 // Container size — the actual rendered footprint, not the SVG viewBox.
-// 100px lands in the 80–120 target range; mid-day expansion adds a few px.
-const SIZE_BASE = 100;
+// First M1 pass at 100px read too loud against the pale background; 84
+// is calmer and still inside the 80–120 target. Rays + breathing carry
+// the \"alive\" feeling that the raw size used to.
+const SIZE_BASE = 84;
 
 // Map weekly habit completions → ray count (3 minimum decorative, 8 max).
 function ramRayCount(weekActions) {
@@ -52,7 +54,7 @@ function dayArcLiftPx() {
   if (h < 6 || h > 18) return 0;
   // angle 0 at 6, π at 18 — sin peaks at noon
   const a = ((h - 6) / 12) * Math.PI;
-  const AMPLITUDE = 14; // px
+  const AMPLITUDE = 8; // px — kept small; the arc should feel like a tide, not a flight
   return Math.round(Math.sin(a) * AMPLITUDE);
 }
 
@@ -94,14 +96,15 @@ export default function SunMascot({ world, identity, weekActions, topObservation
     return out;
   }, [world.sunRays, rayCount, cfg.core]);
 
-  // SVG geometry — viewBox big enough that the 60px rays clear the
-  // container. Core radius scales to fill ~32% of the box.
+  // SVG geometry — viewBox big enough that the rays clear the core.
+  // Core radius scales to fill ~26% of the box (was 32) so the orange
+  // disc occupies less visual weight on the page.
   const VB = 200;
   const cx = VB / 2;
   const cy = VB / 2;
-  const r0 = 32;        // core
-  const rayBase = 38;   // ray start radius
-  const rayMaxLen = 58; // additional ray length at length=1
+  const r0 = 26;        // core (was 32)
+  const rayBase = 34;   // ray start radius (was 38)
+  const rayMaxLen = 48; // additional ray length at length=1 (was 58)
 
   const isClosing = chapterStatus === "closing";
   const isOverdue = chapterStatus === "overdue";
@@ -185,10 +188,10 @@ export default function SunMascot({ world, identity, weekActions, topObservation
                   key={ray.key}
                   x1={x1} y1={y1} x2={x2} y2={y2}
                   stroke={ray.color}
-                  strokeWidth="3"
+                  strokeWidth="2.2"
                   strokeLinecap="round"
                   initial={reduce ? { opacity: 1 } : { opacity: 0 }}
-                  animate={{ opacity: 0.42 + 0.5 * ray.length }}
+                  animate={{ opacity: 0.28 + 0.36 * ray.length }}
                   transition={reduce ? { duration: 0 } : { delay: 0.05 * i, duration: 0.3 }}
                 />
               );
@@ -196,10 +199,11 @@ export default function SunMascot({ world, identity, weekActions, topObservation
             <motion.circle
               cx={cx} cy={cy} r={r0}
               fill={cfg.core}
+              opacity={0.86}
               initial={reduce ? { scale: 1 } : { scale: 0.85 }}
               animate={{ scale: 1 }}
               transition={SPRING_POP}
-              style={{ transformOrigin: `${cx}px ${cy}px`, filter: `drop-shadow(0 6px 18px ${cfg.glow})` }}
+              style={{ transformOrigin: `${cx}px ${cy}px`, filter: `drop-shadow(0 4px 10px ${cfg.glow})` }}
             />
             {world.sunState === "behind_clouds" && (
               <ellipse cx={cx} cy={cy + 8} rx={42} ry={18} fill="#f1f5f9" opacity="0.85" />
