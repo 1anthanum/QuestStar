@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useDrag } from "@use-gesture/react";
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
@@ -26,10 +26,14 @@ import LettersInbox from "./LettersInbox";
 import VinesPanel from "./VinesPanel";
 import ShelterModal from "./ShelterModal";
 import BurnItModal from "./BurnItModal";
-import NoticedThread from "./NoticedThread";
-import QuickLogModal from "./QuickLogModal";
-import IdentityTemplatePicker from "./IdentityTemplatePicker";
-import BadHabitClassifier from "./BadHabitClassifier";
+// Lazy: these modals are only mounted when their setShow* state is true,
+// so paying their JS cost at first render is wasted. React.lazy + Suspense
+// peels them out of the HabitDashboard chunk into their own files that
+// load on demand.
+const NoticedThread = lazy(() => import("./NoticedThread"));
+const QuickLogModal = lazy(() => import("./QuickLogModal"));
+const IdentityTemplatePicker = lazy(() => import("./IdentityTemplatePicker"));
+const BadHabitClassifier = lazy(() => import("./BadHabitClassifier"));
 import { getQuickLogEntry } from "../../utils/quickLogCatalog";
 import { useNoticedThread } from "../../hooks/useNoticedThread";
 import { useLivingWorld } from "../../hooks/useLivingWorld";
@@ -1274,33 +1278,36 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         />
       )}
 
-      {/* Quick-log — independent source data, opens with focusDate */}
-      {showQuickLog && (
-        <QuickLogModal
-          habits={habits}
-          theme={theme}
-          focusDate={typeof showQuickLog === "string" ? showQuickLog : null}
-          onClose={() => setShowQuickLog(false)}
-        />
-      )}
-      {/* Identity templates — preset directions for "我正在成为…" */}
-      {showIdentityPicker && (
-        <IdentityTemplatePicker
-          habits={habits}
-          theme={theme}
-          lang={lang}
-          onClose={() => setShowIdentityPicker(false)}
-        />
-      )}
-      {/* Bad-habit classifier — anti-pattern view against identity direction */}
-      {showBadHabit && (
-        <BadHabitClassifier
-          habits={habits}
-          theme={theme}
-          lang={lang}
-          onClose={() => setShowBadHabit(false)}
-        />
-      )}
+      {/* Quick-log / identity / bad-habit — lazy-loaded; the Suspense
+          fallback is null because each modal pops with a backdrop the
+          moment its setShow* flips true; the brief network round-trip
+          to fetch the chunk is invisible behind the existing animation. */}
+      <Suspense fallback={null}>
+        {showQuickLog && (
+          <QuickLogModal
+            habits={habits}
+            theme={theme}
+            focusDate={typeof showQuickLog === "string" ? showQuickLog : null}
+            onClose={() => setShowQuickLog(false)}
+          />
+        )}
+        {showIdentityPicker && (
+          <IdentityTemplatePicker
+            habits={habits}
+            theme={theme}
+            lang={lang}
+            onClose={() => setShowIdentityPicker(false)}
+          />
+        )}
+        {showBadHabit && (
+          <BadHabitClassifier
+            habits={habits}
+            theme={theme}
+            lang={lang}
+            onClose={() => setShowBadHabit(false)}
+          />
+        )}
+      </Suspense>
       {showReminders && <ReminderSettings habits={habits} onClose={() => setShowReminders(false)} theme={theme} />}
       {showBodyScan && <BodyScanModal onClose={() => setShowBodyScan(false)} theme={theme} />}
       {showLetter && (
@@ -1609,8 +1616,9 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         />
       )}
 
-      {/* Phase 5 / I3 — Noticed thread (read-only) */}
+      {/* Phase 5 / I3 — Noticed thread (read-only; lazy) */}
       {showNoticed && (
+        <Suspense fallback={null}>
         <NoticedThread
           thread={noticedThread}
           schedule={habits.schedule}
@@ -1618,6 +1626,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           lang={lang}
           onClose={() => setShowNoticed(false)}
         />
+        </Suspense>
       )}
 
       {/* Energy re-assess modal */}
