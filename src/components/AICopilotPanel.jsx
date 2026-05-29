@@ -238,19 +238,21 @@ export default function AICopilotPanel({
   const [showHistory, setShowHistory] = useState(false);
   const [viewingSession, setViewingSession] = useState(null);
 
-  // Auto-start a fresh session on every panel open.
-  // User feedback: "AI 助手模块每次自动开启会话（快捷任务添加），
-  //                 而不是始终在同一个会话当中".
-  // Each open is treated as an independent quick-task-add context. If
-  // there was a prior conversation, clearHistory archives it under
-  // qt_copilot_sessions first — no data is lost; the user can browse
-  // past sessions via the history toggle.
-  //
-  // The mount-once guard (empty dep array) keeps the panel re-renders
-  // from triggering repeated archives.
+  // Smart session reuse on panel open.
+  // - If the previous conversation's last message is within the recency
+  //   window (30 minutes), continue it — the user is likely still
+  //   working on the same thing and a forced archive would feel rude.
+  // - Otherwise archive into qt_copilot_sessions and start fresh —
+  //   matches the original quick-task-add intent ("AI 助手模块每次自动
+  //   开启会话") for cold-start opens.
+  // Mount-once guard (empty deps).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (messages && messages.length > 0) {
+    if (!messages || messages.length === 0) return;
+    const lastTs = messages[messages.length - 1]?.timestamp || 0;
+    const ageMs = Date.now() - lastTs;
+    const RECENT_WINDOW_MS = 30 * 60 * 1000;
+    if (ageMs > RECENT_WINDOW_MS) {
       (newSession || clearHistory)?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
