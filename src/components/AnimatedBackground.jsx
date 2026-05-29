@@ -11,11 +11,19 @@ import { timeOfDayPalette } from "../utils/timeOfDay";
  * Layer 6: 顶部/底部渐隐
  */
 export default function AnimatedBackground({ theme }) {
-  // Ambient background follows the local clock (re-checks every 5 min); theme drives accents
+  // Ambient background follows the local clock (re-checks every 5 min); theme drives accents.
+  // The BgPreviewer pill (?bgPreview=1) emits qt-bg-preview-tick when the
+  // override hour changes — re-resolve immediately so design QA doesn't
+  // have to wait for the next 5-minute interval.
   const [palette, setPalette] = useState(() => timeOfDayPalette());
   useEffect(() => {
-    const id = setInterval(() => setPalette(timeOfDayPalette()), 5 * 60 * 1000);
-    return () => clearInterval(id);
+    const refresh = () => setPalette(timeOfDayPalette());
+    const id = setInterval(refresh, 5 * 60 * 1000);
+    window.addEventListener("qt-bg-preview-tick", refresh);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("qt-bg-preview-tick", refresh);
+    };
   }, []);
 
   const cursorRef = useRef(null);

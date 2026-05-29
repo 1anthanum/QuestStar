@@ -20,6 +20,7 @@ import StudyRoadmap from "./components/StudyRoadmap";
 import SettingsPanel from "./components/SettingsPanel";
 import Timeline from "./components/Timeline";
 import AnimatedBackground from "./components/AnimatedBackground";
+import BgPreviewer from "./components/BgPreviewer";
 import OnboardingGuide from "./components/OnboardingGuide";
 import RewardPanel from "./components/RewardPanel";
 import LorePanel, { LoreDropOverlay } from "./components/LorePanel";
@@ -221,6 +222,7 @@ export default function App() {
     <div className="min-h-screen relative">
       {/* Dynamic themed background */}
       <AnimatedBackground theme={theme} />
+      <BgPreviewer />
 
       {/* PWA install banner (Chrome/Edge/Android) */}
       <PWAInstallPrompt theme={theme} />

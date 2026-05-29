@@ -60,16 +60,51 @@ const PALETTES = {
   },
 };
 
-export function timeOfDayKey(hour = new Date().getHours()) {
-  if (hour < 5) return "night";
-  if (hour < 8) return "dawn";
-  if (hour < 11) return "morning";
-  if (hour < 15) return "midday";
-  if (hour < 18) return "afternoon";
-  if (hour < 21) return "dusk";
+// ── Preview override ──
+// Dev / design QA can pin the palette to a fixed hour either via the URL
+// (?hour=14) or interactively via the floating BgPreviewer pill
+// (window.__qtPreviewHour). Resolution order:
+//   1. window.__qtPreviewHour (set by the pill, no reload)
+//   2. URL ?hour=NN (one-shot, persists across navigations until cleared)
+//   3. The actual clock
+// Returns a real integer 0–23 in all paths.
+function resolveHour(explicit) {
+  if (typeof explicit === "number") return explicit;
+  if (typeof window !== "undefined") {
+    if (typeof window.__qtPreviewHour === "number") return window.__qtPreviewHour;
+    try {
+      const q = new URLSearchParams(window.location.search).get("hour");
+      if (q != null) {
+        const n = parseInt(q, 10);
+        if (!Number.isNaN(n) && n >= 0 && n <= 23) return n;
+      }
+    } catch { /* SSR or sandboxed; fall through to clock */ }
+  }
+  return new Date().getHours();
+}
+
+export function timeOfDayKey(hour) {
+  const h = resolveHour(hour);
+  if (h < 5) return "night";
+  if (h < 8) return "dawn";
+  if (h < 11) return "morning";
+  if (h < 15) return "midday";
+  if (h < 18) return "afternoon";
+  if (h < 21) return "dusk";
   return "night";
 }
 
-export function timeOfDayPalette(hour = new Date().getHours()) {
-  return { key: timeOfDayKey(hour), ...PALETTES[timeOfDayKey(hour)] };
+export function timeOfDayPalette(hour) {
+  const key = timeOfDayKey(hour);
+  return { key, ...PALETTES[key] };
 }
+
+// Names of all bands and their canonical hours — used by the preview pill.
+export const BANDS = [
+  { key: "dawn",      hour: 6,  zh: "拂晓", en: "Dawn" },
+  { key: "morning",   hour: 9,  zh: "上午", en: "Morning" },
+  { key: "midday",    hour: 13, zh: "午间", en: "Midday" },
+  { key: "afternoon", hour: 16, zh: "下午", en: "Afternoon" },
+  { key: "dusk",      hour: 19, zh: "黄昏", en: "Dusk" },
+  { key: "night",     hour: 23, zh: "夜晚", en: "Night" },
+];
