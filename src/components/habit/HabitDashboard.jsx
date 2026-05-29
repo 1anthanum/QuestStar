@@ -335,9 +335,16 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   //    of optional / forming / explore habits cultivated). User feedback:
   //    \"今日节奏可以分为两个仪表，第一个为固定，第二个为可选（这里不
   //    按照 100 % 显示，而是按照完成的额外习惯养成体现\". ──
-  const fixedTotalCount = schedule.reduce((n, b) => n + ((b.fixedItems || []).length), 0);
-  const fixedDoneCount2 = Object.keys(fixedDone).filter((id) => fixedDone[id]).length;
-  const fixedPct = fixedTotalCount > 0 ? Math.round((fixedDoneCount2 / fixedTotalCount) * 100) : 0;
+  const scheduleFixedIds = useMemo(() => {
+    const s = new Set();
+    for (const b of schedule) for (const it of (b.fixedItems || [])) s.add(it.id);
+    return s;
+  }, [schedule]);
+  const fixedTotalCount = scheduleFixedIds.size;
+  // Filter the \`_fixed\` map by the CURRENT schedule — otherwise an item
+  // the user removed earlier today still inflates the % over 100%.
+  const fixedDoneCount2 = Object.keys(fixedDone).filter((id) => fixedDone[id] && scheduleFixedIds.has(id)).length;
+  const fixedPct = fixedTotalCount > 0 ? Math.min(100, Math.round((fixedDoneCount2 / fixedTotalCount) * 100)) : 0;
   // Bonus habits cultivated today = sum of Layer-2 + Layer-3 completions.
   // Layer-1 (核心) overlaps with \"mandatory\" / fixed semantics so we
   // exclude it from the bonus count — a focused chip, not a duplicate.
