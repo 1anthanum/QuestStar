@@ -51,17 +51,19 @@ const PALETTES = {
     orbs: ["rgba(216,180,170,0.12)", "rgba(206,162,170,0.10)", "rgba(196,162,178,0.08)"],
     glow: "rgba(206,162,170,0.20)",
   },
-  // 21–5 — night — soft moonlit wisteria (user feedback round 4:
-  // \"颜色有点太暗了\"). Round 3 capped at 70% lightness; this round
-  // floats the whole gradient into the 90+%–80% band so it feels like
-  // a quiet evening tea-light, not a darkening sky. Still clearly
-  // lilac/wisteria (no gray, distinct from dusk's peach), just with
-  // most of the lightness budget spent on stay-readable values.
+  // 21–5 — night — warm \"midnight room\" (user feedback round 5:
+  // \"感觉还是奇怪\"). The cool wisteria base clashed with the warm
+  // identity palettes (sage / coral / amber); content read as
+  // mismatched against a cool backdrop. Shifted to a warm dusty-mauve
+  // / rose-beige register so it harmonizes with every identity family,
+  // and reads as \"cozy late evening at home\" rather than \"purple
+  // night sky\". Same lightness budget as the wisteria attempt so
+  // text contrast (> 8:1 on body) is preserved.
   night: {
-    pageBg: "linear-gradient(135deg, #efe6f0 0%, #ddcfe0 50%, #cbb9d2 100%)",
-    headerBg: "linear-gradient(135deg, #ddcfe0, #cbb9d2)",
-    orbs: ["rgba(200,184,210,0.10)", "rgba(186,170,196,0.08)", "rgba(220,206,228,0.08)"],
-    glow: "rgba(200,184,210,0.16)",
+    pageBg: "linear-gradient(135deg, #ede0dd 0%, #d8c6c0 50%, #c2aca6 100%)",
+    headerBg: "linear-gradient(135deg, #d8c6c0, #c2aca6)",
+    orbs: ["rgba(194,172,166,0.12)", "rgba(174,150,142,0.10)", "rgba(216,198,192,0.10)"],
+    glow: "rgba(194,172,166,0.20)",
   },
 };
 
