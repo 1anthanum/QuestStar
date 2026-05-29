@@ -42,6 +42,20 @@ export default function FixedItemRow({ item, done, completedAt = null, onToggle,
   const [expanded, setExpanded] = useState(false);
   const [labelDraft, setLabelDraft] = useState(text);
   const [timeDraft, setTimeDraft] = useState(time || "");
+
+  // ── \"Actual completion time\" override ──
+  // The chip showing \"HH:mm · 迟 N 分\" is interactive: tap it to nudge
+  // the stored completionAt to when the user *actually* did the activity
+  // (not when they remembered to press the checkbox). Only takes effect
+  // for today's row (date defaults to today below — past-day rows route
+  // through PastDaysModal which already has its own backfill flow).
+  const [editingTime, setEditingTime] = useState(false);
+  const initialDraftActual = (() => {
+    if (!completedAt) return "";
+    const d = new Date(completedAt);
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  })();
+  const [actualTimeDraft, setActualTimeDraft] = useState(initialDraftActual);
   const openEdit = () => {
     setLabelDraft(text);
     setTimeDraft(time || "");
@@ -132,16 +146,19 @@ export default function FixedItemRow({ item, done, completedAt = null, onToggle,
         <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 shrink-0">{t("habit.overdue")}</span>
       )}
       {completionAnnotation && (
-        <span
-          className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); setEditingTime((cur) => !cur); }}
+          className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full transition-opacity hover:opacity-80 ${
             completionAnnotation.tone === "late"
               ? "bg-amber-100 text-amber-700"
               : "bg-emerald-50 text-emerald-600"
           }`}
-          title={`${completionAnnotation.label} · ${completionAnnotation.stamp}`}
+          title={t("habit.fixed.adjustTip")}
         >
           {completionAnnotation.stamp} · {completionAnnotation.label}
-        </span>
+        </button>
       )}
       <button
         onPointerDown={(e) => e.stopPropagation()}
@@ -155,6 +172,50 @@ export default function FixedItemRow({ item, done, completedAt = null, onToggle,
         {done && <span className="text-[13px] font-bold">✓</span>}
       </button>
     </div>
+
+    {editingTime && completedAt && (
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="mx-2 mb-2 rounded-lg p-2.5 flex items-center gap-2"
+        style={{ background: "#fff", border: "1px solid #e5e7eb" }}
+      >
+        <span className="text-[10.5px] font-bold uppercase tracking-wide text-slate-500 shrink-0">
+          {t("habit.fixed.actualTime")}
+        </span>
+        <input
+          type="time"
+          value={actualTimeDraft}
+          onChange={(e) => setActualTimeDraft(e.target.value)}
+          className="text-[12.5px] font-mono rounded-md px-2 py-1 bg-slate-50 outline-none"
+          style={{ border: "1px solid #e5e7eb" }}
+        />
+        <button
+          onClick={() => {
+            if (!actualTimeDraft || !habits?.adjustFixedItemTime) { setEditingTime(false); return; }
+            const m = actualTimeDraft.match(/^(\d{1,2}):(\d{2})$/);
+            if (!m) { setEditingTime(false); return; }
+            // Anchor the adjusted time to the same calendar day as the
+            // existing completedAt so a tweak doesn't skid to yesterday.
+            const ref = new Date(completedAt);
+            ref.setHours(parseInt(m[1], 10), parseInt(m[2], 10), 0, 0);
+            const dateKey = `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, "0")}-${String(ref.getDate()).padStart(2, "0")}`;
+            habits.adjustFixedItemTime(item.id, dateKey, ref.getTime());
+            setEditingTime(false);
+          }}
+          className="text-[11px] font-bold px-3 py-1 rounded-full text-white"
+          style={{ background: theme?.btnGrad || accent }}
+        >
+          {t("habit.fixed.editSave")}
+        </button>
+        <button
+          onClick={() => setEditingTime(false)}
+          className="text-[11px] font-semibold px-3 py-1 rounded-full text-slate-500 bg-slate-100"
+        >
+          {t("habit.fixed.editCancel")}
+        </button>
+      </div>
+    )}
 
     {expanded && (
       <div

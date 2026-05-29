@@ -189,6 +189,30 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     [habitLog, game, setHabitLog]
   );
 
+  // Adjust the recorded completion time of an already-done fixed item.
+  // Used when the user pressed the checkbox later than they actually did
+  // the activity — without this, the \"on time / 迟 N 分\" chip would
+  // show a wrong delay. Updates \`_fixedAt[id]\` for the given date to the
+  // supplied epoch ms. Reasonable bounds: pinned to that date's local
+  // 00:00 → 23:59 window so a mistaken value can't escape the day.
+  const adjustFixedItemTime = useCallback((itemId, dateKey, epochMs) => {
+    if (!itemId || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey || "")) return { ok: false, reason: "bad_input" };
+    if (typeof epochMs !== "number" || !Number.isFinite(epochMs)) return { ok: false, reason: "bad_time" };
+    const [y, m, d] = dateKey.split("-").map(Number);
+    const dayStart = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+    const dayEnd = new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
+    const clamped = Math.max(dayStart, Math.min(dayEnd, epochMs));
+    setHabitLog((prev) => {
+      const day = { ...(prev[dateKey] || {}) };
+      if (!day._fixed?.[itemId]) return prev; // can only adjust an existing completion
+      const fixedAt = { ...(day._fixedAt || {}) };
+      fixedAt[itemId] = clamped;
+      day._fixedAt = fixedAt;
+      return { ...prev, [dateKey]: day };
+    });
+    return { ok: true };
+  }, [setHabitLog]);
+
   // Retroactive fixed-item check — used by PastDaysModal to backfill a
   // 固定 item the user forgot to tick on the day. Writes the same
   // \`_fixed\` boolean map the live toggle uses, plus a \`_fixedAt\` stamp
@@ -1313,6 +1337,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     completeHabit,
     completeHabitForDate,
     setFixedItemForDate,
+    adjustFixedItemTime,
     uncompleteHabit,
     uncompleteHabitForDate,
     skipHabit,
