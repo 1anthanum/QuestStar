@@ -399,8 +399,8 @@ export function useCloudSync() {
         }, { onConflict: "user_id" })
       );
 
-      // Life v3 habit system — SEPARATE upsert so a missing-column error
-      // (older schema without the ALTER TABLE) can't break budget sync above.
+      // Life v3 habit system — core columns. Older columns that have
+      // shipped through DB migrations live here.
       promises.push(
         supabase.from("extra_state").upsert({
           user_id: userId,
@@ -412,6 +412,17 @@ export function useCloudSync() {
           habit_identity: safeGet("qt_habit_identity", ""),
           habit_letters: safeGet("qt_habit_letters", []),
           habit_week_plan: safeGet("qt_habit_week_plan", {}),
+        }, { onConflict: "user_id" })
+      );
+
+      // Newer columns are split into their own upserts so a
+      // missing-column error (e.g., user hasn't run the ALTER TABLE
+      // migration yet) can't fail the core habit sync above.
+      // Migration:
+      //   ALTER TABLE extra_state ADD COLUMN IF NOT EXISTS label_overrides JSONB;
+      promises.push(
+        supabase.from("extra_state").upsert({
+          user_id: userId,
           label_overrides: safeGet("qt_label_overrides", {}),
         }, { onConflict: "user_id" })
       );
