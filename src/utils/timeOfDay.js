@@ -51,19 +51,20 @@ const PALETTES = {
     orbs: ["rgba(216,180,170,0.12)", "rgba(206,162,170,0.10)", "rgba(196,162,178,0.08)"],
     glow: "rgba(206,162,170,0.20)",
   },
-  // 21–5 — night — warm \"midnight room\" (user feedback round 5:
-  // \"感觉还是奇怪\"). The cool wisteria base clashed with the warm
-  // identity palettes (sage / coral / amber); content read as
-  // mismatched against a cool backdrop. Shifted to a warm dusty-mauve
-  // / rose-beige register so it harmonizes with every identity family,
-  // and reads as \"cozy late evening at home\" rather than \"purple
-  // night sky\". Same lightness budget as the wisteria attempt so
-  // text contrast (> 8:1 on body) is preserved.
+  // 21–5 — night — sky-going-dark vertical gradient (user suggestion:
+  // \"那种天黑的时候蓝色和黑色渐变会不会好一些？\"). Pale steel blue
+  // at the top of the viewport for text readability, deepening through
+  // mid-blue to a near-black navy at the bottom edge — reads as the
+  // actual dramatic dimming of the sky after sunset. Vertical
+  // (180deg) instead of the day's 135deg so the dark is below the
+  // light, like a horizon. AnimatedBackground anchors the gradient to
+  // the viewport (fixed inset-0), so the dark band stays at the bottom
+  // edge no matter how far the user scrolls.
   night: {
-    pageBg: "linear-gradient(135deg, #ede0dd 0%, #d8c6c0 50%, #c2aca6 100%)",
-    headerBg: "linear-gradient(135deg, #d8c6c0, #c2aca6)",
-    orbs: ["rgba(194,172,166,0.12)", "rgba(174,150,142,0.10)", "rgba(216,198,192,0.10)"],
-    glow: "rgba(194,172,166,0.20)",
+    pageBg: "linear-gradient(180deg, #d8dfee 0%, #a8b3cc 45%, #5e6a8e 80%, #2e3654 100%)",
+    headerBg: "linear-gradient(135deg, #c8d0e2, #a8b3cc)",
+    orbs: ["rgba(94,106,142,0.18)", "rgba(46,54,84,0.16)", "rgba(168,179,204,0.14)"],
+    glow: "rgba(94,106,142,0.28)",
   },
 };
 
