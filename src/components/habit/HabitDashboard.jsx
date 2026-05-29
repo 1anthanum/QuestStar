@@ -30,6 +30,7 @@ import NoticedThread from "./NoticedThread";
 import QuickLogModal from "./QuickLogModal";
 import IdentityTemplatePicker from "./IdentityTemplatePicker";
 import BadHabitClassifier from "./BadHabitClassifier";
+import { getQuickLogEntry } from "../../utils/quickLogCatalog";
 import { useNoticedThread } from "../../hooks/useNoticedThread";
 import { useLivingWorld } from "../../hooks/useLivingWorld";
 import { useChapters } from "../../hooks/useChapters";
@@ -91,6 +92,28 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [showQuickLog, setShowQuickLog] = useState(false); // null | true | "YYYY-MM-DD" focus date
   const [showIdentityPicker, setShowIdentityPicker] = useState(false);
   const [showBadHabit, setShowBadHabit] = useState(false);
+  // Tools-drawer "active" hint — any negative quick-log entry in the
+  // past 7 days lights up the classifier chip so it's discoverable
+  // without the user having to remember it.
+  const badHabitsActive = useMemo(() => {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const log = habits?.habitLog || {};
+    for (const [dateKey, day] of Object.entries(log)) {
+      const m = String(dateKey || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) continue;
+      const ms = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10)).getTime();
+      if (ms < cutoff) continue;
+      const ql = day?._quickLog;
+      if (!ql) continue;
+      for (const period of ["morning", "afternoon", "evening"]) {
+        for (const entry of (ql[period] || [])) {
+          const cat = entry?.catalogId ? getQuickLogEntry(entry.catalogId) : null;
+          if (cat?.polarity === "-") return true;
+        }
+      }
+    }
+    return false;
+  }, [habits?.habitLog]);
   const chapters = useChapters();
   const compost = useCompost();
   const letters = useSystemLetters();
@@ -1053,20 +1076,21 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
                   transition={SPRING_SOFT}
                   className="rounded-xl bg-gray-50"
                 >
-                <div className="flex items-center gap-2.5 px-2.5 py-2">
+                <div
+                  className="flex items-center gap-2.5 px-2.5 py-2 cursor-pointer"
+                  onClick={(e) => {
+                    if (!hasGuide) return;
+                    if (e.target.closest("button,input,a")) return;
+                    setDoNowDetail((cur) => (cur === h.habitId ? null : h.habitId));
+                  }}
+                >
                   <span className="text-base">{icon}</span>
-                  <span className="flex-1 text-[13px] font-semibold text-gray-700 truncate">{name}</span>
-                  {hasGuide && (
-                    <button
-                      onClick={() => setDoNowDetail((cur) => (cur === h.habitId ? null : h.habitId))}
-                      className="shrink-0 text-[10px] font-bold rounded-full px-1.5 py-0.5 transition-colors"
-                      style={detailOpen ? { background: accent, color: "#fff" } : { background: `${accent}1f`, color: accent }}
-                      title={t("habit.detail.howTo")}
-                      aria-label={t("habit.detail.howTo")}
-                    >
-                      {detailOpen ? "−" : "?"}
-                    </button>
-                  )}
+                  <span className="flex-1 text-[13px] font-semibold text-gray-700 truncate">
+                    {name}
+                    {hasGuide && (
+                      <span className="ml-1 text-[10px] font-normal text-gray-300">{detailOpen ? "▴" : "▾"}</span>
+                    )}
+                  </span>
                   <AnimatePresence mode="wait" initial={false}>
                     {open ? (
                       <motion.div
@@ -1981,7 +2005,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
                 { icon: "scroll", label: t("noticed.title"), act: () => setShowNoticed(true), active: (noticedThread?.count || 0) > 0 },
                 { icon: "plus", label: t("habit.quickLog.tool"), act: () => setShowQuickLog(true) },
                 { icon: "target", label: t("identity.tool"), act: () => setShowIdentityPicker(true), active: !!habits.identityTemplate },
-                { icon: "zap", label: t("badHabit.tool"), act: () => setShowBadHabit(true) },
+                { icon: "zap", label: t("badHabit.tool"), act: () => setShowBadHabit(true), active: badHabitsActive },
                 { icon: "moon", label: t("shelter.title"), act: () => setShowShelter(true) },
                 { icon: "zap", label: t("burn.title"), act: () => setShowBurn(true) },
                 { icon: "browse", label: t("habit.browse"), act: onBrowse },

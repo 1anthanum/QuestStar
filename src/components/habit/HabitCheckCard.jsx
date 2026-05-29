@@ -244,20 +244,9 @@ function HabitCheckCard({
             <div className="flex-1 min-w-0">
               <div className="text-[13px] font-semibold text-gray-800 truncate flex items-center gap-1.5">
                 <span className="truncate">{name}</span>
-                {/* "?" chip — visible affordance for tutorial / description */}
-                {(cat?.description || (cat?.tutorial && cat.tutorial.length > 0)) && (
-                  <button
-                    type="button"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => { e.stopPropagation(); setShowDetail(true); }}
-                    className="shrink-0 text-[10px] font-bold rounded-full px-1.5 py-0.5 transition-colors"
-                    style={{ background: `${hColor}1f`, color: hColor }}
-                    title={t("habit.browser.detailsTip")}
-                    aria-label={t("habit.browser.detailsTip")}
-                  >
-                    ?
-                  </button>
-                )}
+                {/* Removed "?" chip — row body click handles inline expand
+                    now (audit suggestion #10). The ··· button still opens
+                    the full popover for parity. */}
               </div>
               <div className="text-[10px] text-gray-400 truncate">
                 {layerLabel}{streak > 0 ? ` · ${t("habit.streakDays", { n: streak })}` : ""}

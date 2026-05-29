@@ -398,6 +398,9 @@ const translations = {
     "budget.field.i20": "New I-20 Received",
     "budget.field.startDate": "Program Start Date",
     "budget.field.ssn": "SSN Resubmit Date",
+    "budget.error.empty": "Enter a number to record this expense.",
+    "budget.error.nonPositive": "Amount must be greater than 0.",
+    "budget.error.tooLarge": "Single entry can't exceed ${max}.",
 
     // ── Life Mode ──
     "life.dashboard": "Habit Dashboard",
@@ -1611,6 +1614,7 @@ const translations = {
     "habit.rec.try": "Try this",
     "habit.rec.complete": "Mark done",
     "habit.rec.acceptTip": "Add to your queue — you'll complete it from the row below.",
+    "habit.rec.acceptedFlash": "{name} added to your queue",
     "habit.rec.skip": "Skip — recommend next",
     "habit.rec.stop": "Stop recommending here",
     "habit.rec.hint": "One pick at a time. ⏩ to skip; ✋ to stop for this block.",
@@ -2099,6 +2103,9 @@ const translations = {
     "budget.field.i20": "新 I-20 收到",
     "budget.field.startDate": "Program 开始日期",
     "budget.field.ssn": "SSN 重新申请日期",
+    "budget.error.empty": "输入一个金额才能记录这笔。",
+    "budget.error.nonPositive": "金额必须大于 0。",
+    "budget.error.tooLarge": "单笔不能超过 ${max}。",
 
     // ── 日常模式 ──
     "life.dashboard": "习惯仪表盘",
@@ -3312,6 +3319,7 @@ const translations = {
     "habit.rec.try": "试试这个",
     "habit.rec.complete": "完成",
     "habit.rec.acceptTip": "加入今天的列表 —— 真正做完时从下面的卡片打勾。",
+    "habit.rec.acceptedFlash": "{name} 已加入列表",
     "habit.rec.skip": "跳过，推荐下一个",
     "habit.rec.stop": "本时段停止推荐",
     "habit.rec.hint": "一次一个。⏩ 跳过这个换下一个；✋ 这个时段不再推荐。",

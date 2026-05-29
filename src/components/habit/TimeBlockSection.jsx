@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { useLanguage } from "../../hooks/useLanguage";
 import { getHabitById } from "../../utils/habitCatalog";
@@ -89,31 +89,37 @@ export default function TimeBlockSection({
   const [confirmAll, setConfirmAll] = useState(false);
 
   // ── Optional-habit recommendation (\"加入列表 ✅ / 快进 ⏩ / 停止 ✋\") ──
-  // Picks ONE undone Layer-2/3 habit in this block to highlight as
-  // \"试试这个\".
-  //
-  // ✅ \"accept\" — the user agreed this is what they'll do; the card
-  //     advances to the next suggestion and the habit is marked
-  //     \"queued\" (acceptedRecs) so the actual habit row gets a small
-  //     accent ring as a discoverability hint. NO immediate completion —
-  //     the user finishes it via the row when they actually do it
-  //     (per user: \"加入列表而不是直接完成\").
-  // ⏩ skip — bumps to the next undone optional habit.
-  // ✋ stop — hides the card for this block until the next page load.
-  //
-  // Per-session state — intentional, so a page refresh always gives
-  // the user a fresh suggestion.
-  const [skippedRecs, setSkippedRecs] = useState(() => new Set());
-  const [acceptedRecs, setAcceptedRecs] = useState(() => new Set());
-  const [stopRec, setStopRec] = useState(false);
+  // Per-day persistence: state lives in todayMeta.recsByBlock[blockId]
+  // so a page reload doesn't lose the user's acceptances / skips /
+  // stop-here flag. \`habits.todayMeta\` is the source of truth; local
+  // updates write back via setDayMeta.
+  const persistedRec = (habits?.todayMeta?.recsByBlock || {})[block.id] || {};
+  const acceptedRecs = useMemo(() => new Set(persistedRec.accepted || []), [persistedRec.accepted]);
+  const skippedRecs = useMemo(() => new Set(persistedRec.skipped || []), [persistedRec.skipped]);
+  const stopRec = !!persistedRec.stopped;
+  const writeRecState = (patch) => {
+    const next = { ...(habits?.todayMeta?.recsByBlock || {}) };
+    next[block.id] = { ...persistedRec, ...patch };
+    habits?.setDayMeta?.({ recsByBlock: next });
+  };
   const flexibleUndone = habitsInBlock.filter((h) => h.layer >= 2 && !h.done);
   const recommended = flexibleUndone.find((h) => !skippedRecs.has(h.habitId) && !acceptedRecs.has(h.habitId)) || null;
+
+  // Briefly flash a confirmation strip when the user accepts a rec.
+  const [acceptedFlash, setAcceptedFlash] = useState(null);
   const skipRec = () => {
-    if (recommended) setSkippedRecs((prev) => { const next = new Set(prev); next.add(recommended.habitId); return next; });
+    if (!recommended) return;
+    writeRecState({ skipped: [...(persistedRec.skipped || []), recommended.habitId] });
   };
   const acceptRec = () => {
-    if (recommended) setAcceptedRecs((prev) => { const next = new Set(prev); next.add(recommended.habitId); return next; });
+    if (!recommended) return;
+    const recCat = getHabitById(recommended.habitId);
+    const recName = recCat ? (lang === "zh" ? recCat.name : (recCat.nameEn || recCat.name)) : recommended.habitId;
+    setAcceptedFlash(recName);
+    setTimeout(() => setAcceptedFlash(null), 1600);
+    writeRecState({ accepted: [...(persistedRec.accepted || []), recommended.habitId] });
   };
+  const stopRecAction = () => writeRecState({ stopped: true });
 
   // Hover dwell — wait HOVER_OPEN_DELAY_MS of mouse-resting before opening
   // and a brief grace period before closing, so a cursor sliding across
@@ -268,7 +274,7 @@ export default function TimeBlockSection({
                     ⏩
                   </button>
                   <button
-                    onClick={() => setStopRec(true)}
+                    onClick={stopRecAction}
                     className="shrink-0 text-[12px] px-2 py-1 rounded-full transition-transform active:scale-95"
                     style={{ background: "#fff", color: "#475569", border: "1px solid #cbd5e1" }}
                     title={t("habit.rec.stop")}
@@ -282,6 +288,21 @@ export default function TimeBlockSection({
               </div>
             );
           })()}
+          {/* Accept confirmation flash — fades in for ~1.6s after the user
+              presses ✓ on the recommendation card so they get clear
+              feedback that something happened (the card content also
+              advances, but the change can be too subtle on its own). */}
+          {acceptedFlash && (
+            <div className="px-1.5 pt-1 pb-1">
+              <div
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11.5px] font-bold animate-fade-in"
+                style={{ background: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0" }}
+              >
+                <span>✓</span>
+                <span className="truncate">{t("habit.rec.acceptedFlash", { name: acceptedFlash })}</span>
+              </div>
+            </div>
+          )}
           {block.fixedItems.length > 0 && (
             <div className="text-[9px] font-bold text-gray-300 uppercase tracking-wide px-1.5 pt-1 pb-0.5">{t("habit.group.fixed")}</div>
           )}
