@@ -30,12 +30,12 @@ const PALETTES = {
     orbs: ["rgba(231,206,178,0.10)", "rgba(229,210,160,0.10)", "rgba(231,221,196,0.08)"],
     glow: "rgba(229,210,160,0.18)",
   },
-  // 11–15 — midday — cream → soft yellow
+  // 11–15 — midday — cream → light orange (user feedback: \"更橙色一些\")
   midday: {
-    pageBg: "linear-gradient(135deg, #fbf5eb 0%, #faf0d9 50%, #f7eecd 100%)",
-    headerBg: "linear-gradient(135deg, #faf0d9, #f7eecd)",
-    orbs: ["rgba(229,210,160,0.12)", "rgba(231,217,168,0.10)", "rgba(220,205,150,0.08)"],
-    glow: "rgba(229,210,160,0.18)",
+    pageBg: "linear-gradient(135deg, #fbf0dc 0%, #f5dbb0 50%, #f0c890 100%)",
+    headerBg: "linear-gradient(135deg, #f5dbb0, #f0c890)",
+    orbs: ["rgba(240,194,135,0.14)", "rgba(232,182,120,0.12)", "rgba(225,170,110,0.10)"],
+    glow: "rgba(240,194,135,0.22)",
   },
   // 15–18 — afternoon — soft yellow → warm peach
   afternoon: {
@@ -51,12 +51,15 @@ const PALETTES = {
     orbs: ["rgba(216,180,170,0.12)", "rgba(206,162,170,0.10)", "rgba(196,162,178,0.08)"],
     glow: "rgba(206,162,170,0.20)",
   },
-  // 21–5 — night — dusty rose → deep slate
+  // 21–5 — night — dusty rose → warm twilight mauve (user feedback:
+  // \"23点不可以，这个灰色太难看了\"). Stays in the warm rose-mauve
+  // family rather than dropping into cold slate; reads as deep velvet
+  // dusk, not industrial gray.
   night: {
-    pageBg: "linear-gradient(135deg, #ead2d8 0%, #d6d1d8 50%, #c5cbd6 100%)",
-    headerBg: "linear-gradient(135deg, #d6d1d8, #c5cbd6)",
-    orbs: ["rgba(176,184,200,0.10)", "rgba(166,178,196,0.08)", "rgba(155,168,188,0.08)"],
-    glow: "rgba(166,178,196,0.18)",
+    pageBg: "linear-gradient(135deg, #e6d1d7 0%, #cebac4 50%, #b09cae 100%)",
+    headerBg: "linear-gradient(135deg, #cebac4, #b09cae)",
+    orbs: ["rgba(176,156,174,0.12)", "rgba(166,142,160,0.10)", "rgba(190,170,184,0.10)"],
+    glow: "rgba(176,156,174,0.22)",
   },
 };
 
