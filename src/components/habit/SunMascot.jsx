@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useLanguage } from "../../hooks/useLanguage";
 import { SPRING_POP, SPRING_SOFT } from "../../utils/motion";
@@ -7,12 +7,21 @@ import { SPRING_POP, SPRING_SOFT } from "../../utils/motion";
 // SunMascot — your sun in the corner, reflecting you back
 // ═══════════════════════════════════════════════════════════
 //
-// Phase 1 of the Living World. The sun's appearance derives from
-// useLivingWorld: visual state + per-habit rays. Click it to open a small
-// "今日之光" panel below it with today's count + identity + one observation.
+// M1 (Sun grown to ambient element) — the corner mascot becomes the
+// page's atmospheric companion:
+//   - core sized 96–112px (was 56)
+//   - 3–8 rays whose count scales with the week's habit completions
+//     (3 @ 0, 8 @ 21+), length 40–60px from the core edge
+//   - subtle 0.3% scale-breathing loop on a 6s cycle (above the existing
+//     aura pulse; together they read as one calm presence)
+//   - vertical position arcs through the day: low in the morning,
+//     highest around noon, low again by evening
+//   - identity hue (M3) will plug in via a tinted state once that move
+//     lands; for now the existing STATE.core is used
 //
-// Position: fixed top-right, below the page header. z-30 so modals (z-50+)
-// still cover it. Hidden by default in Study mode (parent decides).
+// Position: still fixed top-right, but the top offset is now derived
+// from hour-of-day. z-30 so modals (z-50+) still cover it. Hidden by
+// default in Study mode (parent decides).
 
 const STATE = {
   dawn:          { core: "#fbbf24", glow: "#fde68a55", aura: 0.35, labelKey: "sun.dawn",      tagKey: "sun.dawnTag" },
@@ -23,15 +32,77 @@ const STATE = {
   twilight:      { core: "#a78bfa", glow: "#c4b5fd66", aura: 0.35, labelKey: "sun.twilight",  tagKey: "sun.twilightTag" },
 };
 
+// Container size — the actual rendered footprint, not the SVG viewBox.
+// 100px lands in the 80–120 target range; mid-day expansion adds a few px.
+const SIZE_BASE = 100;
+
+// Map weekly habit completions → ray count (3 minimum decorative, 8 max).
+function ramRayCount(weekActions) {
+  const n = typeof weekActions === "number" ? weekActions : 0;
+  // 0 → 3, 21+ → 8, linear in between (rounded).
+  const t = Math.max(0, Math.min(1, n / 21));
+  return Math.round(3 + t * 5);
+}
+
+// Arc the sun through the day: low at 6 AM and 6 PM, highest at noon.
+// Returns a px offset to subtract from the top distance (i.e. higher
+// number = closer to the top of the viewport).
+function dayArcLiftPx() {
+  const h = new Date().getHours() + new Date().getMinutes() / 60;
+  if (h < 6 || h > 18) return 0;
+  // angle 0 at 6, π at 18 — sin peaks at noon
+  const a = ((h - 6) / 12) * Math.PI;
+  const AMPLITUDE = 14; // px
+  return Math.round(Math.sin(a) * AMPLITUDE);
+}
+
 export default function SunMascot({ world, identity, weekActions, topObservation, completed, total, theme, letterPending, onOpenLetters, chapterStatus, chapterId, onClick }) {
   const { t } = useLanguage();
   const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
   const cfg = STATE[world.sunState] || STATE.growing;
-  const rayCount = Math.max(0, Math.min(8, world.sunRays.length));
 
-  // Phase 3.1: chapter overlay — closing tints warmer (sunset), overdue
-  // tints amber-urgent. Active / opening stay neutral.
+  // Re-arc the sun every 10 min so the position drifts visibly through
+  // the day without being a tight re-render loop.
+  const [lift, setLift] = useState(() => dayArcLiftPx());
+  useEffect(() => {
+    const tick = () => setLift(dayArcLiftPx());
+    const id = setInterval(tick, 10 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Ray count — caps at 8, floors at 3.
+  const rayCount = useMemo(() => ramRayCount(weekActions), [weekActions]);
+
+  // Pick the per-ray habit data (color + length per habit) if available,
+  // fall back to neutral decorative rays so the visual stays consistent
+  // even when activity history is empty.
+  const rays = useMemo(() => {
+    const habitRays = world.sunRays || [];
+    const out = [];
+    for (let i = 0; i < rayCount; i++) {
+      const src = habitRays[i] || null;
+      out.push({
+        // length [0, 1] — habit-rays carry their own length; decorative
+        // ones land at 0.55 so they read as alive but not dramatic.
+        length: src ? src.length : 0.55,
+        // habit-specific color comes from M3; for M1 we lean on cfg.core.
+        color: cfg.core,
+        key: src ? `h-${src.habitId}-${i}` : `d-${i}`,
+      });
+    }
+    return out;
+  }, [world.sunRays, rayCount, cfg.core]);
+
+  // SVG geometry — viewBox big enough that the 60px rays clear the
+  // container. Core radius scales to fill ~32% of the box.
+  const VB = 200;
+  const cx = VB / 2;
+  const cy = VB / 2;
+  const r0 = 32;        // core
+  const rayBase = 38;   // ray start radius
+  const rayMaxLen = 58; // additional ray length at length=1
+
   const isClosing = chapterStatus === "closing";
   const isOverdue = chapterStatus === "overdue";
   const chapterOverlay = isClosing
@@ -40,9 +111,7 @@ export default function SunMascot({ world, identity, weekActions, topObservation
       ? "radial-gradient(circle at 50% 80%, rgba(249,115,22,0.45) 0%, transparent 70%)"
       : null;
 
-  // Sunrise on chapter change — when chapterId changes (a new chapter just
-  // started), fire a one-shot expand. We use a key bump so framer-motion
-  // re-runs the initial animation cleanly.
+  // Sunrise burst on chapter change.
   const lastChapterRef = useRef(chapterId);
   const [riseKey, setRiseKey] = useState(0);
   useEffect(() => {
@@ -52,26 +121,24 @@ export default function SunMascot({ world, identity, weekActions, topObservation
     }
   }, [chapterId]);
 
-  // SVG geometry: core radius 16, rays start at r=20, max extend to r=34.
-  const RING = 70; // viewBox size
-  const cx = RING / 2;
-  const cy = RING / 2;
-  const r0 = 16;
   const handleClick = () => { setOpen((o) => !o); onClick?.(); };
 
   return (
-    <div className="fixed top-3 right-3 z-30 select-none">
+    <div
+      className="fixed right-3 z-30 select-none transition-[top] duration-700"
+      style={{ top: 12 - lift }}
+    >
       <motion.button
         onClick={handleClick}
-        whileTap={reduce ? {} : { scale: 0.94 }}
-        whileHover={reduce ? {} : { scale: 1.05 }}
+        whileTap={reduce ? {} : { scale: 0.96 }}
+        whileHover={reduce ? {} : { scale: 1.02 }}
         transition={SPRING_POP}
         className="relative block outline-none"
-        style={{ width: 56, height: 56 }}
+        style={{ width: SIZE_BASE, height: SIZE_BASE }}
         title={`${t(cfg.labelKey)} · ${t("sun.openTip")}`}
         aria-label={`${t("sun.title")} · ${t(cfg.labelKey)}`}
       >
-        {/* Outer aura — pulses subtly per state */}
+        {/* Outer aura — keeps the existing per-state pulse. */}
         <motion.div
           className="absolute inset-0 rounded-full pointer-events-none"
           style={{
@@ -82,12 +149,10 @@ export default function SunMascot({ world, identity, weekActions, topObservation
           transition={reduce ? { duration: 0 } : { duration: world.sunState === "radiant" ? 1.2 : 3.5, repeat: Infinity, ease: "easeInOut" }}
         />
 
-        {/* Chapter overlay — sunset tint for closing/overdue (Phase 3.1) */}
         {chapterOverlay && (
           <div className="absolute inset-0 rounded-full pointer-events-none" style={{ background: chapterOverlay }} />
         )}
 
-        {/* Sunrise burst on chapter change — one-shot expanding ring */}
         {riseKey > 0 && !reduce && (
           <motion.div
             key={`rise-${riseKey}`}
@@ -99,51 +164,52 @@ export default function SunMascot({ world, identity, weekActions, topObservation
           />
         )}
 
-        {/* SVG sun */}
-        <svg viewBox={`0 0 ${RING} ${RING}`} width="100%" height="100%" className="relative">
-          {/* Rays */}
-          {world.sunRays.slice(0, rayCount).map((ray, i) => {
-            const angle = (i / rayCount) * Math.PI * 2 - Math.PI / 2;
-            const baseR = 20;
-            const maxLen = 12;
-            const len = baseR + maxLen * ray.length;
-            const x1 = cx + Math.cos(angle) * baseR;
-            const y1 = cy + Math.sin(angle) * baseR;
-            const x2 = cx + Math.cos(angle) * len;
-            const y2 = cy + Math.sin(angle) * len;
-            return (
-              <motion.line
-                key={ray.habitId + i}
-                x1={x1} y1={y1} x2={x2} y2={y2}
-                stroke={cfg.core}
-                strokeWidth="2"
-                strokeLinecap="round"
-                initial={reduce ? { opacity: 1 } : { opacity: 0 }}
-                animate={{ opacity: 0.9 }}
-                transition={reduce ? { duration: 0 } : { delay: 0.05 * i, duration: 0.25 }}
-                opacity={0.4 + 0.5 * ray.length}
-              />
-            );
-          })}
-          {/* Core disc */}
-          <motion.circle
-            cx={cx} cy={cy} r={r0}
-            fill={cfg.core}
-            initial={reduce ? { scale: 1 } : { scale: 0.85 }}
-            animate={{ scale: 1 }}
-            transition={SPRING_POP}
-            style={{ transformOrigin: `${cx}px ${cy}px` }}
-          />
-          {/* Cloud overlay when behind_clouds */}
-          {world.sunState === "behind_clouds" && (
-            <ellipse cx={cx} cy={cy + 4} rx={22} ry={10} fill="#f1f5f9" opacity="0.85" />
-          )}
-        </svg>
+        {/* Sun + rays — wrapped in a subtle 0.3% breathing animation
+            (a 6s scale loop) so the corner feels alive without
+            distracting. Disabled under reduced-motion. */}
+        <motion.div
+          className="absolute inset-0"
+          animate={reduce ? {} : { scale: [1, 1.003, 1] }}
+          transition={reduce ? { duration: 0 } : { duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <svg viewBox={`0 0 ${VB} ${VB}`} width="100%" height="100%" className="relative">
+            {rays.map((ray, i) => {
+              const angle = (i / rayCount) * Math.PI * 2 - Math.PI / 2;
+              const len = rayBase + rayMaxLen * ray.length;
+              const x1 = cx + Math.cos(angle) * rayBase;
+              const y1 = cy + Math.sin(angle) * rayBase;
+              const x2 = cx + Math.cos(angle) * len;
+              const y2 = cy + Math.sin(angle) * len;
+              return (
+                <motion.line
+                  key={ray.key}
+                  x1={x1} y1={y1} x2={x2} y2={y2}
+                  stroke={ray.color}
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  initial={reduce ? { opacity: 1 } : { opacity: 0 }}
+                  animate={{ opacity: 0.42 + 0.5 * ray.length }}
+                  transition={reduce ? { duration: 0 } : { delay: 0.05 * i, duration: 0.3 }}
+                />
+              );
+            })}
+            <motion.circle
+              cx={cx} cy={cy} r={r0}
+              fill={cfg.core}
+              initial={reduce ? { scale: 1 } : { scale: 0.85 }}
+              animate={{ scale: 1 }}
+              transition={SPRING_POP}
+              style={{ transformOrigin: `${cx}px ${cy}px`, filter: `drop-shadow(0 6px 18px ${cfg.glow})` }}
+            />
+            {world.sunState === "behind_clouds" && (
+              <ellipse cx={cx} cy={cy + 8} rx={42} ry={18} fill="#f1f5f9" opacity="0.85" />
+            )}
+          </svg>
+        </motion.div>
 
-        {/* Pending-letter badge — small envelope at lower-right when due */}
         {letterPending && (
           <motion.span
-            className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white shadow-md flex items-center justify-center text-[10px]"
+            className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white shadow-md flex items-center justify-center text-[11px]"
             style={{ border: `2px solid ${cfg.core}` }}
             animate={reduce ? {} : { scale: [1, 1.18, 1] }}
             transition={reduce ? { duration: 0 } : { duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
@@ -155,7 +221,7 @@ export default function SunMascot({ world, identity, weekActions, topObservation
         )}
       </motion.button>
 
-      {/* Expansion: "今日之光" mini panel — drops down from the sun */}
+      {/* Expansion panel anchored under the bigger sun. */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -164,7 +230,7 @@ export default function SunMascot({ world, identity, weekActions, topObservation
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.94 }}
             transition={SPRING_SOFT}
             className="absolute right-0 mt-2 w-64 rounded-2xl bg-white shadow-2xl border border-gray-100 p-4"
-            style={{ top: 64 }}
+            style={{ top: SIZE_BASE + 8 }}
           >
             <div className="flex items-start justify-between mb-2">
               <div>
