@@ -92,6 +92,27 @@ export default function AnimatedBackground({ theme }) {
       className="fixed inset-0 -z-10 overflow-hidden transition-all duration-1000"
       style={{ background: palette.pageBg }}
     >
+      {/* M2 — paper-grain texture (SVG noise via feTurbulence). 3%
+          opacity so the page feels textured but you can't see the
+          grain unless you look for it. Single inline SVG sized to
+          viewport; tiled implicitly via background-repeat. */}
+      <svg
+        aria-hidden
+        className="absolute inset-0 w-full h-full pointer-events-none mix-blend-multiply"
+        style={{ opacity: 0.03 }}
+      >
+        <filter id="paperGrain">
+          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="3" stitchTiles="stitch" />
+          <feColorMatrix
+            values="0 0 0 0 0.18
+                    0 0 0 0 0.16
+                    0 0 0 0 0.14
+                    0 0 0 1 0"
+          />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#paperGrain)" />
+      </svg>
+
       {/* Layer 2: Dot grid */}
       <div
         className="absolute inset-0 opacity-[0.03] pointer-events-none"
