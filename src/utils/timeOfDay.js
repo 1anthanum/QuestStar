@@ -51,18 +51,17 @@ const PALETTES = {
     orbs: ["rgba(216,180,170,0.12)", "rgba(206,162,170,0.10)", "rgba(196,162,178,0.08)"],
     glow: "rgba(206,162,170,0.20)",
   },
-  // 21–5 — night — pale wisteria twilight (user feedback round 3:
-  // \"还是不太对，而且会导致页面的字看不清\"). The deep #6e5d80 endpoint
-  // crushed text contrast on the page. Pulled back into a light
-  // wisteria-lavender family so 23:00 still reads as \"evening winding
-  // down\" without darkening the canvas. Clearly purple-lilac (not
-  // gray, per round 1) but lightness stays > 70% so body text
-  // (#1e293b) keeps an 8:1+ contrast end-to-end.
+  // 21–5 — night — soft moonlit wisteria (user feedback round 4:
+  // \"颜色有点太暗了\"). Round 3 capped at 70% lightness; this round
+  // floats the whole gradient into the 90+%–80% band so it feels like
+  // a quiet evening tea-light, not a darkening sky. Still clearly
+  // lilac/wisteria (no gray, distinct from dusk's peach), just with
+  // most of the lightness budget spent on stay-readable values.
   night: {
-    pageBg: "linear-gradient(135deg, #e4dae8 0%, #c8b8cc 50%, #ada0c0 100%)",
-    headerBg: "linear-gradient(135deg, #c8b8cc, #ada0c0)",
-    orbs: ["rgba(173,160,192,0.12)", "rgba(155,140,176,0.10)", "rgba(200,184,204,0.10)"],
-    glow: "rgba(173,160,192,0.20)",
+    pageBg: "linear-gradient(135deg, #efe6f0 0%, #ddcfe0 50%, #cbb9d2 100%)",
+    headerBg: "linear-gradient(135deg, #ddcfe0, #cbb9d2)",
+    orbs: ["rgba(200,184,210,0.10)", "rgba(186,170,196,0.08)", "rgba(220,206,228,0.08)"],
+    glow: "rgba(200,184,210,0.16)",
   },
 };
 
