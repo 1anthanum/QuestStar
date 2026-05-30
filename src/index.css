@@ -40,6 +40,45 @@ html[data-time-dark="true"] .qt-card .text-gray-600 { color: #475569; }
 html[data-time-dark="true"] .qt-card .text-gray-500 { color: #64748b; }
 html[data-time-dark="true"] .qt-card .text-gray-400 { color: #94a3b8; }
 
+/* ═══ Night-mode module polish ═══
+   Surface and chrome tweaks so cards feel \"in the night\" rather than
+   bright cutouts floating over it. Targets the common Tailwind utility
+   classes used throughout the dashboard. Each rule is scoped behind
+   data-time-dark so day bands are untouched. */
+html[data-time-dark="true"] .qt-card {
+  /* Tighter white + a thin highlighted border + warmer shadow so the
+     card reads as \"frosted glass under moonlight\" instead of \"sticker\". */
+  background: rgba(245, 247, 252, 0.94);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 28px rgba(8, 11, 34, 0.42);
+}
+
+/* Light-gray pill / chip backgrounds OUTSIDE cards (action chips,
+   wave-card, etc.) — bump them to a low-alpha white so they read on
+   the dark backdrop without inheriting the day-mode pale gray. */
+html[data-time-dark="true"] .bg-gray-50:not(.qt-card .bg-gray-50),
+html[data-time-dark="true"] .bg-gray-100:not(.qt-card .bg-gray-100) {
+  background-color: rgba(255, 255, 255, 0.07);
+}
+html[data-time-dark="true"] .bg-white\/70:not(.qt-card .bg-white\/70) {
+  background-color: rgba(255, 255, 255, 0.10);
+}
+
+/* Hairline divider lightening — gray-100 / gray-200 borders disappear
+   on the dark backdrop; lift them to a soft white at low alpha. */
+html[data-time-dark="true"] .border-gray-100,
+html[data-time-dark="true"] .border-gray-200 {
+  border-color: rgba(255, 255, 255, 0.10);
+}
+
+/* Italic system-observations sit DIRECTLY on the page in dark mode.
+   The default body color var already handles them; this nudges the
+   slate-* italics into the muted-light register so they don't shout. */
+html[data-time-dark="true"] em,
+html[data-time-dark="true"] i {
+  color: var(--time-text-muted);
+}
+
 /* ═══ Card skins — switchable surface styles for the Life panel ═══ */
 /* .qt-card is the shared surface; the active skin (data-skin on the wrapper)
    restyles every card at once so the user can compare looks live. */
