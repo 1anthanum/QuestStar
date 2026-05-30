@@ -12,9 +12,33 @@ html {
   text-rendering: optimizeLegibility;
 }
 body {
-  color: #1e293b; /* slate-800 base — stronger default than browser black-on-white */
+  /* AnimatedBackground publishes --time-text-strong via the time-of-day
+     palette. Day bands keep the slate-800 default; the night band sets
+     a near-white so titles directly on the dark gradient stay legible. */
+  color: var(--time-text-strong, #1e293b);
   letter-spacing: -0.003em;
 }
+
+/* Night-mode helpers — page-level text directly on the dark backdrop
+   (titles, identity strip prose, observations). Cards keep their own
+   white-translucent surface so text inside them stays dark; this rule
+   only catches text rendered outside a card. */
+html[data-time-dark="true"] .text-gray-800,
+html[data-time-dark="true"] .text-gray-700,
+html[data-time-dark="true"] .text-gray-600 {
+  color: var(--time-text-strong);
+}
+html[data-time-dark="true"] .text-gray-500,
+html[data-time-dark="true"] .text-gray-400 {
+  color: var(--time-text-muted);
+}
+/* But inside .qt-card (the white-translucent card surface) revert to
+   the daytime slate-* values so card text stays readable on white. */
+html[data-time-dark="true"] .qt-card .text-gray-800 { color: #1e293b; }
+html[data-time-dark="true"] .qt-card .text-gray-700 { color: #334155; }
+html[data-time-dark="true"] .qt-card .text-gray-600 { color: #475569; }
+html[data-time-dark="true"] .qt-card .text-gray-500 { color: #64748b; }
+html[data-time-dark="true"] .qt-card .text-gray-400 { color: #94a3b8; }
 
 /* ═══ Card skins — switchable surface styles for the Life panel ═══ */
 /* .qt-card is the shared surface; the active skin (data-skin on the wrapper)

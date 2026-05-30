@@ -51,22 +51,29 @@ const PALETTES = {
     orbs: ["rgba(216,180,170,0.12)", "rgba(206,162,170,0.10)", "rgba(196,162,178,0.08)"],
     glow: "rgba(206,162,170,0.20)",
   },
-  // 21–5 — night — sky-going-dark vertical gradient (user suggestion:
-  // \"那种天黑的时候蓝色和黑色渐变会不会好一些？\"). Pale steel blue
-  // at the top of the viewport for text readability, deepening through
-  // mid-blue to a near-black navy at the bottom edge — reads as the
-  // actual dramatic dimming of the sky after sunset. Vertical
-  // (180deg) instead of the day's 135deg so the dark is below the
-  // light, like a horizon. AnimatedBackground anchors the gradient to
-  // the viewport (fixed inset-0), so the dark band stays at the bottom
-  // edge no matter how far the user scrolls.
+  // 21–5 — night — proper deep midnight (user round 7: \"再深一些
+  // ...对比度有些差...这个颜色不太喜欢...渐变效果也不好\"). Going
+  // truly dark with a richer indigo register, paired with light
+  // body text via the CSS vars below. The gradient uses a curved
+  // ease (non-linear stops) so it reads as a smooth dome of sky
+  // rather than a straight band, with a soft glow center toward
+  // top-middle that suggests starlight.
   night: {
-    pageBg: "linear-gradient(180deg, #d8dfee 0%, #a8b3cc 45%, #5e6a8e 80%, #2e3654 100%)",
-    headerBg: "linear-gradient(135deg, #c8d0e2, #a8b3cc)",
-    orbs: ["rgba(94,106,142,0.18)", "rgba(46,54,84,0.16)", "rgba(168,179,204,0.14)"],
-    glow: "rgba(94,106,142,0.28)",
+    pageBg: "radial-gradient(ellipse 130% 110% at 50% -10%, #3d4a7a 0%, #232b58 32%, #14193b 64%, #080b22 100%)",
+    headerBg: "linear-gradient(180deg, #3d4a7a, #232b58)",
+    orbs: ["rgba(70,82,134,0.30)", "rgba(48,58,112,0.28)", "rgba(112,128,180,0.22)"],
+    glow: "rgba(112,128,180,0.32)",
+    isDark: true,
+    // Light text on dark — matches the ~85% luminance target body
+    // text has against light bands, just inverted.
+    textStrong: "#e9ecf4",
+    textMuted: "#a8aec8",
   },
 };
+
+// Default day-mode text colors — every band that doesn't say isDark
+// inherits these. Night supplies its own light variants.
+const DAY_TEXT = { textStrong: "#1e293b", textMuted: "#475569" };
 
 // ── Preview override ──
 // Dev / design QA can pin the palette to a fixed hour either via the URL
@@ -104,7 +111,10 @@ export function timeOfDayKey(hour) {
 
 export function timeOfDayPalette(hour) {
   const key = timeOfDayKey(hour);
-  return { key, ...PALETTES[key] };
+  const p = PALETTES[key];
+  // Day bands inherit the standard dark text; the night band brings
+  // its own light text colors (set above).
+  return { key, ...DAY_TEXT, isDark: false, ...p };
 }
 
 // Names of all bands and their canonical hours — used by the preview pill.

@@ -26,6 +26,17 @@ export default function AnimatedBackground({ theme }) {
     };
   }, []);
 
+  // Publish text colors + dark-mode flag to <html> as CSS vars / data
+  // attribute. body uses --time-text-strong via index.css; the data
+  // attribute lets component CSS opt in to dark-mode overrides.
+  useEffect(() => {
+    const html = document.documentElement;
+    html.style.setProperty("--time-text-strong", palette.textStrong || "#1e293b");
+    html.style.setProperty("--time-text-muted", palette.textMuted || "#475569");
+    if (palette.isDark) html.setAttribute("data-time-dark", "true");
+    else html.removeAttribute("data-time-dark");
+  }, [palette]);
+
   const cursorRef = useRef(null);
   const trailRefs = useRef([]);
   const mousePos = useRef({ x: -200, y: -200 });
