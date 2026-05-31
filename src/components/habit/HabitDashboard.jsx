@@ -451,6 +451,22 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── AI dual-plan auto-trigger ──
+  // Watch todayMeta.energy: when it transitions from null to set AND the
+  // user hasn't already seen / skipped the recommender today AND they
+  // have an AI key configured, open the recommender. Watching the meta
+  // (not a specific modal's onSave) means both submission paths trigger
+  // this — the EnergyQuickModal header tap AND the MorningPlanningModal
+  // sunrise ritual both write todayMeta.energy via different functions
+  // (habits.setEnergy vs habits.saveMorningPlan), and either suffices.
+  useEffect(() => {
+    if (!ai?.hasApiKey) return;
+    if (!energy) return; // energy not yet submitted today
+    const todayStr = getTodayStr();
+    if (todayMeta.dualPlanShownDate === todayStr) return; // already shown
+    setShowDualPlan(true);
+  }, [energy, todayMeta.dualPlanShownDate, ai?.hasApiKey]);
+
   // ── Inline morning briefing (1-liner) — only for the empty-state edge where
   //    the full briefing modal doesn't show (no active habits) ──
   useEffect(() => {
@@ -1652,17 +1668,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         <EnergyQuickModal
           initial={energy || defaultEnergy()}
           untouched={!energy}
-          onSave={(e) => {
-            habits.setEnergy(e);
-            setShowEnergy(false);
-            // First-of-day energy submission → auto-open the AI dual-plan
-            // recommender. Re-edits don't re-trigger (dualPlanShownDate
-            // is set whether the user adopts a plan or skips out).
-            const todayStr = getTodayStr();
-            if (ai?.hasApiKey && todayMeta.dualPlanShownDate !== todayStr) {
-              setShowDualPlan(true);
-            }
-          }}
+          onSave={(e) => { habits.setEnergy(e); setShowEnergy(false); }}
           onClose={() => setShowEnergy(false)}
           theme={theme}
         />
