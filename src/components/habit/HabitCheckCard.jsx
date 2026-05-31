@@ -176,8 +176,6 @@ function HabitCheckCard({
     <>
       <div
         ref={dnd.setNodeRef}
-        {...dnd.listeners}
-        {...dnd.attributes}
         style={{
           // CRITICAL: only apply transform when actively dragging. Any
           // computed `transform` other than `none` makes this row a
@@ -192,8 +190,6 @@ function HabitCheckCard({
           touchAction: dnd.isDragging ? "none" : undefined,
           zIndex: dnd.isDragging ? 30 : undefined,
           position: "relative",
-          // Visual cursor for the long-press affordance.
-          cursor: habit.done ? "default" : "grab",
         }}
         className="relative rounded-xl overflow-hidden"
       >
@@ -265,17 +261,26 @@ function HabitCheckCard({
               ))}
             </div>
 
-            {/* Drag affordance — purely visual now. The whole row is the
-                drag activator (long-press 300ms). Showing the grip glyph
-                gives the user a hint that the row is draggable. */}
+            {/* Drag handle — dnd-kit listeners scoped HERE, NOT the wrapper.
+                When listeners sit on the outer row (the previous design),
+                a tap anywhere on the row first hits the dnd PointerSensor,
+                which on some devices/timings consumes the pointer event
+                before the inner button's onClick can fire — surfaced by
+                the user as "脊柱活动点击没反应". Keeping listeners on a
+                dedicated grip restores the clean separation: taps on
+                buttons hit buttons, only the grip starts a drag. */}
             {!habit.done && (
-              <span
-                className="shrink-0 text-gray-400 p-1 pointer-events-none"
+              <button
+                ref={dnd.setActivatorNodeRef}
+                {...dnd.listeners}
+                {...dnd.attributes}
+                onClick={(e) => e.preventDefault()}
+                className="shrink-0 text-gray-300 hover:text-gray-500 p-1 rounded touch-none cursor-grab active:cursor-grabbing"
                 title={t("habit.drag.title")}
-                aria-hidden
+                aria-label={t("habit.drag.title")}
               >
                 <Icon name="grip" size={14} strokeWidth={2.5} />
-              </span>
+              </button>
             )}
 
             <button
