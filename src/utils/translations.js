@@ -1708,6 +1708,25 @@ const translations = {
     "habit.notify.test": "Send a test",
     "habit.notify.sent": "Sent",
     "habit.notify.limitation": "Fires while QuestStar is open in a tab. True push needs a server (planned).",
+
+    // ── DualPlanRecommender — auto-fires after energy assessment ──
+    "dualPlan.title": "AI 双方案日程推荐",
+    "dualPlan.subtitle": "Compare today's existing schedule with two AI-generated plans, then pick one.",
+    "dualPlan.loading": "Generating…",
+    "dualPlan.errorTitle": "Plan generation failed",
+    "dualPlan.retry": "Try again",
+    "dualPlan.skip": "Skip",
+    "dualPlan.footerHint": "Adopting a plan adds tasks to today only — your weekly schedule is untouched.",
+    "dualPlan.colCurrent": "Today",
+    "dualPlan.colCurrentSub": "{n} existing item(s)",
+    "dualPlan.colAggressive": "🔥 Aggressive (8)",
+    "dualPlan.colProgressive": "🌱 Progressive (3)",
+    "dualPlan.aggressiveDefault": "High-density push",
+    "dualPlan.progressiveDefault": "Focus over volume",
+    "dualPlan.emptyCurrent": "Schedule is open — pick a plan to fill it.",
+    "dualPlan.emptyPlan": "No tasks generated.",
+    "dualPlan.adopt": "Adopt this plan",
+    "dualPlan.adopting": "Adding…",
   },
 
   zh: {
@@ -3415,6 +3434,25 @@ const translations = {
     "habit.notify.test": "发送测试",
     "habit.notify.sent": "已发送",
     "habit.notify.limitation": "仅在 QuestStar 标签页打开时触发。真正的推送需要服务器（计划中）。",
+
+    // ── DualPlanRecommender — 能量评估完成后自动触发 ──
+    "dualPlan.title": "AI 双方案日程推荐",
+    "dualPlan.subtitle": "对比今日已有安排与两套 AI 生成方案，挑一套直接采用。",
+    "dualPlan.loading": "生成中…",
+    "dualPlan.errorTitle": "方案生成失败",
+    "dualPlan.retry": "重试",
+    "dualPlan.skip": "跳过",
+    "dualPlan.footerHint": "采用方案只影响今日，不会改动每日固定时间表。",
+    "dualPlan.colCurrent": "当前",
+    "dualPlan.colCurrentSub": "{n} 项已安排",
+    "dualPlan.colAggressive": "🔥 激进 (8)",
+    "dualPlan.colProgressive": "🌱 渐进 (3)",
+    "dualPlan.aggressiveDefault": "高密度推进",
+    "dualPlan.progressiveDefault": "聚焦核心",
+    "dualPlan.emptyCurrent": "今天还是空的 —— 挑一套方案填满它。",
+    "dualPlan.emptyPlan": "暂无任务。",
+    "dualPlan.adopt": "采用此方案",
+    "dualPlan.adopting": "添加中…",
   },
 };
 

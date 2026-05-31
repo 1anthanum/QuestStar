@@ -51,6 +51,7 @@ import BodyDoubling from "./BodyDoubling";
 import LetterModal from "./LetterModal";
 import MiniTrackerModal from "./MiniTrackerModal";
 import EnergyAssessment from "./EnergyAssessment";
+import DualPlanRecommender, { collectExistingItems } from "./DualPlanRecommender";
 import InlineChat from "./InlineChat";
 import Icon from "../Icon";
 import ProgressRing from "../ProgressRing";
@@ -76,6 +77,11 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [showPast, setShowPast] = useState(false);
   const [showReminders, setShowReminders] = useState(false);
   const [showEnergy, setShowEnergy] = useState(false);
+  // ── AI dual-plan recommender ──
+  // Auto-opens once per day after the user submits their energy assessment
+  // (if they have an AI key configured). They can also skip — we record the
+  // date on todayMeta so we don't re-trigger on subsequent energy edits.
+  const [showDualPlan, setShowDualPlan] = useState(false);
   const [showBodyScan, setShowBodyScan] = useState(false);
   const [showLetter, setShowLetter] = useState(false);
   const [showBodyDouble, setShowBodyDouble] = useState(false);
@@ -1646,9 +1652,48 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         <EnergyQuickModal
           initial={energy || defaultEnergy()}
           untouched={!energy}
-          onSave={(e) => { habits.setEnergy(e); setShowEnergy(false); }}
+          onSave={(e) => {
+            habits.setEnergy(e);
+            setShowEnergy(false);
+            // First-of-day energy submission → auto-open the AI dual-plan
+            // recommender. Re-edits don't re-trigger (dualPlanShownDate
+            // is set whether the user adopts a plan or skips out).
+            const todayStr = getTodayStr();
+            if (ai?.hasApiKey && todayMeta.dualPlanShownDate !== todayStr) {
+              setShowDualPlan(true);
+            }
+          }}
           onClose={() => setShowEnergy(false)}
           theme={theme}
+        />
+      )}
+
+      {/* AI dual-plan recommender — three-column diff comparing today's
+          existing items vs aggressive (8) vs progressive (3) AI plans. */}
+      {showDualPlan && (
+        <DualPlanRecommender
+          energy={energy}
+          identity={habits.identity || ""}
+          existingItems={collectExistingItems(habits.schedule, todayMeta)}
+          ai={ai}
+          theme={theme}
+          onAdopt={(which, tasks) => {
+            // Push each task to today's specialActivities — survives until
+            // midnight, doesn't pollute the persistent qt_daily_schedule.
+            for (const task of tasks) {
+              habits.addSpecialActivityToday?.({
+                label: `${task.icon || ""} ${task.label}`.trim(),
+                time: task.time || null,
+                note: task.note || null,
+              });
+            }
+            habits.setDayMeta?.({ dualPlanShownDate: getTodayStr(), dualPlanAdopted: which });
+            setShowDualPlan(false);
+          }}
+          onClose={() => {
+            habits.setDayMeta?.({ dualPlanShownDate: getTodayStr() });
+            setShowDualPlan(false);
+          }}
         />
       )}
 

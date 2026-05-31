@@ -1348,6 +1348,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     archiveHabit,
     restoreHabit,
     // day meta
+    setDayMeta,
     setEnergyMode,
     setEnergy,
     declareRestDay,

@@ -422,6 +422,116 @@ Here are my plans:\n\n"${inputText}"${langPart}\n\nPlease organize these into da
   }));
 }
 
+// ── Dual-plan day scheduler ──
+// Given the user's 4-dim energy, identity, and the items already pinned to
+// today, ask the AI for TWO contrasting day-plans:
+//   - aggressive: 8 fresh tasks, high-density, stretch goals
+//   - progressive: 3 fresh tasks, focus over volume, ADHD-safe
+// Both plans MUST NOT duplicate existing items; the UI surfaces the
+// difference diff-style so the user picks one.
+const DUAL_SCHEDULE_PROMPT = `You are a daily scheduler for someone with ADHD on a medication-adjustment period. The user has just self-reported their 4-dimensional energy (physical / cognitive / emotional / social, each 1-10). They also have an "identity" they're building toward.
+
+Given today's energy and identity, propose TWO contrasting day-plans on top of what's already on their schedule:
+
+1. "aggressive" — EXACTLY 8 new tasks. Higher density, stretch goals, includes deep work, exercise, learning, and a creative or social block. Suitable when energy is mid-high or the user wants to push.
+2. "progressive" — EXACTLY 3 new tasks. Strict focus over volume. Each task is small, concrete, ADHD-friendly. Suitable when energy is uneven or the user wants to protect momentum.
+
+## Rules for each task
+- Concrete, action-verb start ("做 20 分钟…" / "Read 1 chapter of…"), not vague ("学习" / "Self-care")
+- Each task has: time (suggest a slot like "07:30" or a range "10:00–11:00"), icon (single emoji), label (short, max 18 chars), note (1 sentence rationale), blockId (one of: morning_prep, upper_morning, noon, peak_cognitive, evening, sleep_prep)
+- Aggressive tasks should SPREAD across all 4 energy dimensions where possible
+- Progressive tasks should target the HIGHEST 1-2 energy dimensions and skip exhausted ones
+- DO NOT duplicate existing items (they will be provided in context)
+- Respect the identity — if identity is "Healthy Builder", lean health; if "Focused Scholar", lean deep-work; etc.
+- Time slots should be plausible given the current time-of-day (we'll provide it)
+
+## Output
+Return strictly this JSON object with no other text:
+{
+  "aggressive": {
+    "summary": "one-line description of this plan's vibe (≤25 chars)",
+    "tasks": [
+      { "time": "07:30", "icon": "🏃", "label": "晨间快走", "note": "...", "blockId": "morning_prep" }
+    ]
+  },
+  "progressive": {
+    "summary": "one-line description (≤25 chars)",
+    "tasks": [
+      { "time": "09:00", "icon": "📖", "label": "...", "note": "...", "blockId": "upper_morning" }
+    ]
+  }
+}`;
+
+/**
+ * Generate aggressive (8) and progressive (3) day plans tailored to today's
+ * energy and identity. Returns { aggressive, progressive } each with summary
+ * + tasks[].
+ */
+export async function generateDualSchedule({ energy, identity, existingItems, provider, model, apiKey, lang = "en" }) {
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+
+  const langPart = lang === "zh"
+    ? "\n\nIMPORTANT: Write ALL labels, notes, and summary text in Chinese (中文). Keep JSON field names, blockId values, and time/icon formats in English."
+    : "";
+
+  const energyText = energy
+    ? `physical=${energy.physical}/10, cognitive=${energy.cognitive}/10, emotional=${energy.emotional}/10, social=${energy.social}/10`
+    : "unknown";
+
+  const existingText = Array.isArray(existingItems) && existingItems.length > 0
+    ? existingItems.map((it) => `- ${it.time || "?"} ${it.label || it.text || "(untitled)"}`).join("\n")
+    : "(none)";
+
+  const identityText = identity ? `"${identity}"` : "(not set)";
+
+  const userMessage = `Today is ${today}. Current local time is ${hh}:${mm}.
+Energy: ${energyText}
+Identity: ${identityText}
+Items already on today's schedule (do NOT duplicate):
+${existingText}${langPart}
+
+Generate the two plans now. Remember: aggressive = exactly 8 tasks, progressive = exactly 3 tasks.`;
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt: DUAL_SCHEDULE_PROMPT,
+    messages: [{ role: "user", content: userMessage }],
+    maxTokens: 2500,
+  });
+
+  const raw = extractJsonObject(text);
+  const VALID_BLOCKS = new Set(["morning_prep", "upper_morning", "noon", "peak_cognitive", "evening", "sleep_prep"]);
+
+  const normalizeTask = (t) => ({
+    time: String(t.time || "").trim().slice(0, 16),
+    icon: String(t.icon || "✨").trim().slice(0, 4),
+    label: String(t.label || "").trim().slice(0, 40),
+    note: String(t.note || "").trim().slice(0, 160),
+    blockId: VALID_BLOCKS.has(t.blockId) ? t.blockId : "upper_morning",
+  });
+
+  const aggTasks = Array.isArray(raw?.aggressive?.tasks) ? raw.aggressive.tasks.map(normalizeTask).filter((t) => t.label) : [];
+  const proTasks = Array.isArray(raw?.progressive?.tasks) ? raw.progressive.tasks.map(normalizeTask).filter((t) => t.label) : [];
+
+  if (aggTasks.length === 0 && proTasks.length === 0) {
+    throw new Error("AI returned no usable tasks — please try again");
+  }
+
+  return {
+    aggressive: {
+      summary: String(raw?.aggressive?.summary || "").trim().slice(0, 50),
+      tasks: aggTasks,
+    },
+    progressive: {
+      summary: String(raw?.progressive?.summary || "").trim().slice(0, 50),
+      tasks: proTasks,
+    },
+  };
+}
+
 /**
  * Summarize a file and extract actionable steps.
  */
