@@ -4,6 +4,8 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { getHabitById } from "../../utils/habitCatalog";
 import FixedItemRow from "./FixedItemRow";
 import HabitCheckCard from "./HabitCheckCard";
+import TaskChainCard from "./TaskChainCard";
+import { getChainsForSlot } from "../../utils/taskChains";
 
 // Hover dwell delay — mouse must rest on the block this many ms before
 // the body auto-expands. Snappy enough that intent is clear, slow enough
@@ -351,6 +353,28 @@ export default function TimeBlockSection({
               })}
             </div>
           )}
+
+          {/* Task chains — surface tasks expanded into their underlying
+              capability dimensions. Read-only meaning-makers; help the
+              user see how small daily acts train compound skills. Lives
+              at the bottom of every block's flexible section so it's
+              the last thing the eye lands on. */}
+          {(() => {
+            const chains = getChainsForSlot(block.id, 2);
+            if (chains.length === 0) return null;
+            return (
+              <div className="pt-1.5 mt-1 border-t border-dashed border-gray-100 space-y-1.5">
+                <div className="flex items-center gap-1 px-1.5 pt-0.5">
+                  <span className="text-[9px] font-bold text-gray-300 uppercase tracking-wide">{t("chain.section")}</span>
+                  <span className="text-[9px] text-gray-300">·</span>
+                  <span className="text-[9px] text-gray-400 italic">{t("chain.sectionHint")}</span>
+                </div>
+                {chains.map((c) => (
+                  <TaskChainCard key={c.id} chain={c} theme={theme} />
+                ))}
+              </div>
+            );
+          })()}
 
           {/* Peak cognitive window → surface Study-mode tasks */}
           {isPeak && (

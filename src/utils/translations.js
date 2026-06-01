@@ -1729,6 +1729,11 @@ const translations = {
     "dualPlan.adopting": "Adding…",
     "dualPlan.extendMore": "+ {n} more aggressive task(s)",
     "dualPlan.extending": "Generating more…",
+
+    // ── Task chains — a surface task expanded into capabilities it trains ──
+    "chain.section": "Task chains",
+    "chain.sectionHint": "what these small things actually train",
+    "chain.dimCount": "{n} dimensions",
   },
 
   zh: {
@@ -3457,6 +3462,11 @@ const translations = {
     "dualPlan.adopting": "添加中…",
     "dualPlan.extendMore": "+ 再来 {n} 条激进任务",
     "dualPlan.extending": "生成中…",
+
+    // ── 任务链 — 一件小事拆解为它实际训练的多个维度 ──
+    "chain.section": "任务链",
+    "chain.sectionHint": "这些小事其实在训练什么",
+    "chain.dimCount": "{n} 维",
   },
 };
 
