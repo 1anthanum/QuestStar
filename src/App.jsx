@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { useHeaderContext } from "./hooks/useHeaderContext";
 import { useGameState } from "./hooks/useGameState";
 import { useAI } from "./hooks/useAI";
 import { useTheme } from "./hooks/useTheme";
@@ -102,6 +103,16 @@ export default function App() {
   const pact = useAccountabilityPact(rewards.wallet, rewards.addToWallet, rewards.spendFromWallet);
   const vem = useVEMSync();
   const copilot = useCopilot({ game, rewards, energy, appMode, ai, lang, habits });
+
+  // Plan C — the Header center element swaps with the time of day. The
+  // hook re-evaluates once per minute and returns one of: plan, progress,
+  // nextItem, summary, night. Opening MorningPlan reuses the same modal
+  // the HabitDashboard "🌅 规划今天" button triggers.
+  const headerContext = useHeaderContext({
+    habits,
+    game,
+    onPlanDay: () => modals.show("MorningPlan"),
+  });
 
   // ── Mode-based quest filtering ──
   const modePrefix = APP_MODES[appMode]?.tagPrefix || "Stage ";
@@ -464,8 +475,11 @@ export default function App() {
 
       {/* Header — statsDetail aggregates today's count across quests AND
           habits so the ✅ pill reports daily progress rather than lifetime
-          quest steps (previously misleading per user audit 2026-05-31). */}
+          quest steps (previously misleading per user audit 2026-05-31).
+          headerContext drives the Plan C center variant (plan / progress /
+          nextItem / summary / night). */}
       <Header
+        headerContext={headerContext}
         levelInfo={game.levelInfo}
         xp={game.xp}
         streak={game.streak}

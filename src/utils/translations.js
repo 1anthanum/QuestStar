@@ -693,6 +693,23 @@ const translations = {
     "header.statTip.doneQuestSteps": "Quest steps",
     "header.statTip.doneHabits": "Habits",
     "header.statTip.doneLifetime": "Lifetime quest steps",
+    "header.statTip.all": "Stats overview",
+    // ── Plan C: context-aware header center variants ──
+    "headerCenter.planCta": "Plan today",
+    "headerCenter.planDone": "Today's plan saved",
+    "headerCenter.nextItemLabel": "Next:",
+    "headerCenter.nextItemEmpty": "This block is clear",
+    "headerCenter.summaryLabel": "Today:",
+    "headerCenter.nightLabel": "Tonight",
+    "headerCenter.nightDone": "done today",
+    // ── Focus screen (Plan A manual + B idle-auto) ──
+    "focus.openBtn": "Focus screen",
+    "focus.exitHint": "Esc to exit · move mouse to wake",
+    "focus.next": "Up next",
+    "focus.nothingNext": "Nothing scheduled in this block.",
+    "focus.start": "Start",
+    "focus.identityPrefix": "you're becoming",
+    "focus.streakSuffix": "day streak",
 
     // ── Accountability Pact ──
     "pact.title": "Accountability Pact",
@@ -2456,6 +2473,23 @@ const translations = {
     "header.statTip.doneQuestSteps": "Quest 步骤",
     "header.statTip.doneHabits": "Habit 习惯",
     "header.statTip.doneLifetime": "Quest 步骤累计",
+    "header.statTip.all": "数据概览",
+    // ── Plan C：头部中心元素时段变体 ──
+    "headerCenter.planCta": "规划今天",
+    "headerCenter.planDone": "今日已规划",
+    "headerCenter.nextItemLabel": "下一项：",
+    "headerCenter.nextItemEmpty": "本时段已清空",
+    "headerCenter.summaryLabel": "今日：",
+    "headerCenter.nightLabel": "晚安",
+    "headerCenter.nightDone": "件已完成",
+    // ── 焦点屏（A 手动 + B 闲置自动） ──
+    "focus.openBtn": "焦点屏",
+    "focus.exitHint": "Esc 退出 · 鼠标移动唤醒",
+    "focus.next": "接下来",
+    "focus.nothingNext": "本时段已无任务。",
+    "focus.start": "开始",
+    "focus.identityPrefix": "你正在成为",
+    "focus.streakSuffix": "天连续",
 
     // ── 承诺契约 ──
     "pact.title": "承诺契约",
