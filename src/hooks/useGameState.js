@@ -212,6 +212,7 @@ export function useGameState() {
     quests,
     xp,
     streak,
+    lastActiveDate,
     levelInfo,
     totalSteps,
     completedSteps,

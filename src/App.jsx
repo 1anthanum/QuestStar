@@ -135,6 +135,7 @@ export default function App() {
     microFeedback, setMicroFeedback,
     browseSlot, setBrowseSlot,
     handleStepBurst,
+    commitBurstAmount,
   } = useTransientOverlays();
 
   // Deadline reminder system
@@ -161,6 +162,7 @@ export default function App() {
   const handleToggleStep = useStepCompletionChain({
     game, rewards, lore, blossom, friction, ghostRace, pact, vem,
     showXpGain,
+    commitBurstAmount,
     setSurprisePopup, setLoreDrop, setStepGuide,
     setMicroFeedback, setLevelUpOverlay, setQuestCompleteOverlay,
   });
@@ -460,12 +462,23 @@ export default function App() {
       )}
       </ErrorBoundary>
 
-      {/* Header */}
+      {/* Header — statsDetail aggregates today's count across quests AND
+          habits so the ✅ pill reports daily progress rather than lifetime
+          quest steps (previously misleading per user audit 2026-05-31). */}
       <Header
         levelInfo={game.levelInfo}
         xp={game.xp}
         streak={game.streak}
         completedSteps={game.completedSteps}
+        statsDetail={{
+          lifetimeQuestSteps: game.completedSteps,
+          todayQuestSteps: (game.quests || []).reduce((acc, q) => {
+            const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+            return acc + (q.steps || []).filter((s) => s.done && s.completedAt && s.completedAt >= todayStart.getTime()).length;
+          }, 0),
+          todayHabits: habits.getTodayProgress?.()?.completed || 0,
+          lastActiveDate: game.lastActiveDate,
+        }}
         theme={theme}
         onOpenSettings={() => modals.show("Settings")}
         onOpenCopilot={() => modals.show("Copilot")}

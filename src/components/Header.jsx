@@ -9,8 +9,12 @@ import { useLanguage } from "../hooks/useLanguage";
  * - 紧凑 stat 胶囊
  * - SVG 齿轮图标
  */
-export default function Header({ levelInfo, xp, streak, completedSteps, theme, onOpenSettings, onOpenCopilot, auth, syncStatus, onForcePull, onOpenAuth, vemSummary, vemEnabled, onOpenVEMPanel }) {
+export default function Header({ levelInfo, xp, streak, completedSteps, statsDetail, theme, onOpenSettings, onOpenCopilot, auth, syncStatus, onForcePull, onOpenAuth, vemSummary, vemEnabled, onOpenVEMPanel }) {
   const { t } = useLanguage();
+  // Click-to-explain popover state. One of: null | "xp" | "streak" | "done".
+  // Replaces the old plain title tooltips so new users can tap a stat to
+  // see what it counts, the formula, and where the number comes from.
+  const [openStat, setOpenStat] = useState(null);
   // XP 数字跳动
   const [displayXp, setDisplayXp] = useState(xp);
   const [xpBump, setXpBump] = useState(false);
@@ -116,27 +120,63 @@ export default function Header({ levelInfo, xp, streak, completedSteps, theme, o
             </div>
 
             {/* ── Stats ── */}
-            <div className="flex items-center gap-1.5 shrink-0">
+            {/* Pills are now BUTTONS — tap to open a small explainer
+                popover that documents what the number counts. Defaults
+                were tooltip-only which left new users guessing. */}
+            <div className="flex items-center gap-1.5 shrink-0 relative">
               {/* XP total */}
-              <div
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl transition-all duration-200 ${xpBump ? "scale-110" : ""}`}
+              <button
+                type="button"
+                onClick={() => setOpenStat((s) => (s === "xp" ? null : "xp"))}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 ${xpBump ? "scale-110" : ""}`}
                 style={{ background: theme?.accentLight || "#eef2ff" }}
+                aria-label={t("header.statTip.xp")}
               >
                 <span className="text-xs">⚡</span>
                 <span className="text-sm font-black tabular-nums" style={{ color: accent }}>{displayXp}</span>
-              </div>
+              </button>
 
               {/* Streak */}
-              <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-orange-50/80" title={streak === 0 ? t("header.streakDormant") : `${streak} ${t("header.streakLabel")}`}>
+              <button
+                type="button"
+                onClick={() => setOpenStat((s) => (s === "streak" ? null : "streak"))}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-orange-50/80 hover:scale-105 active:scale-95 transition-transform"
+                aria-label={t("header.statTip.streak")}
+              >
                 <span className={`text-xs${streak === 0 ? " dormant-flame" : ""}`}>🔥</span>
                 <span className={`text-sm font-black tabular-nums ${streak === 0 ? "text-orange-300" : "text-orange-500"}`}>{streak}</span>
-              </div>
+              </button>
 
-              {/* Completed */}
-              <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50/80">
+              {/* Done today — quest steps + habit completions today.
+                  Previously read `completedSteps` which was LIFETIME quest
+                  steps (audit 2026-05-31 flagged it as misleading). */}
+              <button
+                type="button"
+                onClick={() => setOpenStat((s) => (s === "done" ? null : "done"))}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50/80 hover:scale-105 active:scale-95 transition-transform"
+                aria-label={t("header.statTip.done")}
+              >
                 <span className="text-xs">✅</span>
-                <span className="text-sm font-black text-emerald-500 tabular-nums">{completedSteps}</span>
-              </div>
+                <span className="text-sm font-black text-emerald-500 tabular-nums">
+                  {statsDetail ? (statsDetail.todayQuestSteps + statsDetail.todayHabits) : completedSteps}
+                </span>
+              </button>
+
+              {/* Explainer popover */}
+              {openStat && (
+                <StatPopover
+                  which={openStat}
+                  onClose={() => setOpenStat(null)}
+                  xp={xp}
+                  levelInfo={levelInfo}
+                  streak={streak}
+                  lastActiveDate={statsDetail?.lastActiveDate}
+                  todayQuestSteps={statsDetail?.todayQuestSteps ?? 0}
+                  todayHabits={statsDetail?.todayHabits ?? 0}
+                  lifetimeQuestSteps={statsDetail?.lifetimeQuestSteps ?? completedSteps}
+                  accent={accent}
+                />
+              )}
 
               {/* VEM energy badge */}
               {vemEnabled && vemSummary && (
@@ -227,5 +267,70 @@ export default function Header({ levelInfo, xp, streak, completedSteps, theme, o
         </div>
       </div>
     </header>
+  );
+}
+
+// ── StatPopover ──
+// Small floating card explaining one of the three header stats. Renders
+// inside the same .relative wrapper as the pills so it positions just
+// below them on the right edge of the header. Backdrop captures outside
+// clicks; tapping the same pill again toggles it closed (handled by the
+// parent's onClick toggle).
+function StatPopover({ which, onClose, xp, levelInfo, streak, lastActiveDate, todayQuestSteps, todayHabits, lifetimeQuestSteps, accent }) {
+  const { t } = useLanguage();
+  // Stop a click INSIDE the card from closing it; backdrop handles outside.
+  const stop = (e) => e.stopPropagation();
+  const todayTotal = todayQuestSteps + todayHabits;
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div
+        onClick={stop}
+        className="absolute top-full right-0 mt-2 z-50 w-72 rounded-2xl p-4 shadow-2xl"
+        style={{ background: "rgba(255,255,255,0.98)", border: "1px solid rgba(0,0,0,0.06)" }}
+      >
+        {which === "xp" && (
+          <>
+            <div className="text-[12.5px] font-black text-gray-800 mb-1.5">⚡ {t("header.statTip.xp")}</div>
+            <div className="text-[11.5px] text-gray-600 leading-snug space-y-1.5">
+              <p>{t("header.statTip.xpBody")}</p>
+              <div className="rounded-lg p-2 bg-gray-50 text-[11px] space-y-0.5">
+                <div className="flex justify-between"><span className="text-gray-500">{t("header.statTip.xpTotal")}</span><span className="font-mono font-bold">{xp}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">{t("header.statTip.xpLevel")}</span><span className="font-mono font-bold">Lv.{levelInfo.level}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">{t("header.statTip.xpInLevel")}</span><span className="font-mono font-bold">{levelInfo.xpInLevel}/{levelInfo.xpForNext}</span></div>
+              </div>
+              <p className="text-[10.5px] text-gray-400 italic">{t("header.statTip.xpFormula")}</p>
+            </div>
+          </>
+        )}
+        {which === "streak" && (
+          <>
+            <div className="text-[12.5px] font-black text-gray-800 mb-1.5">🔥 {t("header.statTip.streak")}</div>
+            <div className="text-[11.5px] text-gray-600 leading-snug space-y-1.5">
+              <p>{t("header.statTip.streakBody")}</p>
+              <div className="rounded-lg p-2 bg-gray-50 text-[11px] space-y-0.5">
+                <div className="flex justify-between"><span className="text-gray-500">{t("header.statTip.streakDays")}</span><span className="font-mono font-bold">{streak}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">{t("header.statTip.streakLast")}</span><span className="font-mono text-[10.5px]">{lastActiveDate || "—"}</span></div>
+              </div>
+              <p className="text-[10.5px] text-amber-700 leading-snug" style={{ background: "#fef3c7", padding: "6px 8px", borderRadius: 6 }}>{t("header.statTip.streakCaveat")}</p>
+            </div>
+          </>
+        )}
+        {which === "done" && (
+          <>
+            <div className="text-[12.5px] font-black text-gray-800 mb-1.5">✅ {t("header.statTip.done")}</div>
+            <div className="text-[11.5px] text-gray-600 leading-snug space-y-1.5">
+              <p>{t("header.statTip.doneBody")}</p>
+              <div className="rounded-lg p-2 bg-gray-50 text-[11px] space-y-0.5">
+                <div className="flex justify-between"><span className="text-gray-500">{t("header.statTip.doneToday")}</span><span className="font-mono font-bold" style={{ color: accent }}>{todayTotal}</span></div>
+                <div className="flex justify-between pl-3"><span className="text-gray-400 text-[10.5px]">· {t("header.statTip.doneQuestSteps")}</span><span className="font-mono">{todayQuestSteps}</span></div>
+                <div className="flex justify-between pl-3"><span className="text-gray-400 text-[10.5px]">· {t("header.statTip.doneHabits")}</span><span className="font-mono">{todayHabits}</span></div>
+                <div className="flex justify-between pt-1 border-t border-gray-200 mt-1"><span className="text-gray-500">{t("header.statTip.doneLifetime")}</span><span className="font-mono">{lifetimeQuestSteps}</span></div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </>
   );
 }

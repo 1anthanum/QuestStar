@@ -79,6 +79,62 @@ html[data-time-dark="true"] i {
   color: var(--time-text-muted);
 }
 
+/* ═══ Night-mode header polish ═══
+   At night, the sticky header read poorly: its translucent-white
+   surface looked smudged on the indigo backdrop, the pale stat-
+   pill backgrounds (theme.accentLight / orange-50 / emerald-50)
+   washed out into the dark, and the "Lv.3" / "37/250" / level
+   chip text dropped contrast. Lift everything one notch so the
+   header stays glanceable. */
+html[data-time-dark="true"] .glass-strong {
+  background: rgba(20, 25, 50, 0.70);
+  border-bottom-color: rgba(255, 255, 255, 0.10) !important;
+}
+/* Level-circle inner white → translucent slate so the "3" reads light */
+html[data-time-dark="true"] .glass-strong .bg-white {
+  background: rgba(255, 255, 255, 0.94);
+}
+/* Stat pills: replace the pale day-mode tints with translucent versions
+   of the same hue. Selectors target each pill's specific bg class so
+   we don't sweep up unrelated chips elsewhere in the header. */
+html[data-time-dark="true"] header .bg-orange-50\/80 {
+  background-color: rgba(251, 146, 60, 0.20) !important;
+}
+html[data-time-dark="true"] header .bg-emerald-50\/80 {
+  background-color: rgba(16, 185, 129, 0.20) !important;
+}
+html[data-time-dark="true"] header .bg-amber-50\/80 {
+  background-color: rgba(245, 158, 11, 0.22) !important;
+}
+html[data-time-dark="true"] header .bg-violet-50\/80 {
+  background-color: rgba(139, 92, 246, 0.22) !important;
+}
+html[data-time-dark="true"] header .bg-gray-100\/50,
+html[data-time-dark="true"] header .bg-gray-100\/80 {
+  background-color: rgba(255, 255, 255, 0.10) !important;
+  color: var(--time-text-muted);
+}
+/* Level title chip (theme.accentLight is inlined — boost via opacity instead) */
+html[data-time-dark="true"] header span[style*="accentLight"],
+html[data-time-dark="true"] header .text-emerald-500,
+html[data-time-dark="true"] header .text-orange-500 {
+  filter: brightness(1.15) saturate(1.1);
+}
+/* "37/250" + "Lv.3" labels — slate-700/400 originally; bump to body var */
+html[data-time-dark="true"] header .text-gray-700,
+html[data-time-dark="true"] header .text-gray-800,
+html[data-time-dark="true"] header .text-gray-600 {
+  color: var(--time-text-strong) !important;
+}
+html[data-time-dark="true"] header .text-gray-400,
+html[data-time-dark="true"] header .text-gray-500 {
+  color: var(--time-text-muted) !important;
+}
+/* XP bar background — gray-100/80 disappears on dark */
+html[data-time-dark="true"] header [data-xp-bar] {
+  background-color: rgba(255, 255, 255, 0.10) !important;
+}
+
 /* ═══ Post-planning attention guide ═══
    When body[data-qt-attention="1"], elements opted-in via
    data-attention-target get a soft amber pulsing ring drawing the eye.

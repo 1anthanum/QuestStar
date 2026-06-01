@@ -675,6 +675,25 @@ const translations = {
     "header.streakDormant": "Complete a step today to ignite your streak!",
     "header.streakLabel": "day streak",
 
+    // ── Header stat-pill explainers (tap a pill to open) ──
+    "header.statTip.xp": "Total XP",
+    "header.statTip.xpBody": "Every quest step or habit you complete adds XP. Bigger XP bumps come from harder steps, longer streaks, and bonus quest types.",
+    "header.statTip.xpTotal": "Total XP",
+    "header.statTip.xpLevel": "Current level",
+    "header.statTip.xpInLevel": "Into this level",
+    "header.statTip.xpFormula": "Formula: easy=10, medium=20, hard=35 · streak bonus +10% per day (max +50%) · quest type multiplier ×1 / ×1.5 / ×2",
+    "header.statTip.streak": "Active-day streak",
+    "header.statTip.streakBody": "Number of consecutive days you've completed at least one quest step.",
+    "header.statTip.streakDays": "Days",
+    "header.statTip.streakLast": "Last active",
+    "header.statTip.streakCaveat": "Habit-only days don't currently count toward the streak (design decision D5 — being revisited).",
+    "header.statTip.done": "Done today",
+    "header.statTip.doneBody": "Quest steps + habit completions checked off today.",
+    "header.statTip.doneToday": "Today (total)",
+    "header.statTip.doneQuestSteps": "Quest steps",
+    "header.statTip.doneHabits": "Habits",
+    "header.statTip.doneLifetime": "Lifetime quest steps",
+
     // ── Accountability Pact ──
     "pact.title": "Accountability Pact",
     "pact.cardTitle": "Accountability Pact",
@@ -2418,6 +2437,25 @@ const translations = {
     // ── 头部 ──
     "header.streakDormant": "今天完成一步点燃你的连续记录！",
     "header.streakLabel": "天连续",
+
+    // ── 顶部 stat 胶囊讲解（点开看） ──
+    "header.statTip.xp": "总经验值",
+    "header.statTip.xpBody": "每完成一个任务步骤或习惯都会增加 XP。难度越高、连续天数越长、任务类型越高级，加成越多。",
+    "header.statTip.xpTotal": "总 XP",
+    "header.statTip.xpLevel": "当前等级",
+    "header.statTip.xpInLevel": "本级进度",
+    "header.statTip.xpFormula": "公式：easy=10、medium=20、hard=35 · 连续加成 +10%/天（封顶 +50%）· 任务类型倍率 ×1 / ×1.5 / ×2",
+    "header.statTip.streak": "连续天数",
+    "header.statTip.streakBody": "连续多少天至少完成了一个任务步骤。",
+    "header.statTip.streakDays": "天数",
+    "header.statTip.streakLast": "最近活跃",
+    "header.statTip.streakCaveat": "目前只看 quest 步骤，纯 habit 日不计入（设计 D5，正在评估）。",
+    "header.statTip.done": "今日完成",
+    "header.statTip.doneBody": "今天打钩的 quest 步骤 + 习惯。",
+    "header.statTip.doneToday": "今日合计",
+    "header.statTip.doneQuestSteps": "Quest 步骤",
+    "header.statTip.doneHabits": "Habit 习惯",
+    "header.statTip.doneLifetime": "Quest 步骤累计",
 
     // ── 承诺契约 ──
     "pact.title": "承诺契约",
