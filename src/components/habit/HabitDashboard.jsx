@@ -52,6 +52,7 @@ import LetterModal from "./LetterModal";
 import MiniTrackerModal from "./MiniTrackerModal";
 import EnergyAssessment from "./EnergyAssessment";
 import DualPlanRecommender, { collectExistingItems } from "./DualPlanRecommender";
+import TomorrowPlanModal from "./TomorrowPlanModal";
 import InlineChat from "./InlineChat";
 import Icon from "../Icon";
 import ProgressRing from "../ProgressRing";
@@ -82,6 +83,10 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   const [showPast, setShowPast] = useState(false);
   const [showReminders, setShowReminders] = useState(false);
   const [showEnergy, setShowEnergy] = useState(false);
+  // Tomorrow-planning modal — opened from the weekly-rhythm row's right
+  // button. Closed via its own onClose / onSave.
+  const [showTomorrowPlan, setShowTomorrowPlan] = useState(false);
+
   // ── AI dual-plan recommender ──
   // Auto-opens once per day after the user submits their energy assessment
   // (if they have an AI key configured). They can also skip — we record the
@@ -999,23 +1004,32 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
 
       {/* Weekly rhythm heatmap (C). R6-M2: an always-visible label below the
           row shows the hovered cell's detail (date · done/total · pct%); when
-          nothing's hovered, it summarizes the week. */}
+          nothing's hovered, it summarizes the week. User 2026-05-31: show
+          only the first 6 days by default and put a "plan tomorrow" button
+          where the 7th cell used to be. */}
       {weekRates.length > 0 && (() => {
+        const visibleCells = weekRates.slice(0, 6);
         const todayCell = weekRates.find((d) => d.isToday);
         const defaultTip = todayCell
           ? `${t("habit.day.now")} · ${todayCell.done}/${todayCell.total}${todayCell.rate != null ? ` · ${Math.round(todayCell.rate * 100)}%` : ""}`
           : t("habit.weekRhythm");
-        const hovered = hoveredCell != null ? weekRates[hoveredCell] : null;
+        const hovered = hoveredCell != null ? visibleCells[hoveredCell] : null;
         const hoveredTip = hovered
           ? (hovered.future
             ? `${hovered.key} · —`
             : `${hovered.key} · ${hovered.done}/${hovered.total}${hovered.rate != null ? ` · ${Math.round(hovered.rate * 100)}%` : ""}${hovered.isToday ? " · today" : ""}`)
           : null;
+        // Tomorrow date key (local) for the right-side planning button.
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowKey = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+        const tomorrowDow = tomorrow.getDay();
+        const tomorrowPlanned = !!(habits.habitLog?.[tomorrowKey]?._meta?.intention);
         return (
           <div className="qt-card p-3.5">
             <div className="text-[10.5px] font-bold text-gray-400 uppercase tracking-wide mb-2">📅 {t("habit.weekRhythm")}</div>
-            <div className="flex gap-1.5">
-              {weekRates.map((d, i) => (
+            <div className="flex gap-1.5 items-stretch">
+              {visibleCells.map((d, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1">
                   <button
                     type="button"
@@ -1030,9 +1044,28 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
                     aria-label={d.future ? `${d.key} (upcoming)` : `${d.key}: ${d.done} of ${d.total} — ${t("habit.past.backfillBtn")}`}
                     title={d.future ? d.key : t("habit.weekRhythm.openDay", { date: d.key })}
                   />
-                  <span className="text-[9px] text-gray-400">{DOW_SHORT[i]}</span>
+                  <span className="text-[9px] text-gray-400">{DOW_SHORT[d.dow]}</span>
                 </div>
               ))}
+              {/* Right-side "plan tomorrow" button — replaces the 7th cell. */}
+              <div className="flex-1 flex flex-col items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setShowTomorrowPlan(true)}
+                  className="w-full rounded-md flex items-center justify-center text-base hover:scale-110 transition-transform"
+                  style={{
+                    aspectRatio: "1",
+                    background: tomorrowPlanned ? `${accent}33` : "#fff",
+                    border: `1.5px dashed ${tomorrowPlanned ? accent : `${accent}55`}`,
+                    color: tomorrowPlanned ? accent : "#94a3b8",
+                  }}
+                  aria-label={t("habit.weekRhythm.planTomorrow")}
+                  title={`${t("habit.weekRhythm.planTomorrow")} · ${tomorrowKey}`}
+                >
+                  {tomorrowPlanned ? "✓" : "🌅"}
+                </button>
+                <span className="text-[9px] text-gray-400">{DOW_SHORT[tomorrowDow]}</span>
+              </div>
             </div>
             <div className="text-[10.5px] text-gray-500 mt-2 min-h-[1em] leading-tight">
               {hoveredTip || defaultTip}
@@ -1747,6 +1780,20 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           theme={theme}
         />
       )}
+
+      {/* Plan-tomorrow modal — opened from the weekly-rhythm row's 🌅 button */}
+      {showTomorrowPlan && (() => {
+        const tom = new Date(); tom.setDate(tom.getDate() + 1);
+        const key = `${tom.getFullYear()}-${String(tom.getMonth() + 1).padStart(2, "0")}-${String(tom.getDate()).padStart(2, "0")}`;
+        return (
+          <TomorrowPlanModal
+            habits={habits}
+            tomorrowKey={key}
+            theme={theme}
+            onClose={() => setShowTomorrowPlan(false)}
+          />
+        );
+      })()}
 
       {/* AI dual-plan recommender — three-column diff comparing today's
           existing items vs aggressive (8) vs progressive (3) AI plans. */}

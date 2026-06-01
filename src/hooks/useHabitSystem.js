@@ -575,6 +575,23 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     [setHabitLog]
   );
 
+  // Same as setDayMeta but writes to an arbitrary date key (YYYY-MM-DD).
+  // Used by the "提前规划明天" flow on the weekly rhythm row — we need
+  // to stash an intention / plan on tomorrow's bucket BEFORE that day
+  // becomes today. Validates the date format defensively.
+  const setDayMetaForDate = useCallback(
+    (dateKey, patch) => {
+      if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return { ok: false, reason: "bad_date" };
+      setHabitLog((prev) => {
+        const day = { ...(prev[dateKey] || {}) };
+        day._meta = { ...(day._meta || {}), ...patch };
+        return { ...prev, [dateKey]: day };
+      });
+      return { ok: true };
+    },
+    [setHabitLog]
+  );
+
   const setEnergyMode = useCallback((mode) => setDayMeta({ energyMode: mode }), [setDayMeta]);
   // Rich 4-dimensional energy → also derive legacy energyMode for tier recommendations
   const setEnergy = useCallback(
@@ -1349,6 +1366,7 @@ export function useHabitSystem({ game, rewards = null, medicationAdjustment = tr
     restoreHabit,
     // day meta
     setDayMeta,
+    setDayMetaForDate,
     setEnergyMode,
     setEnergy,
     declareRestDay,

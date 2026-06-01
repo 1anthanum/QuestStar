@@ -1734,6 +1734,17 @@ const translations = {
     "chain.section": "Task chains",
     "chain.sectionHint": "what these small things actually train",
     "chain.dimCount": "{n} dimensions",
+
+    // ── Weekly-rhythm row "plan tomorrow" button + minimal modal ──
+    "habit.weekRhythm.planTomorrow": "Plan tomorrow",
+    "tomorrow.title": "Plan tomorrow",
+    "tomorrow.intentionLabel": "Tomorrow's intention (one line)",
+    "tomorrow.intentionPlaceholder": "e.g. \"start with a walk, then the writing block\"",
+    "tomorrow.intentionHint": "A single guiding sentence — the rest can stay flexible.",
+    "tomorrow.noteLabel": "Notes (optional)",
+    "tomorrow.notePlaceholder": "Anything you want tomorrow-you to know…",
+    "tomorrow.save": "Save plan",
+    "tomorrow.cancel": "Cancel",
   },
 
   zh: {
@@ -3467,6 +3478,17 @@ const translations = {
     "chain.section": "任务链",
     "chain.sectionHint": "这些小事其实在训练什么",
     "chain.dimCount": "{n} 维",
+
+    // ── 周节奏行的「规划明天」按钮 + 简易表单 ──
+    "habit.weekRhythm.planTomorrow": "规划明天",
+    "tomorrow.title": "提前规划明天",
+    "tomorrow.intentionLabel": "明日意向（一句话）",
+    "tomorrow.intentionPlaceholder": "比如：先去散个步，再开始写作",
+    "tomorrow.intentionHint": "一句话定个调子，其余可以临场再决定。",
+    "tomorrow.noteLabel": "笔记（可选）",
+    "tomorrow.notePlaceholder": "想留给明天的自己的话…",
+    "tomorrow.save": "保存计划",
+    "tomorrow.cancel": "取消",
   },
 };
 
