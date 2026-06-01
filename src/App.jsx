@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useHeaderContext } from "./hooks/useHeaderContext";
+import FocusScreen from "./components/FocusScreen";
 import { useGameState } from "./hooks/useGameState";
 import { useAI } from "./hooks/useAI";
 import { useTheme } from "./hooks/useTheme";
@@ -113,6 +114,29 @@ export default function App() {
     game,
     onPlanDay: () => modals.show("MorningPlan"),
   });
+
+  // ── Focus screen (Plan A manual + B 5-min idle) ──
+  // showFocus: null when hidden, "manual" | "idle" when shown — tells
+  // FocusScreen how to handle exit (manual = Esc only, idle = any input).
+  const [focusTrigger, setFocusTrigger] = useState(null);
+  const showFocus = focusTrigger !== null;
+
+  useEffect(() => {
+    if (showFocus) return; // don't run the idle timer while focus is open
+    const IDLE_MS = 5 * 60 * 1000;
+    let timerId = null;
+    const reset = () => {
+      if (timerId) clearTimeout(timerId);
+      timerId = setTimeout(() => setFocusTrigger("idle"), IDLE_MS);
+    };
+    const events = ["mousemove", "keydown", "touchstart", "scroll"];
+    events.forEach((ev) => window.addEventListener(ev, reset, { passive: true }));
+    reset();
+    return () => {
+      if (timerId) clearTimeout(timerId);
+      events.forEach((ev) => window.removeEventListener(ev, reset));
+    };
+  }, [showFocus]);
 
   // ── Mode-based quest filtering ──
   const modePrefix = APP_MODES[appMode]?.tagPrefix || "Stage ";
@@ -480,6 +504,7 @@ export default function App() {
           nextItem / summary / night). */}
       <Header
         headerContext={headerContext}
+        onOpenFocus={() => setFocusTrigger("manual")}
         levelInfo={game.levelInfo}
         xp={game.xp}
         streak={game.streak}
@@ -503,6 +528,16 @@ export default function App() {
         vemSummary={vem.dailySummary}
         vemEnabled={vem.enabled}
         onOpenVEMPanel={() => modals.show("VEMPanel")}
+      />
+
+      {/* Focus screen — manual button (in Header) or 5-min idle. */}
+      <FocusScreen
+        active={showFocus}
+        triggeredBy={focusTrigger}
+        habits={habits}
+        game={game}
+        theme={theme}
+        onClose={() => setFocusTrigger(null)}
       />
 
       {/* Content */}
