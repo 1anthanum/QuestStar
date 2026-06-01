@@ -60,6 +60,11 @@ import { HABIT_XP } from "../../utils/layerEngine";
 import { getTodayStr } from "../../utils/gameLogic";
 import { ENERGY_DIMENSIONS, energyColor, deriveEnergyMode, defaultEnergy, energyWeather, capTierByEnergy, socialAllowsInteraction, cognitiveAllowsDeep } from "../../utils/energyModel";
 
+// User 2026-05-31: "右上角的太阳可以暂时隐藏了，我们会重新安排
+// 方案". Hidden via a single flag rather than removed so it can flip
+// back on in one line once the redesign lands.
+const SHOW_SUN_MASCOT = false;
+
 // ═══════════════════════════════════════════════════════════
 // HabitDashboard — Life mode main view (time-block layout)
 // ═══════════════════════════════════════════════════════════
@@ -1847,7 +1852,9 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     <div className="space-y-3 pb-24" data-skin={skin}>
       {/* Living World Phase 1 — your sun, persistent in the corner.
           Phase 3: envelope pulses when a letter is due.
-          Phase 3.1: closing/overdue gets a sunset tint; new chapter id → sunrise. */}
+          Phase 3.1: closing/overdue gets a sunset tint; new chapter id → sunrise.
+          Hidden via SHOW_SUN_MASCOT flag (top of file) pending redesign. */}
+      {SHOW_SUN_MASCOT && (
       <SunMascot
         world={livingWorld}
         identity={habits.identity}
@@ -1863,6 +1870,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         chapterStatus={chapters.status}
         chapterId={chapters.active?.id || null}
       />
+      )}
 
       {/* Living World Phase 2 — chapter strip (read-only banner; flows live in modals) */}
       <ChapterStrip
