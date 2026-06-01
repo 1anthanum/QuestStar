@@ -44,12 +44,31 @@ const PALETTES = {
     orbs: ["rgba(231,200,166,0.10)", "rgba(225,184,155,0.10)", "rgba(216,180,155,0.08)"],
     glow: "rgba(225,184,155,0.18)",
   },
-  // 18–21 — dusk — warm peach → dusty rose
+  // 18–20 — dusk — warm peach → dusty rose
   dusk: {
     pageBg: "linear-gradient(135deg, #f7e0c8 0%, #efd6cf 50%, #ead2d8 100%)",
     headerBg: "linear-gradient(135deg, #efd6cf, #ead2d8)",
     orbs: ["rgba(216,180,170,0.12)", "rgba(206,162,170,0.10)", "rgba(196,162,178,0.08)"],
     glow: "rgba(206,162,170,0.20)",
+  },
+  // 20–21 — lateDusk — bridge from dusk's warm rose into night's deep
+  // indigo. User request 2026-05-31: "hour=20 时可以更进一步调整颜色
+  // 变化，您可以设定对于动态化颜色变化". Previously 20:00 sat in the
+  // same dusk palette as 18:00 / 19:00 so the page felt visually
+  // frozen for three hours. This band introduces cooler, deeper tones
+  // — a smudged mauve-violet washing toward indigo — so the eye sees
+  // continuous progression dusk → lateDusk → night across 18→20→22.
+  lateDusk: {
+    pageBg: "linear-gradient(160deg, #c3a8b6 0%, #8a7a96 45%, #5d5474 80%, #3a3858 100%)",
+    headerBg: "linear-gradient(135deg, #8a7a96, #5d5474)",
+    orbs: ["rgba(138,122,150,0.22)", "rgba(93,84,116,0.20)", "rgba(160,138,180,0.16)"],
+    glow: "rgba(160,138,180,0.26)",
+    // Mid-luminance backdrop — neither full day-mode text nor full
+    // night light text reads. Pick a softer near-white that holds
+    // contrast on the upper warm band AND the lower indigo band.
+    textStrong: "#f1ecf2",
+    textMuted: "#cdc4d6",
+    isDark: true,
   },
   // 21–5 — night — proper deep midnight (user round 7: \"再深一些
   // ...对比度有些差...这个颜色不太喜欢...渐变效果也不好\"). Going
@@ -105,7 +124,8 @@ export function timeOfDayKey(hour) {
   if (h < 11) return "morning";
   if (h < 15) return "midday";
   if (h < 18) return "afternoon";
-  if (h < 21) return "dusk";
+  if (h < 20) return "dusk";
+  if (h < 21) return "lateDusk";
   return "night";
 }
 
@@ -124,5 +144,6 @@ export const BANDS = [
   { key: "midday",    hour: 13, zh: "午间", en: "Midday" },
   { key: "afternoon", hour: 16, zh: "下午", en: "Afternoon" },
   { key: "dusk",      hour: 19, zh: "黄昏", en: "Dusk" },
+  { key: "lateDusk",  hour: 20, zh: "暮夜", en: "Late dusk" },
   { key: "night",     hour: 23, zh: "夜晚", en: "Night" },
 ];
