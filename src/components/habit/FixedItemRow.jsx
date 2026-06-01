@@ -75,35 +75,17 @@ export default function FixedItemRow({ item, done, completedAt = null, onToggle,
     setExpanded(false);
   };
 
-  // ── Completion-time annotation (on-time / delayed) ──
-  // Compare the moment the checkbox was tapped against the item's
-  // scheduled \`time\` field. Late by ≥10 min reads as 延迟; otherwise
-  // 按时. Shown only when we have BOTH a scheduled time and a stored
-  // completedAt (older entries pre-_fixedAt still display cleanly).
+  // ── Completion timestamp ──
+  // Per user request 2026-05-31: pause showing the "迟 N 分 / 按时"
+  // judgment labels until we redesign the surface. The chip now shows
+  // only the completion time stamp (tap still opens the time-edit
+  // input below). Tone is always neutral emerald.
   let completionAnnotation = null;
   if (done && completedAt) {
     const d = new Date(completedAt);
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
-    let delayMin = null;
-    if (time) {
-      const m = String(time).match(/(\d{1,2}):(\d{2})/);
-      if (m) {
-        const sched = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-        const actual = d.getHours() * 60 + d.getMinutes();
-        delayMin = actual - sched; // can be negative (early)
-      }
-    }
-    const late = delayMin != null && delayMin >= 10;
-    completionAnnotation = {
-      stamp: `${hh}:${mm}`,
-      label: delayMin == null
-        ? t("habit.fixed.completedAt")
-        : late
-        ? t("habit.fixed.delayedBy", { n: delayMin })
-        : t("habit.fixed.onTime"),
-      tone: late ? "late" : "ok",
-    };
+    completionAnnotation = { stamp: `${hh}:${mm}`, label: t("habit.fixed.completedAt"), tone: "ok" };
   }
 
   const dnd = useDraggable({

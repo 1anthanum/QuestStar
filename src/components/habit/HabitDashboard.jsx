@@ -451,21 +451,21 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── AI dual-plan auto-trigger ──
-  // Watch todayMeta.energy: when it transitions from null to set AND the
-  // user hasn't already seen / skipped the recommender today AND they
-  // have an AI key configured, open the recommender. Watching the meta
-  // (not a specific modal's onSave) means both submission paths trigger
-  // this — the EnergyQuickModal header tap AND the MorningPlanningModal
-  // sunrise ritual both write todayMeta.energy via different functions
-  // (habits.setEnergy vs habits.saveMorningPlan), and either suffices.
+  // ── AI dual-plan auto-trigger — once per day, on entry ──
+  // User asked for daily-entry-only behavior (was previously tied to
+  // energy submission). Ref guards against re-firing within the same
+  // dashboard mount; dualPlanShownDate on todayMeta guards across
+  // remounts within the same calendar day. Doesn't require energy —
+  // generateDualSchedule treats missing energy as "unknown" and
+  // produces sensible generic plans.
+  const dualPlanAutoShown = useRef(false);
   useEffect(() => {
+    if (dualPlanAutoShown.current) return;
     if (!ai?.hasApiKey) return;
-    if (!energy) return; // energy not yet submitted today
-    const todayStr = getTodayStr();
-    if (todayMeta.dualPlanShownDate === todayStr) return; // already shown
+    if (todayMeta.dualPlanShownDate === getTodayStr()) return;
+    dualPlanAutoShown.current = true;
     setShowDualPlan(true);
-  }, [energy, todayMeta.dualPlanShownDate, ai?.hasApiKey]);
+  }, [ai?.hasApiKey, todayMeta.dualPlanShownDate]);
 
   // ── Inline morning briefing (1-liner) — only for the empty-state edge where
   //    the full briefing modal doesn't show (no active habits) ──
