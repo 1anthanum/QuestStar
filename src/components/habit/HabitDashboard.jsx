@@ -451,6 +451,63 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Post-planning attention guide ──
+  // After the user completes the daily-planning ritual (either the
+  // sunrise MorningPlanningModal OR adopting a column from the AI dual-
+  // plan recommender), pulse a few key modules for ~10 seconds so the
+  // eye is gently drawn toward what to look at next. Mouse-entering any
+  // of the marked modules counts as "responded" and dismisses early.
+  //
+  // Targets (data-attention-target on the wrapping element):
+  //   identity   — your "我正在成为…" strip
+  //   sun        — corner mascot (today's arc)
+  //   now-block  — the time block matching the current hour
+  //
+  // dismiss writes attentionGuideShownDate to todayMeta so re-mounts or
+  // late re-renders don't re-trigger on the same day.
+  const attentionPrev = useRef({ morningPlanDone: undefined, dualPlanAdopted: undefined });
+  const [attentionActive, setAttentionActive] = useState(false);
+  useEffect(() => {
+    const cur = {
+      morningPlanDone: !!todayMeta.morningPlanDone,
+      dualPlanAdopted: !!todayMeta.dualPlanAdopted,
+    };
+    const prev = attentionPrev.current;
+    // First render: just record state without triggering — we only want
+    // to fire on an actual transition during this session.
+    if (prev.morningPlanDone === undefined && prev.dualPlanAdopted === undefined) {
+      attentionPrev.current = cur;
+      return;
+    }
+    const transitioned =
+      (!prev.morningPlanDone && cur.morningPlanDone) ||
+      (!prev.dualPlanAdopted && cur.dualPlanAdopted);
+    attentionPrev.current = cur;
+    if (!transitioned) return;
+    if (todayMeta.attentionGuideShownDate === getTodayStr()) return;
+    setAttentionActive(true);
+  }, [todayMeta.morningPlanDone, todayMeta.dualPlanAdopted, todayMeta.attentionGuideShownDate]);
+
+  useEffect(() => {
+    if (!attentionActive) return;
+    document.body.dataset.qtAttention = "1";
+    const dismiss = () => {
+      setAttentionActive(false);
+      if (document.body.dataset.qtAttention) delete document.body.dataset.qtAttention;
+      habits.setDayMeta?.({ attentionGuideShownDate: getTodayStr() });
+    };
+    const timeoutId = setTimeout(dismiss, 10000);
+    const onMouseOver = (e) => {
+      if (e.target?.closest?.("[data-attention-target]")) dismiss();
+    };
+    document.addEventListener("mouseover", onMouseOver);
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener("mouseover", onMouseOver);
+      if (document.body.dataset.qtAttention) delete document.body.dataset.qtAttention;
+    };
+  }, [attentionActive, habits]);
+
   // ── AI dual-plan auto-trigger — once per day, on entry ──
   // User asked for daily-entry-only behavior (was previously tied to
   // energy submission). Ref guards against re-firing within the same
@@ -616,6 +673,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
 
   const identityStrip = (
     <div
+      data-attention-target="identity"
       className="relative overflow-hidden rounded-3xl px-5 py-4"
       // M3 — card background follows the identity palette's surface
       // gradient (no longer hard-coded to the theme accent). The dotted
@@ -1200,8 +1258,14 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
 
       {/* Time blocks */}
       {schedule.map((block) => (
-        <TimeBlockSection
+        <div
           key={block.id}
+          // Attention guide marks the current block so a freshly-planned
+          // user's eye drops to "what to do NOW" right after the planning
+          // modal closes. Non-current blocks are not marked.
+          data-attention-target={block.id === currentBlockId ? "now-block" : undefined}
+        >
+        <TimeBlockSection
           block={{ ...block, fixedItems: fixedItemsBySlot[block.id] || [] }}
           fixedDone={fixedDone}
           fixedAt={fixedAt}
@@ -1217,6 +1281,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           studyQuests={studyQuests}
           onGoStudy={onGoStudy}
         />
+        </div>
       ))}
 
       {/* Layer summary */}
@@ -1235,7 +1300,11 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       {schedule.map((block) => {
         const state = blockStatus(block.id);
         return (
-          <div key={block.id} className="relative mb-2.5">
+          <div
+            key={block.id}
+            data-attention-target={block.id === currentBlockId ? "now-block" : undefined}
+            className="relative mb-2.5"
+          >
             {state === "now" && <span className="absolute -left-[24px] top-2 text-[10px] font-black" style={{ color: accent }}>▶</span>}
             <span
               className="absolute -left-[18px] top-2.5 w-3.5 h-3.5 rounded-full border-2"
