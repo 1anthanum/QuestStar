@@ -80,15 +80,53 @@ html[data-time-dark="true"] i {
 }
 
 /* ═══ Night-mode header polish ═══
-   At night, the sticky header read poorly: its translucent-white
-   surface looked smudged on the indigo backdrop, the pale stat-
-   pill backgrounds (theme.accentLight / orange-50 / emerald-50)
-   washed out into the dark, and the "Lv.3" / "37/250" / level
-   chip text dropped contrast. Lift everything one notch so the
-   header stays glanceable. */
+   User audit 2026-06-01: "顶部的设计太单调了" — the night header
+   read as a flat indigo stripe and the pale day-mode accentLight on
+   the level-title chip ("稳步前行者") washed into the dark backdrop.
+   Three fixes:
+     1) gradient surface (top-darker → bottom-lighter) gives the header
+        weight instead of being a uniform band
+     2) top hairline aurora accent → header feels lit from above, not
+        capped by a hard rule
+     3) level title chip uses color-mix(currentColor, transparent) so
+        the translucent accent tint follows whichever theme is active
+        (sage / amber / coral / teal / plum / blue all just work) */
 html[data-time-dark="true"] .glass-strong {
-  background: rgba(20, 25, 50, 0.70);
-  border-bottom-color: rgba(255, 255, 255, 0.10) !important;
+  background: linear-gradient(180deg, rgba(20, 25, 50, 0.82) 0%, rgba(28, 32, 60, 0.62) 100%);
+  border-bottom: 1px solid rgba(160, 138, 180, 0.22) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 8px 28px -10px rgba(8, 11, 34, 0.55);
+  position: relative;
+}
+/* Top aurora hairline — fades in from the sides so the header reads
+   as "lit from above" rather than abruptly capped. */
+html[data-time-dark="true"] .glass-strong::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 8%; right: 8%; height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(160, 138, 180, 0.45) 28%,
+    rgba(190, 168, 210, 0.65) 50%,
+    rgba(160, 138, 180, 0.45) 72%,
+    transparent 100%);
+  pointer-events: none;
+}
+/* Level title chip — "稳步前行者" / "Steady Strider" etc. The inline
+   style sets color: accent (the theme primary). color-mix produces a
+   translucent tint of THAT color regardless of which theme is active.
+   Modern browsers honor color-mix; older fall back to the plain rgba
+   white preceding line. */
+html[data-time-dark="true"] header span[style*="accentLight"] {
+  background: rgba(255, 255, 255, 0.10) !important;
+  background: color-mix(in srgb, currentColor 25%, transparent) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
+}
+/* Level circle outer glow ring — barely visible against dark; lift it. */
+html[data-time-dark="true"] header [data-guide="header-xp"] > div:first-child {
+  opacity: 0.85 !important;
+  filter: brightness(1.15) saturate(1.1);
 }
 /* Level-circle inner white → translucent slate so the "3" reads light */
 html[data-time-dark="true"] .glass-strong .bg-white {
