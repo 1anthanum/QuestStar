@@ -54,6 +54,28 @@ const P = {
   more: <path d="M5 12h.01M12 12h.01M19 12h.01" />,
   // drag handle — two vertical dot columns (·· ··)
   grip: <path d="M9 5h.01M9 12h.01M9 19h.01M15 5h.01M15 12h.01M15 19h.01" />,
+  // ── Header stat icons (replace ambient emoji per audit 2026-06-01) ──
+  // Each designed to read clearly at the 14px chip-size used in Header.jsx
+  // while inheriting stroke=currentColor so the icon matches whatever
+  // accent the surrounding pill already uses (theme/orange/emerald/violet).
+  //
+  // xpGem — RPG gem/diamond. Clearer than a generic lightning bolt at
+  // small size; conveys "accumulated, leveled, treasured" rather than
+  // "battery". Facet seams give depth without becoming visually noisy.
+  xpGem: <path d="M12 3l7 6-7 12-7-12zM5 9h14M9.5 9L12 21M14.5 9L12 21" />,
+  // streakFlame — clean asymmetric flame; the inner curve hints at the
+  // hottest core. Distinct from generic 🔥 emoji which renders very
+  // differently across OS / browser / font.
+  streakFlame: <path d="M12 21a5 5 0 005-5c0-3-2-4-3-7-.5 2-2 3-2 3 0-2-1-3-1-4-2 2-4 4-4 8a5 5 0 005 5zM11 16.5c0 1 .5 1.5 1 1.5s1-.5 1-1.5c0-.7-.5-1-1-2-.5 1-1 1.3-1 2z" />,
+  // doneCircle — check inside a hollow circle; immediately readable as
+  // "completed unit" instead of the ambiguous ✅ which can read as
+  // "approved" or "ticked off". Circle echoes the daily-progress ring
+  // visual language used elsewhere in the app.
+  doneCircle: <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0zM8 12l3 3 5-6" />,
+  // aiSparkle — two stylized sparkles, a large center + small offset
+  // companion. Reads as "magic / AI-generated" without resorting to
+  // the literal 🤖 which can feel cartoonish in a productivity context.
+  aiSparkle: <path d="M12 4l1.5 4.5L18 10l-4.5 1.5L12 16l-1.5-4.5L6 10l4.5-1.5zM19 14.5l.6 1.9 1.9.6-1.9.6-.6 1.9-.6-1.9-1.9-.6 1.9-.6z" />,
 };
 
 export default function Icon({ name, size = 18, color, strokeWidth = 2, className = "", style = {} }) {

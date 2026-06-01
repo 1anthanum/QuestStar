@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLanguage } from "../hooks/useLanguage";
+import Icon from "./Icon";
 
 /**
  * 现代化 Header
@@ -124,40 +125,41 @@ export default function Header({ levelInfo, xp, streak, completedSteps, statsDet
                 popover that documents what the number counts. Defaults
                 were tooltip-only which left new users guessing. */}
             <div className="flex items-center gap-1.5 shrink-0 relative">
-              {/* XP total */}
+              {/* XP total — gem icon inherits accent via currentColor */}
               <button
                 type="button"
                 onClick={() => setOpenStat((s) => (s === "xp" ? null : "xp"))}
                 className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 ${xpBump ? "scale-110" : ""}`}
-                style={{ background: theme?.accentLight || "#eef2ff" }}
+                style={{ background: theme?.accentLight || "#eef2ff", color: accent }}
                 aria-label={t("header.statTip.xp")}
+                title={t("header.statTip.xp")}
               >
-                <span className="text-xs">⚡</span>
-                <span className="text-sm font-black tabular-nums" style={{ color: accent }}>{displayXp}</span>
+                <Icon name="xpGem" size={13} strokeWidth={2} />
+                <span className="text-sm font-black tabular-nums">{displayXp}</span>
               </button>
 
-              {/* Streak */}
+              {/* Streak — flame icon picks up orange-500/orange-300 via parent class */}
               <button
                 type="button"
                 onClick={() => setOpenStat((s) => (s === "streak" ? null : "streak"))}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-orange-50/80 hover:scale-105 active:scale-95 transition-transform"
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-orange-50/80 hover:scale-105 active:scale-95 transition-transform ${streak === 0 ? "text-orange-300" : "text-orange-500"}`}
                 aria-label={t("header.statTip.streak")}
+                title={t("header.statTip.streak")}
               >
-                <span className={`text-xs${streak === 0 ? " dormant-flame" : ""}`}>🔥</span>
-                <span className={`text-sm font-black tabular-nums ${streak === 0 ? "text-orange-300" : "text-orange-500"}`}>{streak}</span>
+                <Icon name="streakFlame" size={13} strokeWidth={2} className={streak === 0 ? "dormant-flame" : ""} />
+                <span className="text-sm font-black tabular-nums">{streak}</span>
               </button>
 
-              {/* Done today — quest steps + habit completions today.
-                  Previously read `completedSteps` which was LIFETIME quest
-                  steps (audit 2026-05-31 flagged it as misleading). */}
+              {/* Done today — circle-check picks up emerald-500 via text color */}
               <button
                 type="button"
                 onClick={() => setOpenStat((s) => (s === "done" ? null : "done"))}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50/80 hover:scale-105 active:scale-95 transition-transform"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50/80 text-emerald-500 hover:scale-105 active:scale-95 transition-transform"
                 aria-label={t("header.statTip.done")}
+                title={t("header.statTip.done")}
               >
-                <span className="text-xs">✅</span>
-                <span className="text-sm font-black text-emerald-500 tabular-nums">
+                <Icon name="doneCircle" size={13} strokeWidth={2} />
+                <span className="text-sm font-black tabular-nums">
                   {statsDetail ? (statsDetail.todayQuestSteps + statsDetail.todayHabits) : completedSteps}
                 </span>
               </button>
@@ -190,14 +192,16 @@ export default function Header({ levelInfo, xp, streak, completedSteps, statsDet
                 </button>
               )}
 
-              {/* AI Copilot button */}
+              {/* AI Copilot — sparkle reads as "magic / AI" without the
+                  cartoonish 🤖 feel that wasn't matching the rest of
+                  the line-icon header set. */}
               {onOpenCopilot && (
                 <button
                   onClick={onOpenCopilot}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-violet-50/80 hover:bg-violet-100/80 transition-colors hover:scale-110 active:scale-90"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-violet-50/80 text-violet-500 hover:bg-violet-100/80 transition-colors hover:scale-110 active:scale-90"
                   title={t("copilot.title")}
                 >
-                  <span className="text-sm">🤖</span>
+                  <Icon name="aiSparkle" size={14} strokeWidth={2} />
                 </button>
               )}
 
@@ -291,7 +295,7 @@ function StatPopover({ which, onClose, xp, levelInfo, streak, lastActiveDate, to
       >
         {which === "xp" && (
           <>
-            <div className="text-[12.5px] font-black text-gray-800 mb-1.5">⚡ {t("header.statTip.xp")}</div>
+            <div className="text-[12.5px] font-black text-gray-800 mb-1.5 flex items-center gap-1.5" style={{ color: accent }}><Icon name="xpGem" size={14} />{t("header.statTip.xp")}</div>
             <div className="text-[11.5px] text-gray-600 leading-snug space-y-1.5">
               <p>{t("header.statTip.xpBody")}</p>
               <div className="rounded-lg p-2 bg-gray-50 text-[11px] space-y-0.5">
@@ -305,7 +309,7 @@ function StatPopover({ which, onClose, xp, levelInfo, streak, lastActiveDate, to
         )}
         {which === "streak" && (
           <>
-            <div className="text-[12.5px] font-black text-gray-800 mb-1.5">🔥 {t("header.statTip.streak")}</div>
+            <div className="text-[12.5px] font-black text-gray-800 mb-1.5 flex items-center gap-1.5 text-orange-500"><Icon name="streakFlame" size={14} />{t("header.statTip.streak")}</div>
             <div className="text-[11.5px] text-gray-600 leading-snug space-y-1.5">
               <p>{t("header.statTip.streakBody")}</p>
               <div className="rounded-lg p-2 bg-gray-50 text-[11px] space-y-0.5">
@@ -318,7 +322,7 @@ function StatPopover({ which, onClose, xp, levelInfo, streak, lastActiveDate, to
         )}
         {which === "done" && (
           <>
-            <div className="text-[12.5px] font-black text-gray-800 mb-1.5">✅ {t("header.statTip.done")}</div>
+            <div className="text-[12.5px] font-black text-gray-800 mb-1.5 flex items-center gap-1.5 text-emerald-500"><Icon name="doneCircle" size={14} />{t("header.statTip.done")}</div>
             <div className="text-[11.5px] text-gray-600 leading-snug space-y-1.5">
               <p>{t("header.statTip.doneBody")}</p>
               <div className="rounded-lg p-2 bg-gray-50 text-[11px] space-y-0.5">
