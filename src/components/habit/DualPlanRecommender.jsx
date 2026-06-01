@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "../../hooks/useLanguage";
-import { generateDualSchedule } from "../../utils/aiService";
+import { generateDualSchedule, extendAggressivePlan } from "../../utils/aiService";
+
+// How many aggressive tasks each "+ more" click requests.
+const AGGRESSIVE_EXTEND_STEP = 4;
 
 // ═══════════════════════════════════════════════════════════
 // DualPlanRecommender — three-column diff-style day plan picker
@@ -66,9 +69,41 @@ export default function DualPlanRecommender({
   const [error, setError] = useState("");
   const [plans, setPlans] = useState({ aggressive: null, progressive: null });
   const [adopting, setAdopting] = useState(null); // "aggressive" | "progressive" | null
+  // "+ N more" extension state for the aggressive column.
+  const [extending, setExtending] = useState(false);
+  const [extendError, setExtendError] = useState("");
 
   // Sorted view of the user's current schedule (left column).
   const currentSorted = useMemo(() => sortByTime(existingItems || []), [existingItems]);
+
+  // Ask AI for N additional aggressive tasks; append to the existing list.
+  const handleExtendAggressive = async () => {
+    if (extending) return;
+    const current = plans.aggressive?.tasks || [];
+    setExtending(true);
+    setExtendError("");
+    try {
+      const { tasks } = await extendAggressivePlan({
+        existingAggressive: current,
+        existingItems,
+        energy,
+        identity,
+        count: AGGRESSIVE_EXTEND_STEP,
+        provider: ai?.aiProvider,
+        model: ai?.aiModel,
+        apiKey: ai?.resolvedKey,
+        lang,
+      });
+      setPlans((p) => ({
+        ...p,
+        aggressive: { ...p.aggressive, tasks: [...current, ...tasks] },
+      }));
+    } catch (e) {
+      setExtendError(e?.message || String(e));
+    } finally {
+      setExtending(false);
+    }
+  };
 
   // Kick off the AI call once on mount.
   useEffect(() => {
@@ -202,6 +237,10 @@ export default function DualPlanRecommender({
                 disabled={!plans.aggressive || adopting != null}
                 accentClass="text-amber-600"
                 badgeBg="bg-amber-100"
+                onExtend={status === "ready" && plans.aggressive ? handleExtendAggressive : null}
+                extending={extending}
+                extendError={extendError}
+                extendStep={AGGRESSIVE_EXTEND_STEP}
               />
 
               {/* Column 3: Progressive */}
@@ -253,6 +292,10 @@ function PlanColumn({
   disabled,
   accentClass = "",
   badgeBg = "bg-gray-100",
+  onExtend = null,        // aggressive-only: AI-extend handler
+  extending = false,
+  extendError = "",
+  extendStep = 4,
 }) {
   const { t } = useLanguage();
   const accent = theme?.accent || "#6366f1";
@@ -294,6 +337,25 @@ function PlanColumn({
           <TaskRow key={i} task={task} isCurrent={isCurrent} />
         ))}
       </div>
+
+      {/* "+ N more" button — aggressive column only. Appends AI-generated
+          tasks to the current list without resetting the user's review. */}
+      {!isCurrent && onExtend && (
+        <div className="px-2 pt-1 pb-0.5">
+          <button
+            onClick={onExtend}
+            disabled={extending}
+            className="w-full py-1.5 text-[11px] font-bold rounded-lg border border-dashed border-amber-300 text-amber-700 bg-amber-50/50 hover:bg-amber-50 disabled:opacity-50 disabled:cursor-wait transition-colors"
+          >
+            {extending
+              ? t("dualPlan.extending")
+              : t("dualPlan.extendMore", { n: extendStep })}
+          </button>
+          {extendError && (
+            <p className="text-[10px] text-rose-500 mt-1 text-center px-1 break-words">{extendError}</p>
+          )}
+        </div>
+      )}
 
       {/* Adopt button (only for AI columns) */}
       {!isCurrent && (

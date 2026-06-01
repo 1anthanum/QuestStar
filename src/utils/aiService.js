@@ -532,6 +532,90 @@ Generate the two plans now. Remember: aggressive = exactly 8 tasks, progressive 
   };
 }
 
+// ── Aggressive plan extension ──
+// When the user wants MORE than the default 8 aggressive tasks. Given
+// the current aggressive list + existing schedule, ask AI for N more
+// tasks that don't duplicate either. Same task shape as
+// generateDualSchedule. Default extension: 4 tasks.
+const EXTEND_AGGRESSIVE_PROMPT = `You are a daily scheduler for someone with ADHD on a medication-adjustment period. They already have an AGGRESSIVE day-plan and want MORE tasks to push further.
+
+Generate N ADDITIONAL aggressive-tier tasks that:
+- DO NOT duplicate any task in the current aggressive list (provided)
+- DO NOT duplicate any item on their existing schedule (provided)
+- Stretch into new energy dimensions or time slots the current list under-covers
+- Stay aligned with the user's identity if provided
+- Use the same shape: { time, icon, label (≤18 chars), note (1 sentence), blockId (one of: morning_prep, upper_morning, noon, peak_cognitive, evening, sleep_prep) }
+
+Return strictly this JSON object with no other text:
+{
+  "tasks": [
+    { "time": "07:30", "icon": "🏃", "label": "...", "note": "...", "blockId": "morning_prep" }
+  ]
+}`;
+
+/**
+ * Generate N additional aggressive-tier tasks that extend an existing
+ * aggressive plan. Returns { tasks: [...] } where each task has the
+ * same shape as generateDualSchedule's task objects.
+ */
+export async function extendAggressivePlan({ existingAggressive, existingItems, energy, identity, count = 4, provider, model, apiKey, lang = "en" }) {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+
+  const langPart = lang === "zh"
+    ? "\n\nIMPORTANT: Write ALL labels and notes in Chinese (中文). Keep JSON field names, blockId values, and time/icon formats in English."
+    : "";
+
+  const energyText = energy
+    ? `physical=${energy.physical}/10, cognitive=${energy.cognitive}/10, emotional=${energy.emotional}/10, social=${energy.social}/10`
+    : "unknown";
+
+  const currentText = Array.isArray(existingAggressive) && existingAggressive.length > 0
+    ? existingAggressive.map((t) => `- ${t.time || "?"} ${t.icon || ""} ${t.label || ""}`).join("\n")
+    : "(none)";
+
+  const scheduledText = Array.isArray(existingItems) && existingItems.length > 0
+    ? existingItems.map((it) => `- ${it.time || "?"} ${it.label || it.text || ""}`).join("\n")
+    : "(none)";
+
+  const identityText = identity ? `"${identity}"` : "(not set)";
+
+  const userMessage = `Current local time is ${hh}:${mm}.
+Energy: ${energyText}
+Identity: ${identityText}
+
+Current aggressive plan (do NOT duplicate):
+${currentText}
+
+Existing scheduled items (do NOT duplicate):
+${scheduledText}${langPart}
+
+Generate EXACTLY ${count} more aggressive tasks.`;
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt: EXTEND_AGGRESSIVE_PROMPT,
+    messages: [{ role: "user", content: userMessage }],
+    maxTokens: 1500,
+  });
+
+  const raw = extractJsonObject(text);
+  const VALID_BLOCKS = new Set(["morning_prep", "upper_morning", "noon", "peak_cognitive", "evening", "sleep_prep"]);
+
+  const normalizeTask = (t) => ({
+    time: String(t.time || "").trim().slice(0, 16),
+    icon: String(t.icon || "✨").trim().slice(0, 4),
+    label: String(t.label || "").trim().slice(0, 40),
+    note: String(t.note || "").trim().slice(0, 160),
+    blockId: VALID_BLOCKS.has(t.blockId) ? t.blockId : "upper_morning",
+  });
+
+  const tasks = Array.isArray(raw?.tasks) ? raw.tasks.map(normalizeTask).filter((t) => t.label) : [];
+  if (tasks.length === 0) throw new Error("AI returned no usable tasks — please try again");
+  return { tasks };
+}
+
 /**
  * Summarize a file and extract actionable steps.
  */
