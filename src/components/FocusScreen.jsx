@@ -139,45 +139,48 @@ export default function FocusScreen({
         style={{ background: isDark ? "rgba(0,0,0,0.18)" : "rgba(255,255,255,0.22)" }}
       />
 
-      <div className="relative w-full max-w-xl px-8 py-10 text-center">
-        {/* ── Clock ── */}
-        <div className="font-mono font-black tracking-tight tabular-nums" style={{ fontSize: "5.5rem", lineHeight: 1, color: textStrong }}>
+      <div className="relative w-full max-w-3xl px-10 py-12 text-center">
+        {/* ── Clock — sized to read as a real lock-screen clock ── */}
+        <div
+          className="font-mono font-black tracking-tight tabular-nums"
+          style={{ fontSize: "clamp(7rem, 18vw, 12rem)", lineHeight: 0.95, color: textStrong }}
+        >
           {hh}:{mm}
         </div>
 
         {/* ── Date + band ── */}
-        <div className="mt-2 flex items-center justify-center gap-3 text-sm" style={{ color: textMuted }}>
+        <div className="mt-4 flex items-center justify-center gap-4 text-lg" style={{ color: textMuted }}>
           <span>{dowLabel} · {monthDay}</span>
           <span className="opacity-50">|</span>
           <span className="font-semibold">{bandLabel}</span>
         </div>
 
         {/* ── Next items ── */}
-        <div className="mt-10">
-          <div className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: textMuted }}>
+        <div className="mt-12">
+          <div className="text-[13px] font-bold uppercase tracking-[0.18em] mb-5" style={{ color: textMuted }}>
             {t("focus.next")}
           </div>
           {nextItems.length === 0 ? (
-            <p className="text-sm italic opacity-70">{t("focus.nothingNext")}</p>
+            <p className="text-lg italic opacity-70">{t("focus.nothingNext")}</p>
           ) : (
-            <ul className="space-y-2 max-w-md mx-auto">
+            <ul className="space-y-3 max-w-2xl mx-auto">
               {nextItems.map((it) => (
                 <li
                   key={it.id}
-                  className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+                  className="flex items-center gap-4 px-6 py-4 rounded-2xl"
                   style={{
                     background: isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.55)",
                     border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.06)"}`,
                   }}
                 >
-                  <span className="text-2xl shrink-0">{it.icon}</span>
-                  <span className="flex-1 text-left text-[14px] font-semibold truncate" style={{ color: textStrong }}>
+                  <span className="text-4xl shrink-0">{it.icon}</span>
+                  <span className="flex-1 text-left text-xl font-semibold truncate" style={{ color: textStrong }}>
                     {it.name}
                   </span>
                   <button
                     type="button"
                     onClick={onClose}
-                    className="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold transition-transform hover:scale-105 active:scale-95"
+                    className="shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-transform hover:scale-105 active:scale-95"
                     style={{
                       background: accent,
                       color: "#fff",
@@ -193,18 +196,18 @@ export default function FocusScreen({
 
         {/* ── Identity + streak ── */}
         {(identity || streak > 0) && (
-          <div className="mt-10 text-[12px]" style={{ color: textMuted }}>
+          <div className="mt-12 text-base" style={{ color: textMuted }}>
             {identity && (
               <>
                 <span className="italic opacity-70">{t("focus.identityPrefix")}</span>
                 <span className="ml-2 font-bold" style={{ color: textStrong }}>{identity}</span>
               </>
             )}
-            {identity && streak > 0 && <span className="mx-2 opacity-50">·</span>}
+            {identity && streak > 0 && <span className="mx-3 opacity-50">·</span>}
             {streak > 0 && (
-              <span className="inline-flex items-center gap-1">
-                <Icon name="streakFlame" size={12} strokeWidth={2} className="text-orange-400" />
-                <span className="font-bold">{streak}</span>
+              <span className="inline-flex items-center gap-1.5">
+                <Icon name="streakFlame" size={16} strokeWidth={2} className="text-orange-400" />
+                <span className="font-bold text-lg">{streak}</span>
                 <span className="opacity-70">{t("focus.streakSuffix")}</span>
               </span>
             )}
@@ -212,7 +215,7 @@ export default function FocusScreen({
         )}
 
         {/* ── Exit hint ── */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-[10.5px] opacity-50" style={{ color: textMuted }}>
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-xs opacity-50" style={{ color: textMuted }}>
           {t("focus.exitHint")}
         </div>
       </div>
