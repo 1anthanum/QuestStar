@@ -23,3 +23,6 @@ DEPENDENCIES.md
 E2E_COVERAGE.md
 INVENTORY.md
 ISSUES.md
+
+# Local-only notes / session-output docs (kept on disk, not on main branch)
+docs-local/
