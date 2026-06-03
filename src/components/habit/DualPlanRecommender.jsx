@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "../../hooks/useLanguage";
 import { generateDualSchedule, extendAggressivePlan } from "../../utils/aiService";
+import ArrangePlanModal from "./ArrangePlanModal";
 
 // How many aggressive tasks each "+ more" click requests.
 const AGGRESSIVE_EXTEND_STEP = 4;
@@ -58,6 +59,7 @@ export default function DualPlanRecommender({
   energy,
   identity,
   existingItems,
+  schedule,        // habits.schedule — forwarded to ArrangePlanModal for block labels
   ai,
   theme,
   onAdopt,
@@ -72,6 +74,59 @@ export default function DualPlanRecommender({
   // "+ N more" extension state for the aggressive column.
   const [extending, setExtending] = useState(false);
   const [extendError, setExtendError] = useState("");
+  // Per-task regenerate state: { which, idx } | null while a single task
+  // is being swapped out via AI. Spinner shows on that row only.
+  const [regenerating, setRegenerating] = useState(null);
+
+  // Remove ONE task from a column. Local-only; no AI call.
+  const handleDeleteTask = (which, idx) => {
+    setPlans((p) => {
+      const col = p[which];
+      if (!col) return p;
+      const tasks = col.tasks.filter((_, i) => i !== idx);
+      return { ...p, [which]: { ...col, tasks } };
+    });
+  };
+
+  // Replace ONE task with a fresh AI-generated alternative. Reuses
+  // extendAggressivePlan with count=1 and the OTHER tasks as context
+  // so the new one doesn't duplicate.
+  const handleRegenerateTask = async (which, idx) => {
+    if (regenerating) return;
+    setRegenerating({ which, idx });
+    try {
+      const col = plans[which];
+      if (!col) throw new Error("column missing");
+      // Context: the OTHER tasks in this column + the column's existing
+      // items so AI knows what to avoid.
+      const others = col.tasks.filter((_, i) => i !== idx);
+      const { tasks } = await extendAggressivePlan({
+        existingAggressive: others,
+        existingItems,
+        energy,
+        identity,
+        count: 1,
+        provider: ai?.aiProvider,
+        model: ai?.aiModel,
+        apiKey: ai?.resolvedKey,
+        lang,
+      });
+      const replacement = tasks[0];
+      if (!replacement) throw new Error("no replacement");
+      setPlans((p) => {
+        const colNow = p[which];
+        if (!colNow) return p;
+        const next = [...colNow.tasks];
+        next[idx] = replacement;
+        return { ...p, [which]: { ...colNow, tasks: next } };
+      });
+    } catch (e) {
+      // Surface as the column-level extend error so the user sees it.
+      setExtendError(e?.message || String(e));
+    } finally {
+      setRegenerating(null);
+    }
+  };
 
   // Sorted view of the user's current schedule (left column).
   const currentSorted = useMemo(() => sortByTime(existingItems || []), [existingItems]);
@@ -158,11 +213,24 @@ export default function DualPlanRecommender({
     })();
   };
 
+  // Adopting now opens the ArrangePlanModal first — the user decides
+  // whether AI keeps the per-task blockId assignments OR they drag
+  // each task to a specific block. The committed final list flows
+  // back to the parent via onAdopt.
+  const [arrangePending, setArrangePending] = useState(null); // null | { which, tasks }
+
   const handleAdopt = (which) => {
     const plan = plans[which];
     if (!plan || !Array.isArray(plan.tasks)) return;
+    setArrangePending({ which, tasks: plan.tasks });
+  };
+
+  const handleArrangeCommit = (finalTasks) => {
+    const which = arrangePending?.which;
+    setArrangePending(null);
+    if (!which) return;
     setAdopting(which);
-    onAdopt?.(which, plan.tasks);
+    onAdopt?.(which, finalTasks);
   };
 
   return (
@@ -229,7 +297,7 @@ export default function DualPlanRecommender({
                 kind="aggressive"
                 title={t("dualPlan.colAggressive")}
                 summary={plans.aggressive?.summary || t("dualPlan.aggressiveDefault")}
-                tasks={sortByTime(plans.aggressive?.tasks || [])}
+                tasks={plans.aggressive?.tasks || []}
                 theme={theme}
                 isLoading={status === "loading"}
                 onAdopt={() => handleAdopt("aggressive")}
@@ -241,6 +309,9 @@ export default function DualPlanRecommender({
                 extending={extending}
                 extendError={extendError}
                 extendStep={AGGRESSIVE_EXTEND_STEP}
+                onDeleteTask={(i) => handleDeleteTask("aggressive", i)}
+                onRegenerateTask={(i) => handleRegenerateTask("aggressive", i)}
+                regeneratingIdx={regenerating?.which === "aggressive" ? regenerating.idx : null}
               />
 
               {/* Column 3: Progressive */}
@@ -248,7 +319,7 @@ export default function DualPlanRecommender({
                 kind="progressive"
                 title={t("dualPlan.colProgressive")}
                 summary={plans.progressive?.summary || t("dualPlan.progressiveDefault")}
-                tasks={sortByTime(plans.progressive?.tasks || [])}
+                tasks={plans.progressive?.tasks || []}
                 theme={theme}
                 isLoading={status === "loading"}
                 onAdopt={() => handleAdopt("progressive")}
@@ -256,6 +327,9 @@ export default function DualPlanRecommender({
                 disabled={!plans.progressive || adopting != null}
                 accentClass="text-emerald-600"
                 badgeBg="bg-emerald-100"
+                onDeleteTask={(i) => handleDeleteTask("progressive", i)}
+                onRegenerateTask={(i) => handleRegenerateTask("progressive", i)}
+                regeneratingIdx={regenerating?.which === "progressive" ? regenerating.idx : null}
               />
             </div>
           )}
@@ -274,6 +348,19 @@ export default function DualPlanRecommender({
           </button>
         </div>
       </div>
+
+      {/* Post-adopt arrange step — opens on top of this modal */}
+      {arrangePending && (
+        <ArrangePlanModal
+          which={arrangePending.which}
+          tasks={arrangePending.tasks}
+          schedule={schedule}
+          theme={theme}
+          onCommit={handleArrangeCommit}
+          onBack={() => setArrangePending(null)}
+          onClose={() => setArrangePending(null)}
+        />
+      )}
     </div>
   );
 }
@@ -296,6 +383,9 @@ function PlanColumn({
   extending = false,
   extendError = "",
   extendStep = 4,
+  onDeleteTask = null,    // (idx) → remove this task from the column
+  onRegenerateTask = null,// (idx) → ask AI to swap one task
+  regeneratingIdx = null, // currently-regenerating row index in this column
 }) {
   const { t } = useLanguage();
   const accent = theme?.accent || "#6366f1";
@@ -334,7 +424,14 @@ function PlanColumn({
           </p>
         )}
         {!isLoading && tasks.map((task, i) => (
-          <TaskRow key={i} task={task} isCurrent={isCurrent} />
+          <TaskRow
+            key={i}
+            task={task}
+            isCurrent={isCurrent}
+            onDelete={onDeleteTask ? () => onDeleteTask(i) : null}
+            onRegenerate={onRegenerateTask ? () => onRegenerateTask(i) : null}
+            isRegenerating={regeneratingIdx === i}
+          />
         ))}
       </div>
 
@@ -375,12 +472,13 @@ function PlanColumn({
 }
 
 // ── One task line ──
-function TaskRow({ task, isCurrent }) {
+function TaskRow({ task, isCurrent, onDelete = null, onRegenerate = null, isRegenerating = false }) {
+  const showActions = !isCurrent && (onDelete || onRegenerate);
   return (
     <div
-      className={`flex items-start gap-2 rounded-xl p-2 ${
+      className={`group relative flex items-start gap-2 rounded-xl p-2 transition-opacity ${
         isCurrent ? "bg-white border border-gray-100" : "bg-emerald-50/40 border border-emerald-100"
-      }`}
+      } ${isRegenerating ? "opacity-50" : ""}`}
     >
       {!isCurrent && (
         <span className="text-emerald-600 text-[11px] font-black mt-0.5 leading-none">+</span>
@@ -397,6 +495,36 @@ function TaskRow({ task, isCurrent }) {
           <p className="text-[10.5px] text-gray-500 mt-0.5 leading-snug line-clamp-2">{task.note}</p>
         )}
       </div>
+      {showActions && (
+        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onRegenerate && (
+            <button
+              type="button"
+              onClick={onRegenerate}
+              disabled={isRegenerating}
+              className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-amber-600 hover:bg-amber-50 disabled:cursor-wait"
+              title="Regenerate"
+            >
+              {isRegenerating ? (
+                <span className="inline-block w-3 h-3 rounded-full border-[1.5px] border-amber-400 border-t-transparent animate-spin" />
+              ) : (
+                <span className="text-[10px]">🔄</span>
+              )}
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={isRegenerating}
+              className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40"
+              title="Delete"
+            >
+              <span className="text-xs">×</span>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -730,6 +730,24 @@ const translations = {
     "eveningArrival.summaryChecked": "checked",
     "eveningArrival.summaryAdded": "added",
 
+    // ── Arrange-plan modal (opens after adopt) ──
+    "arrangePlan.title": "Arrange this plan",
+    "arrangePlan.subtitle": "{n} tasks ready to be added to today.",
+    "arrangePlan.chooserBody": "How should each task be slotted into your day?",
+    "arrangePlan.aiTitle": "AI auto-arranges",
+    "arrangePlan.aiBody": "Use the time + block the AI already suggested for each task. Faster.",
+    "arrangePlan.manualTitle": "I'll drag them in",
+    "arrangePlan.manualBody": "Drop each task into the time block where it fits your day. More immersive.",
+    "arrangePlan.previewTitle": "Tasks to add",
+    "arrangePlan.aiReviewHint": "Here's where each task will land — review then commit.",
+    "arrangePlan.manualHint": "Drag any task from the tray into a time block. Anything still in the tray is dropped.",
+    "arrangePlan.unassigned": "Unassigned",
+    "arrangePlan.unassignedEmpty": "Drag tasks here to remove them",
+    "arrangePlan.dropHere": "Drop a task here",
+    "arrangePlan.back": "Back to plans",
+    "arrangePlan.backToChooser": "Back",
+    "arrangePlan.commit": "Add to today",
+
     // ── Accountability Pact ──
     "pact.title": "Accountability Pact",
     "pact.cardTitle": "Accountability Pact",
@@ -2528,6 +2546,24 @@ const translations = {
     "eveningArrival.skip": "跳过",
     "eveningArrival.summaryChecked": "项已勾选",
     "eveningArrival.summaryAdded": "项新加入",
+
+    // ── 排程模态（采纳后打开） ──
+    "arrangePlan.title": "把方案排进今天",
+    "arrangePlan.subtitle": "{n} 个任务待加入今日。",
+    "arrangePlan.chooserBody": "想让 AI 自动安排到时段，还是自己拖入？",
+    "arrangePlan.aiTitle": "AI 自动安排",
+    "arrangePlan.aiBody": "用 AI 给每条任务建议的时段和时间。更快。",
+    "arrangePlan.manualTitle": "我来拖",
+    "arrangePlan.manualBody": "把任务拖入合适的时段。代入感更强。",
+    "arrangePlan.previewTitle": "待加入的任务",
+    "arrangePlan.aiReviewHint": "每条任务的归属时段如下 — 看一眼再加入。",
+    "arrangePlan.manualHint": "把抽屉里的任务拖进任意时段。留在抽屉的会被丢弃。",
+    "arrangePlan.unassigned": "未分配",
+    "arrangePlan.unassignedEmpty": "拖任务到这里以丢弃",
+    "arrangePlan.dropHere": "拖任务到这里",
+    "arrangePlan.back": "返回方案",
+    "arrangePlan.backToChooser": "返回",
+    "arrangePlan.commit": "加入今天",
 
     // ── 承诺契约 ──
     "pact.title": "承诺契约",

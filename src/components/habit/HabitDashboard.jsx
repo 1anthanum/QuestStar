@@ -1846,6 +1846,7 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           energy={energy}
           identity={habits.identity || ""}
           existingItems={collectExistingItems(habits.schedule, todayMeta)}
+          schedule={habits.schedule}
           ai={ai}
           theme={theme}
           onAdopt={(which, tasks) => {
