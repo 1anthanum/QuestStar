@@ -1802,6 +1802,10 @@ const translations = {
     "dualPlan.adopting": "Adding…",
     "dualPlan.extendMore": "+ {n} more aggressive task(s)",
     "dualPlan.extending": "Generating more…",
+    "dualPlan.typeMotion": "Motion",
+    "dualPlan.typeCognition": "Cognition",
+    "dualPlan.typeRecovery": "Recovery",
+    "dualPlan.typeSocial": "Social",
 
     // ── Task chains — a surface task expanded into capabilities it trains ──
     "chain.section": "Task chains",
@@ -3619,6 +3623,10 @@ const translations = {
     "dualPlan.adopting": "添加中…",
     "dualPlan.extendMore": "+ 再来 {n} 条激进任务",
     "dualPlan.extending": "生成中…",
+    "dualPlan.typeMotion": "运动",
+    "dualPlan.typeCognition": "认知",
+    "dualPlan.typeRecovery": "恢复",
+    "dualPlan.typeSocial": "社交",
 
     // ── 任务链 — 一件小事拆解为它实际训练的多个维度 ──
     "chain.section": "任务链",

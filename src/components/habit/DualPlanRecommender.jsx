@@ -271,27 +271,29 @@ export default function DualPlanRecommender({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl flex flex-col max-h-[92vh]"
+        className="w-full max-w-5xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ── */}
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
-          <span className="text-xl">📋</span>
+        <div className="px-6 py-5 border-b border-[0.5px] border-slate-200 flex items-center gap-4">
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-black text-gray-800 truncate">{t("dualPlan.title")}</h3>
-            <p className="text-[11px] text-gray-500 mt-0.5">{t("dualPlan.subtitle")}</p>
+            <h3 className="text-[18px] font-medium text-slate-900 truncate">{t("dualPlan.title")}</h3>
+            <p className="text-[12px] text-slate-500 mt-1">{t("dualPlan.subtitle")}</p>
           </div>
           {status === "loading" && (
-            <span className="text-[11px] text-gray-400 flex items-center gap-1.5">
-              <span className="inline-block w-3 h-3 rounded-full border-2 border-gray-300 border-t-transparent animate-spin" />
+            <span className="text-[12px] text-slate-400 flex items-center gap-1.5">
+              <span className="inline-block w-3 h-3 rounded-full border-[1.5px] border-slate-300 border-t-transparent animate-spin" />
               {t("dualPlan.loading")}
             </span>
           )}
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500"
+            aria-label="Close"
           >
-            ✕
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
           </button>
         </div>
 
@@ -365,14 +367,21 @@ export default function DualPlanRecommender({
           )}
         </div>
 
-        {/* ── Footer ── */}
-        <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
-          <span className="text-[10.5px] text-gray-400">
+        {/* ── Legend (commit 4) + footer ── */}
+        <div className="px-6 py-3 border-t border-[0.5px] border-slate-200 flex items-center gap-4 flex-wrap">
+          {/* Type legend — explains the four dot colors. */}
+          <ul className="flex items-center gap-3 text-[12px] text-slate-500">
+            <LegendDot color={DOT_COLORS.motion} label={t("dualPlan.typeMotion")} />
+            <LegendDot color={DOT_COLORS.cognition} label={t("dualPlan.typeCognition")} />
+            <LegendDot color={DOT_COLORS.recovery} label={t("dualPlan.typeRecovery")} />
+            <LegendDot color={DOT_COLORS.social} label={t("dualPlan.typeSocial")} />
+          </ul>
+          <span className="hidden md:inline text-[11px] text-slate-400 truncate flex-1 min-w-0">
             {t("dualPlan.footerHint")}
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 text-[12px] font-bold rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200"
+            className="px-4 py-1.5 text-[12px] font-medium rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
           >
             {t("dualPlan.skip")}
           </button>
@@ -640,5 +649,21 @@ function TaskRow({ task, onDelete = null, onRegenerate = null, isRegenerating = 
         </div>
       )}
     </div>
+  );
+}
+
+// ── Legend dot ──
+// Single 6px dot + label pair. Inline so the type legend at the
+// footer reads as a single horizontal row of token + name pairs.
+function LegendDot({ color, label }) {
+  return (
+    <li className="flex items-center gap-1.5">
+      <span
+        className="inline-block rounded-full"
+        style={{ width: 6, height: 6, background: color }}
+        aria-hidden
+      />
+      <span>{label}</span>
+    </li>
   );
 }
