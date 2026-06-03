@@ -298,13 +298,12 @@ export default function DualPlanRecommender({
         {/* ── Three-column compare ── */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-4">
           {status === "error" && (
-            <div className="rounded-2xl bg-rose-50 border border-rose-200 p-4 text-center">
-              <p className="text-sm font-bold text-rose-700 mb-1">{t("dualPlan.errorTitle")}</p>
+            <div className="rounded-xl border border-[0.5px] border-rose-200 bg-rose-50/50 p-4 text-center">
+              <p className="text-[13px] font-medium text-rose-700 mb-1">{t("dualPlan.errorTitle")}</p>
               <p className="text-[12px] text-rose-600 mb-3 break-words">{error}</p>
               <button
                 onClick={retry}
-                className="px-4 py-2 text-[12px] font-bold rounded-xl text-white"
-                style={{ background: accent }}
+                className="px-4 py-2 text-[12px] font-medium rounded-lg bg-slate-900 text-white hover:bg-slate-800"
               >
                 {t("dualPlan.retry")}
               </button>
@@ -322,7 +321,10 @@ export default function DualPlanRecommender({
                 t={t}
               />
 
-              {/* Two AI plans — full-width, equal columns */}
+              {/* Two AI plans — full-width, equal columns. Aggressive is
+                  marked as recommended (2px primary border + a small
+                  pill); Progressive sits at the same default chrome
+                  level as everything else. */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <PlanColumn
                   kind="aggressive"
@@ -331,6 +333,8 @@ export default function DualPlanRecommender({
                   tasks={plans.aggressive?.tasks || []}
                   theme={theme}
                   isLoading={status === "loading"}
+                  isRecommended
+                  isPrimary
                   onAdopt={() => handleAdopt("aggressive")}
                   adopting={adopting === "aggressive"}
                   disabled={!plans.aggressive || adopting != null}
@@ -439,6 +443,13 @@ function CurrentDrawer({ expanded, onToggle, items, emptyText, t }) {
 }
 
 // ── Single AI column ──
+// Two flavors:
+//   - isRecommended → 2px primary-color border, "推荐" pill in header
+//   - default       → 0.5px slate border, no pill
+// Buttons:
+//   - isPrimary     → solid dark surface, white text (the single primary
+//                     CTA in the whole modal; only on the recommended col)
+//   - default       → transparent + 0.5px slate border (secondary)
 function PlanColumn({
   kind,
   title,
@@ -446,26 +457,45 @@ function PlanColumn({
   tasks,
   theme,
   isLoading,
+  isRecommended = false,
+  isPrimary = false,
   onAdopt,
   adopting,
   disabled,
-  onExtend = null,        // aggressive-only: AI-extend handler
+  onExtend = null,
   extending = false,
   extendError = "",
   extendStep = 4,
-  onDeleteTask = null,    // (idx) → remove this task from the column
-  onRegenerateTask = null,// (idx) → ask AI to swap one task
-  regeneratingIdx = null, // currently-regenerating row index in this column
+  onDeleteTask = null,
+  onRegenerateTask = null,
+  regeneratingIdx = null,
 }) {
   const { t } = useLanguage();
   const accent = theme?.accent || "#6366f1";
 
+  // Shell: recommended column gets a 2px primary border instead of the
+  // 0.5px slate one. Identical paddings so the layout stays aligned.
+  const shellStyle = isRecommended
+    ? { borderWidth: 2, borderStyle: "solid", borderColor: accent }
+    : undefined;
+  const shellClass = isRecommended
+    ? "rounded-xl bg-white flex flex-col min-h-[360px]"
+    : "rounded-xl border border-[0.5px] border-slate-200 bg-white flex flex-col min-h-[360px]";
+
   return (
-    <div className="rounded-xl border border-[0.5px] border-slate-200 bg-white flex flex-col min-h-[360px]">
+    <div className={shellClass} style={shellStyle}>
       {/* Column header */}
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-baseline gap-2">
           <span className="text-[15px] font-medium text-slate-800">{title}</span>
+          {isRecommended && (
+            <span
+              className="text-[11px] font-medium px-1.5 py-0.5 rounded-full leading-none capitalize"
+              style={{ background: `${accent}1f`, color: accent }}
+            >
+              {t("habit.recommended")}
+            </span>
+          )}
           <span className="ml-auto text-[12px] text-slate-400 tabular-nums">{tasks.length}</span>
         </div>
         {summary && (
@@ -500,7 +530,8 @@ function PlanColumn({
         ))}
       </div>
 
-      {/* "+ N more" button — aggressive column only */}
+      {/* "+ N more" button — aggressive column only. Neutral chrome:
+          dashed slate border + muted text. No accent color. */}
       {onExtend && (
         <div className="px-3 pb-2">
           <button
@@ -518,13 +549,18 @@ function PlanColumn({
         </div>
       )}
 
-      {/* Adopt button */}
+      {/* Adopt button — primary (solid dark) on the recommended column,
+          secondary (transparent + slate border) elsewhere. */}
       <div className="px-3 pb-3 pt-1">
         <button
           onClick={onAdopt}
           disabled={disabled}
-          className="w-full text-[13px] font-medium text-white rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          style={{ height: 38, background: theme?.btnGrad || accent }}
+          className={
+            isPrimary
+              ? "w-full text-[13px] font-medium rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors bg-slate-900 text-white hover:bg-slate-800"
+              : "w-full text-[13px] font-medium rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors bg-white text-slate-700 border border-[0.5px] border-slate-300 hover:bg-slate-50"
+          }
+          style={{ height: 38 }}
         >
           {adopting ? t("dualPlan.adopting") : t("dualPlan.adopt")}
         </button>
