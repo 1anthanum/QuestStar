@@ -711,6 +711,25 @@ const translations = {
     "focus.identityPrefix": "you're becoming",
     "focus.streakSuffix": "day streak",
 
+    // ── Evening arrival modal — fires when user first opens after 17:00 ──
+    "eveningArrival.title": "Long time no see — should've been a good day?",
+    "eveningArrival.subtitle": "Auto-checked everything that was on your schedule earlier. Untick anything you didn't actually do, and add a few more if you like.",
+    "eveningArrival.autoCheckedTitle": "Today's schedule",
+    "eveningArrival.autoCheckedHint": "Anything in a past time block is auto-checked. Tap to untick what you didn't do.",
+    "eveningArrival.addMoreTitle": "Add a little more?",
+    "eveningArrival.tabPast": "From past days",
+    "eveningArrival.tabAi": "AI suggestions",
+    "eveningArrival.pastEmpty": "No recent repeats to pull from yet.",
+    "eveningArrival.pastDays": "{n}d",
+    "eveningArrival.noAiKey": "Add an AI key in Settings to generate suggestions.",
+    "eveningArrival.aiGenerate": "Generate 10–20 suggestions",
+    "eveningArrival.aiRegenerate": "Regenerate",
+    "eveningArrival.fromPastDays": "From past days",
+    "eveningArrival.save": "Save tonight's check-in",
+    "eveningArrival.skip": "Skip",
+    "eveningArrival.summaryChecked": "checked",
+    "eveningArrival.summaryAdded": "added",
+
     // ── Accountability Pact ──
     "pact.title": "Accountability Pact",
     "pact.cardTitle": "Accountability Pact",
@@ -2490,6 +2509,25 @@ const translations = {
     "focus.start": "开始",
     "focus.identityPrefix": "你正在成为",
     "focus.streakSuffix": "天连续",
+
+    // ── 晚间到达模态 — 17:00 后首次打开且当天无活动时触发 ──
+    "eveningArrival.title": "好久不见，今天应该很不错？",
+    "eveningArrival.subtitle": "已经帮你把今天之前时段里的安排都自动补签了。取消那些其实没做的，再加点想做的事。",
+    "eveningArrival.autoCheckedTitle": "今天的日程",
+    "eveningArrival.autoCheckedHint": "已经过去的时段默认勾选了。点一下取消那些没做的。",
+    "eveningArrival.addMoreTitle": "想再加点什么吗？",
+    "eveningArrival.tabPast": "前几天做过",
+    "eveningArrival.tabAi": "AI 建议",
+    "eveningArrival.pastEmpty": "暂时没有可以参考的最近重复项。",
+    "eveningArrival.pastDays": "{n} 天",
+    "eveningArrival.noAiKey": "在设置里加 AI key 后可以生成建议。",
+    "eveningArrival.aiGenerate": "生成 10–20 条建议",
+    "eveningArrival.aiRegenerate": "重新生成",
+    "eveningArrival.fromPastDays": "从过去几天补",
+    "eveningArrival.save": "保存今晚的清单",
+    "eveningArrival.skip": "跳过",
+    "eveningArrival.summaryChecked": "项已勾选",
+    "eveningArrival.summaryAdded": "项新加入",
 
     // ── 承诺契约 ──
     "pact.title": "承诺契约",

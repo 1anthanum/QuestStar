@@ -53,6 +53,7 @@ import MiniTrackerModal from "./MiniTrackerModal";
 import EnergyAssessment from "./EnergyAssessment";
 import DualPlanRecommender, { collectExistingItems } from "./DualPlanRecommender";
 import TomorrowPlanModal from "./TomorrowPlanModal";
+import EveningArrivalModal from "./EveningArrivalModal";
 import InlineChat from "./InlineChat";
 import Icon from "../Icon";
 import ProgressRing from "../ProgressRing";
@@ -86,6 +87,13 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
   // Tomorrow-planning modal — opened from the weekly-rhythm row's right
   // button. Closed via its own onClose / onSave.
   const [showTomorrowPlan, setShowTomorrowPlan] = useState(false);
+
+  // Evening "long time no see" arrival modal — auto-opens on the first
+  // dashboard mount of the day if it's past 17:00 AND the user clearly
+  // hasn't been active earlier (no morning plan + no energy + no habit
+  // completions yet). Stamped to todayMeta so the trigger fires once.
+  const [showEveningArrival, setShowEveningArrival] = useState(false);
+  const eveningArrivalChecked = useRef(false);
 
   // ── AI dual-plan recommender ──
   // Auto-opens once per day after the user submits their energy assessment
@@ -517,6 +525,31 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
       if (document.body.dataset.qtAttention) delete document.body.dataset.qtAttention;
     };
   }, [attentionActive, habits]);
+
+  // ── Evening arrival check — first mount of the day ──
+  // Fires once per HabitDashboard mount. Conditions:
+  //   - now >= 17:00
+  //   - todayMeta.eveningArrivalShown !== today
+  //   - todayMeta.morningPlanDone is falsy (didn't do the morning ritual)
+  //   - todayMeta.energy is falsy (didn't submit energy)
+  //   - habitLog[today] has no non-meta entries (no completions yet)
+  // If everything matches → open the modal. The modal stamps the flag
+  // on save/skip so re-mounts within the same day don't re-trigger.
+  useEffect(() => {
+    if (eveningArrivalChecked.current) return;
+    eveningArrivalChecked.current = true;
+    const hour = new Date().getHours();
+    if (hour < 17) return;
+    const t = getTodayStr();
+    if (todayMeta.eveningArrivalShown === t) return;
+    if (todayMeta.morningPlanDone) return;
+    if (todayMeta.energy) return;
+    const todayLog = habits.habitLog?.[t] || {};
+    const hasActivity = Object.keys(todayLog).some((k) => !k.startsWith("_"));
+    if (hasActivity) return;
+    setShowEveningArrival(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── AI dual-plan auto-trigger — once per day, on entry ──
   // User asked for daily-entry-only behavior (was previously tied to
@@ -1778,6 +1811,17 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
           onSave={(e) => { habits.setEnergy(e); setShowEnergy(false); }}
           onClose={() => setShowEnergy(false)}
           theme={theme}
+        />
+      )}
+
+      {/* Evening arrival modal — auto-pops when first dashboard mount of
+          the day happens after 17:00 with no earlier activity. */}
+      {showEveningArrival && (
+        <EveningArrivalModal
+          habits={habits}
+          ai={ai}
+          theme={theme}
+          onClose={() => setShowEveningArrival(false)}
         />
       )}
 
