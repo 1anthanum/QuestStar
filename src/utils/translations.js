@@ -1806,6 +1806,7 @@ const translations = {
     "dualPlan.typeCognition": "Cognition",
     "dualPlan.typeRecovery": "Recovery",
     "dualPlan.typeSocial": "Social",
+    "dualPlan.reopen": "AI plans",
 
     // ── Task chains — a surface task expanded into capabilities it trains ──
     "chain.section": "Task chains",
@@ -3627,6 +3628,7 @@ const translations = {
     "dualPlan.typeCognition": "认知",
     "dualPlan.typeRecovery": "恢复",
     "dualPlan.typeSocial": "社交",
+    "dualPlan.reopen": "AI 方案",
 
     // ── 任务链 — 一件小事拆解为它实际训练的多个维度 ──
     "chain.section": "任务链",

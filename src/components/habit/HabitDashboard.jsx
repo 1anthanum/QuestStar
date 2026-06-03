@@ -1839,6 +1839,28 @@ export default function HabitDashboard({ habits, theme, copilot, ai, studyQuests
         );
       })()}
 
+      {/* Re-open button for the dual-plan modal — appears in the top-
+          right corner ONLY when the modal was shown earlier today and
+          the user dismissed it without adopting (i.e. they "skipped").
+          Once they adopt OR the day flips, this button disappears. */}
+      {ai?.hasApiKey
+        && !showDualPlan
+        && todayMeta.dualPlanShownDate === getTodayStr()
+        && !todayMeta.dualPlanAdopted && (
+        <button
+          type="button"
+          onClick={() => setShowDualPlan(true)}
+          className="fixed top-20 right-4 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-[0.5px] border-slate-200 shadow-sm text-[12px] font-medium text-slate-700 hover:bg-slate-50 hover:shadow transition-all animate-fade-in"
+          aria-label={t("dualPlan.reopen")}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+          </svg>
+          <span>{t("dualPlan.reopen")}</span>
+        </button>
+      )}
+
       {/* AI dual-plan recommender — three-column diff comparing today's
           existing items vs aggressive (8) vs progressive (3) AI plans. */}
       {showDualPlan && (
