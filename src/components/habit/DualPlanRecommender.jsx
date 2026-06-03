@@ -100,6 +100,9 @@ export default function DualPlanRecommender({
   const [error, setError] = useState("");
   const [plans, setPlans] = useState({ aggressive: null, progressive: null });
   const [adopting, setAdopting] = useState(null); // "aggressive" | "progressive" | null
+  // Restyle (2026-06-03): "Current" column is now a collapsed drawer
+  // at the top of the body so the two AI plans get full width.
+  const [currentExpanded, setCurrentExpanded] = useState(false);
   // "+ N more" extension state for the aggressive column.
   const [extending, setExtending] = useState(false);
   const [extendError, setExtendError] = useState("");
@@ -309,57 +312,51 @@ export default function DualPlanRecommender({
           )}
 
           {status !== "error" && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* Column 1: Current */}
-              <PlanColumn
-                kind="current"
-                title={t("dualPlan.colCurrent")}
-                summary={t("dualPlan.colCurrentSub", { n: currentSorted.length })}
-                tasks={currentSorted}
-                theme={theme}
-                isLoading={false}
+            <div className="space-y-4">
+              {/* Current schedule — collapsed reference at the top */}
+              <CurrentDrawer
+                expanded={currentExpanded}
+                onToggle={() => setCurrentExpanded((e) => !e)}
+                items={currentSorted}
                 emptyText={t("dualPlan.emptyCurrent")}
+                t={t}
               />
 
-              {/* Column 2: Aggressive */}
-              <PlanColumn
-                kind="aggressive"
-                title={t("dualPlan.colAggressive")}
-                summary={plans.aggressive?.summary || t("dualPlan.aggressiveDefault")}
-                tasks={plans.aggressive?.tasks || []}
-                theme={theme}
-                isLoading={status === "loading"}
-                onAdopt={() => handleAdopt("aggressive")}
-                adopting={adopting === "aggressive"}
-                disabled={!plans.aggressive || adopting != null}
-                accentClass="text-amber-600"
-                badgeBg="bg-amber-100"
-                onExtend={status === "ready" && plans.aggressive ? handleExtendAggressive : null}
-                extending={extending}
-                extendError={extendError}
-                extendStep={AGGRESSIVE_EXTEND_STEP}
-                onDeleteTask={(i) => handleDeleteTask("aggressive", i)}
-                onRegenerateTask={(i) => handleRegenerateTask("aggressive", i)}
-                regeneratingIdx={regenerating?.which === "aggressive" ? regenerating.idx : null}
-              />
-
-              {/* Column 3: Progressive */}
-              <PlanColumn
-                kind="progressive"
-                title={t("dualPlan.colProgressive")}
-                summary={plans.progressive?.summary || t("dualPlan.progressiveDefault")}
-                tasks={plans.progressive?.tasks || []}
-                theme={theme}
-                isLoading={status === "loading"}
-                onAdopt={() => handleAdopt("progressive")}
-                adopting={adopting === "progressive"}
-                disabled={!plans.progressive || adopting != null}
-                accentClass="text-emerald-600"
-                badgeBg="bg-emerald-100"
-                onDeleteTask={(i) => handleDeleteTask("progressive", i)}
-                onRegenerateTask={(i) => handleRegenerateTask("progressive", i)}
-                regeneratingIdx={regenerating?.which === "progressive" ? regenerating.idx : null}
-              />
+              {/* Two AI plans — full-width, equal columns */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <PlanColumn
+                  kind="aggressive"
+                  title={t("dualPlan.colAggressive")}
+                  summary={plans.aggressive?.summary || t("dualPlan.aggressiveDefault")}
+                  tasks={plans.aggressive?.tasks || []}
+                  theme={theme}
+                  isLoading={status === "loading"}
+                  onAdopt={() => handleAdopt("aggressive")}
+                  adopting={adopting === "aggressive"}
+                  disabled={!plans.aggressive || adopting != null}
+                  onExtend={status === "ready" && plans.aggressive ? handleExtendAggressive : null}
+                  extending={extending}
+                  extendError={extendError}
+                  extendStep={AGGRESSIVE_EXTEND_STEP}
+                  onDeleteTask={(i) => handleDeleteTask("aggressive", i)}
+                  onRegenerateTask={(i) => handleRegenerateTask("aggressive", i)}
+                  regeneratingIdx={regenerating?.which === "aggressive" ? regenerating.idx : null}
+                />
+                <PlanColumn
+                  kind="progressive"
+                  title={t("dualPlan.colProgressive")}
+                  summary={plans.progressive?.summary || t("dualPlan.progressiveDefault")}
+                  tasks={plans.progressive?.tasks || []}
+                  theme={theme}
+                  isLoading={status === "loading"}
+                  onAdopt={() => handleAdopt("progressive")}
+                  adopting={adopting === "progressive"}
+                  disabled={!plans.progressive || adopting != null}
+                  onDeleteTask={(i) => handleDeleteTask("progressive", i)}
+                  onRegenerateTask={(i) => handleRegenerateTask("progressive", i)}
+                  regeneratingIdx={regenerating?.which === "progressive" ? regenerating.idx : null}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -394,7 +391,54 @@ export default function DualPlanRecommender({
   );
 }
 
-// ── Single column ──
+// ── Current schedule drawer ──
+// Collapsed by default — shows just "{label} · {n} 项 ▾". Click to
+// expand into a flat 2-col list of the user's existing items. Keeps
+// the reference info accessible without competing with the AI plans
+// for visual weight.
+function CurrentDrawer({ expanded, onToggle, items, emptyText, t }) {
+  const count = items.length;
+  return (
+    <div className="rounded-xl border border-[0.5px] border-slate-200 bg-white overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 transition-colors"
+      >
+        <span className="flex items-baseline gap-2">
+          <span className="text-[13px] font-medium text-slate-700">{t("dualPlan.colCurrent")}</span>
+          <span className="text-[12px] text-slate-400">· {t("dualPlan.colCurrentSub", { n: count })}</span>
+        </span>
+        <span
+          className="text-slate-400 text-[10px] transition-transform"
+          style={{ transform: expanded ? "rotate(180deg)" : "none" }}
+        >
+          ▾
+        </span>
+      </button>
+      {expanded && (
+        <div className="px-3 pb-3 pt-1 border-t border-[0.5px] border-slate-100">
+          {count === 0 ? (
+            <p className="text-[12px] text-slate-400 italic text-center py-3">{emptyText}</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+              {items.map((it, i) => (
+                <div key={i} className="flex items-baseline gap-2 text-[12px] text-slate-600 py-0.5">
+                  {it.time && (
+                    <span className="text-[11px] text-slate-400 tabular-nums w-12 shrink-0">{it.time}</span>
+                  )}
+                  <span className="truncate">{it.label || "—"}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Single AI column ──
 function PlanColumn({
   kind,
   title,
@@ -402,12 +446,9 @@ function PlanColumn({
   tasks,
   theme,
   isLoading,
-  emptyText,
   onAdopt,
   adopting,
   disabled,
-  accentClass = "",
-  badgeBg = "bg-gray-100",
   onExtend = null,        // aggressive-only: AI-extend handler
   extending = false,
   extendError = "",
@@ -418,45 +459,40 @@ function PlanColumn({
 }) {
   const { t } = useLanguage();
   const accent = theme?.accent || "#6366f1";
-  const isCurrent = kind === "current";
 
   return (
-    <div
-      className={`rounded-2xl border ${isCurrent ? "border-gray-200 bg-gray-50/60" : "border-gray-200 bg-white"} flex flex-col min-h-[300px]`}
-    >
+    <div className="rounded-xl border border-[0.5px] border-slate-200 bg-white flex flex-col min-h-[360px]">
       {/* Column header */}
-      <div className="px-3 pt-3 pb-2 border-b border-gray-100">
-        <div className="flex items-center gap-1.5">
-          {!isCurrent && <span className="text-emerald-600 font-black text-sm leading-none">+</span>}
-          <span className={`text-[13px] font-black ${accentClass}`}>{title}</span>
-          <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-md ${badgeBg} text-gray-600`}>
-            {tasks.length}
-          </span>
+      <div className="px-4 pt-4 pb-3">
+        <div className="flex items-baseline gap-2">
+          <span className="text-[15px] font-medium text-slate-800">{title}</span>
+          <span className="ml-auto text-[12px] text-slate-400 tabular-nums">{tasks.length}</span>
         </div>
-        <p className="text-[10.5px] text-gray-500 mt-0.5 truncate" title={summary}>
-          {summary || "—"}
-        </p>
+        {summary && (
+          <p className="text-[12px] text-slate-500 mt-1 truncate" title={summary}>
+            {summary}
+          </p>
+        )}
       </div>
 
       {/* Task list */}
-      <div className="flex-1 p-2 space-y-1.5 overflow-y-auto max-h-[55vh]">
+      <div className="flex-1 px-3 pb-3 space-y-2 overflow-y-auto max-h-[55vh]">
         {isLoading && (
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {Array.from({ length: kind === "aggressive" ? 6 : 3 }).map((_, i) => (
-              <div key={i} className="h-12 rounded-xl bg-gray-100 animate-pulse" />
+              <div key={i} className="h-14 rounded-xl bg-slate-50 animate-pulse" />
             ))}
           </div>
         )}
         {!isLoading && tasks.length === 0 && (
-          <p className="text-[11px] text-gray-400 italic text-center pt-6">
-            {emptyText || t("dualPlan.emptyPlan")}
+          <p className="text-[12px] text-slate-400 italic text-center pt-6">
+            {t("dualPlan.emptyPlan")}
           </p>
         )}
         {!isLoading && tasks.map((task, i) => (
           <TaskRow
             key={i}
             task={task}
-            isCurrent={isCurrent}
             onDelete={onDeleteTask ? () => onDeleteTask(i) : null}
             onRegenerate={onRegenerateTask ? () => onRegenerateTask(i) : null}
             isRegenerating={regeneratingIdx === i}
@@ -464,64 +500,68 @@ function PlanColumn({
         ))}
       </div>
 
-      {/* "+ N more" button — aggressive column only. Appends AI-generated
-          tasks to the current list without resetting the user's review. */}
-      {!isCurrent && onExtend && (
-        <div className="px-2 pt-1 pb-0.5">
+      {/* "+ N more" button — aggressive column only */}
+      {onExtend && (
+        <div className="px-3 pb-2">
           <button
             onClick={onExtend}
             disabled={extending}
-            className="w-full py-1.5 text-[11px] font-bold rounded-lg border border-dashed border-amber-300 text-amber-700 bg-amber-50/50 hover:bg-amber-50 disabled:opacity-50 disabled:cursor-wait transition-colors"
+            className="w-full py-2 text-[12px] font-medium rounded-lg border border-dashed border-slate-300 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-wait transition-colors"
           >
             {extending
               ? t("dualPlan.extending")
               : t("dualPlan.extendMore", { n: extendStep })}
           </button>
           {extendError && (
-            <p className="text-[10px] text-rose-500 mt-1 text-center px-1 break-words">{extendError}</p>
+            <p className="text-[11px] text-rose-500 mt-1 text-center px-1 break-words">{extendError}</p>
           )}
         </div>
       )}
 
-      {/* Adopt button (only for AI columns) */}
-      {!isCurrent && (
-        <div className="p-2 border-t border-gray-100">
-          <button
-            onClick={onAdopt}
-            disabled={disabled}
-            className="w-full py-2 text-[12px] font-black text-white rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: theme?.btnGrad || accent }}
-          >
-            {adopting ? t("dualPlan.adopting") : t("dualPlan.adopt")}
-          </button>
-        </div>
-      )}
+      {/* Adopt button */}
+      <div className="px-3 pb-3 pt-1">
+        <button
+          onClick={onAdopt}
+          disabled={disabled}
+          className="w-full text-[13px] font-medium text-white rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          style={{ height: 38, background: theme?.btnGrad || accent }}
+        >
+          {adopting ? t("dualPlan.adopting") : t("dualPlan.adopt")}
+        </button>
+      </div>
     </div>
   );
 }
 
 // ── One task line ──
-function TaskRow({ task, isCurrent, onDelete = null, onRegenerate = null, isRegenerating = false }) {
-  const showActions = !isCurrent && (onDelete || onRegenerate);
+// Plain white surface + 0.5px slate border. A 6px color dot in the
+// gutter encodes the task type (motion / cognition / recovery /
+// social) — the colored dot replaces the AI-emitted emoji icon.
+function TaskRow({ task, onDelete = null, onRegenerate = null, isRegenerating = false }) {
+  const showActions = onDelete || onRegenerate;
+  const type = iconToType(task.icon);
+  const dot = DOT_COLORS[type] || DOT_COLORS.neutral;
   return (
     <div
-      className={`group relative flex items-start gap-2 rounded-xl p-2 transition-opacity ${
-        isCurrent ? "bg-white border border-gray-100" : "bg-emerald-50/40 border border-emerald-100"
-      } ${isRegenerating ? "opacity-50" : ""}`}
+      className={`group relative flex items-start gap-2.5 rounded-xl px-3 py-2.5 bg-white border border-[0.5px] border-slate-200 transition-opacity ${
+        isRegenerating ? "opacity-50" : ""
+      }`}
     >
-      {!isCurrent && (
-        <span className="text-emerald-600 text-[11px] font-black mt-0.5 leading-none">+</span>
-      )}
-      <span className="text-base leading-none mt-0.5">{task.icon || (isCurrent ? "·" : "✨")}</span>
+      {/* Type dot */}
+      <span
+        className="inline-block rounded-full shrink-0 mt-[7px]"
+        style={{ width: 6, height: 6, background: dot }}
+        aria-hidden
+      />
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-baseline gap-2">
           {task.time && (
-            <span className="text-[10px] font-bold text-gray-500 tabular-nums">{task.time}</span>
+            <span className="text-[13px] font-medium text-slate-500 tabular-nums">{task.time}</span>
           )}
-          <span className="text-[12px] font-bold text-gray-800 truncate">{task.label}</span>
+          <span className="text-[13px] font-medium text-slate-800 truncate">{task.label}</span>
         </div>
         {task.note && (
-          <p className="text-[10.5px] text-gray-500 mt-0.5 leading-snug line-clamp-2">{task.note}</p>
+          <p className="text-[12px] text-slate-500 mt-1 leading-snug line-clamp-2">{task.note}</p>
         )}
       </div>
       {showActions && (
@@ -531,13 +571,19 @@ function TaskRow({ task, isCurrent, onDelete = null, onRegenerate = null, isRege
               type="button"
               onClick={onRegenerate}
               disabled={isRegenerating}
-              className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-amber-600 hover:bg-amber-50 disabled:cursor-wait"
+              className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:cursor-wait"
               title="Regenerate"
+              aria-label="Regenerate"
             >
               {isRegenerating ? (
-                <span className="inline-block w-3 h-3 rounded-full border-[1.5px] border-amber-400 border-t-transparent animate-spin" />
+                <span className="inline-block w-3 h-3 rounded-full border-[1.5px] border-slate-400 border-t-transparent animate-spin" />
               ) : (
-                <span className="text-[10px]">🔄</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                  <path d="M16 21h5v-5" />
+                </svg>
               )}
             </button>
           )}
@@ -546,10 +592,13 @@ function TaskRow({ task, isCurrent, onDelete = null, onRegenerate = null, isRege
               type="button"
               onClick={onDelete}
               disabled={isRegenerating}
-              className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40"
+              className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-40"
               title="Delete"
+              aria-label="Delete"
             >
-              <span className="text-xs">×</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
             </button>
           )}
         </div>
