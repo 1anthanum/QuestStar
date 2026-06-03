@@ -28,6 +28,35 @@ const BLOCK_LABEL_KEY = {
   sleep_prep: "habit.block.sleep_prep",
 };
 
+// ── Design tokens for the visual restyle (2026-06-03) ──
+// Four task-type dots replace the per-row emoji icons. Colors are
+// muted so they read as semantic tags rather than decoration.
+const DOT_COLORS = {
+  motion:    "#1D9E75", // 运动
+  cognition: "#534AB7", // 认知
+  recovery:  "#378ADD", // 恢复
+  social:    "#D85A30", // 社交
+  neutral:   "#94a3b8", // fallback
+};
+
+// Pure-visual helper: infer a type from the AI-emitted icon emoji.
+// The underlying task data still carries .icon — we never overwrite
+// it; this function ONLY drives the dot color in the new UI. Add
+// emojis to the buckets as the AI uses them more broadly.
+function iconToType(icon) {
+  if (!icon) return "neutral";
+  const c = String(icon);
+  // motion / movement
+  if ("🏃🚶🚴🏊💪🧗⚽🏀🎾🤸🥋🏋".includes(c)) return "motion";
+  // cognition / focus / work
+  if ("📚📖✍📝💻📊🧠🎯📔📰🖊".includes(c)) return "cognition";
+  // recovery / care / rest / nutrition
+  if ("🧘😴🛁🚿🥗🍎🍽💧🌱🛌💆🪥".includes(c)) return "recovery";
+  // social / connection
+  if ("👥💬💌📞☎🤝❤💕💝🧑‍🤝‍🧑".includes(c)) return "social";
+  return "neutral";
+}
+
 // Time strings used for sort. "07:30" → 730; "10:00–11:00" → 1000; "" → 9999 (sink to bottom).
 function timeKey(t) {
   const m = String(t || "").match(/(\d{1,2}):(\d{2})/);
