@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useLanguage } from "../hooks/useLanguage";
+import { getTodayStr, formatLocalDate } from "../utils/gameLogic";
 
 // ═══════════════════════════════════════════
 // EnergyBudget — Today's task allocation by time slot
@@ -36,12 +37,13 @@ export default function EnergyBudget({ budget, quests, theme }) {
 
   // Count steps completed today per difficulty
   const todayConsumed = useMemo(() => {
-    const todayStr = new Date().toISOString().split("T")[0];
+    // CLAUDE.md gotcha #16 — bucket by the LOCAL day each step was completed on.
+    const todayStr = getTodayStr();
     const result = { easy: 0, medium: 0, hard: 0, total: 0 };
     (quests || []).forEach((q) => {
       q.steps.forEach((s) => {
         if (s.done && s.completedAt) {
-          const d = new Date(s.completedAt).toISOString().split("T")[0];
+          const d = formatLocalDate(s.completedAt);
           if (d === todayStr) {
             const diff = s.difficulty || "medium";
             result[diff] = (result[diff] || 0) + 1;
