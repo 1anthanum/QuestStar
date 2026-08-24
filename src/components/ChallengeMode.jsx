@@ -203,29 +203,49 @@ export default function ChallengeMode({ onClose, theme }) {
         {/* Content */}
         <div className="px-6 py-6 min-h-[340px] flex flex-col">
           {done ? (
-            /* ── Session complete ── */
-            <div className="flex-1 flex flex-col items-center justify-center text-center">
-              <span className="text-5xl mb-4">🏆</span>
-              <h3 className="text-xl font-black text-white/90 mb-2">{t("challenge.allDone")}</h3>
-              <p className="text-sm text-white/40 mb-6">{t("challenge.comeBack")}</p>
-              <div className="flex gap-4 text-center">
-                <div className="bg-white/[0.04] rounded-xl px-4 py-3 border border-white/[0.06]">
-                  <div className="text-2xl font-black text-amber-400">{stats.correct}</div>
-                  <div className="text-[10px] text-white/30">{t("challenge.totalCorrect")}</div>
-                </div>
-                <div className="bg-white/[0.04] rounded-xl px-4 py-3 border border-white/[0.06]">
-                  <div className="text-2xl font-black text-white/70">{accuracy}%</div>
-                  <div className="text-[10px] text-white/30">{t("challenge.accuracy")}</div>
-                </div>
+            /* ── Session complete OR no challenges available ──
+               R17-N4: previously both paths used the same trophy + "挑战完成！"
+               with "0 答对 · 0% 正确率", which read as "you scored 0%" when in
+               fact the user hadn't attempted anything. Split the two visually:
+               nothing-due → calm hourglass + no stat grid; something-attempted
+               → trophy + accuracy stats. */
+            (dueCards.length === 0 && stats.total === 0) ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center">
+                <span className="text-5xl mb-4">⏳</span>
+                <h3 className="text-xl font-black text-white/90 mb-2">{t("challenge.noneDue")}</h3>
+                <p className="text-sm text-white/40 mb-6">{t("challenge.noneDueHint")}</p>
+                <button
+                  onClick={onClose}
+                  className="mt-2 px-6 py-2.5 rounded-xl text-white font-bold text-sm transition-all hover:scale-105 active:scale-95"
+                  style={{ background: accent }}
+                >
+                  {t("challenge.close")}
+                </button>
               </div>
-              <button
-                onClick={onClose}
-                className="mt-6 px-6 py-2.5 rounded-xl text-white font-bold text-sm transition-all hover:scale-105 active:scale-95"
-                style={{ background: accent }}
-              >
-                {t("challenge.close")}
-              </button>
-            </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-center">
+                <span className="text-5xl mb-4">🏆</span>
+                <h3 className="text-xl font-black text-white/90 mb-2">{t("challenge.allDone")}</h3>
+                <p className="text-sm text-white/40 mb-6">{t("challenge.comeBack")}</p>
+                <div className="flex gap-4 text-center">
+                  <div className="bg-white/[0.04] rounded-xl px-4 py-3 border border-white/[0.06]">
+                    <div className="text-2xl font-black text-amber-400">{stats.correct}</div>
+                    <div className="text-[10px] text-white/30">{t("challenge.totalCorrect")}</div>
+                  </div>
+                  <div className="bg-white/[0.04] rounded-xl px-4 py-3 border border-white/[0.06]">
+                    <div className="text-2xl font-black text-white/70">{accuracy}%</div>
+                    <div className="text-[10px] text-white/30">{t("challenge.accuracy")}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="mt-6 px-6 py-2.5 rounded-xl text-white font-bold text-sm transition-all hover:scale-105 active:scale-95"
+                  style={{ background: accent }}
+                >
+                  {t("challenge.close")}
+                </button>
+              </div>
+            )
           ) : ch ? (
             /* ── Active question ── */
             <>

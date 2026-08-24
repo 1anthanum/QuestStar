@@ -85,6 +85,26 @@ export default function ParallelTracks({ parallelTracks, quests, onToggleStep, o
           <div className="px-5 pb-5 space-y-4">
             <p className="text-sm text-gray-500">{t("tracks.description")}</p>
 
+            {/* R18-N1: empty state — dual-track needs ≥2 quests with unfinished steps.
+                Previously the modal rendered two <select>s with no options, leaving the
+                user staring at unclickable "Select a quest…" placeholders + a disabled
+                Start button with no explanation. */}
+            {availableQuests.length < 2 ? (
+              <div className="rounded-2xl bg-amber-50 border border-amber-100 p-4 space-y-3">
+                <p className="text-sm text-amber-700 leading-relaxed">
+                  {availableQuests.length === 0
+                    ? t("tracks.needTwoQuestsZero")
+                    : t("tracks.needTwoQuestsOne")}
+                </p>
+                <button
+                  onClick={onClose}
+                  className="w-full py-2.5 rounded-xl text-sm font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 transition-colors"
+                >
+                  {t("tracks.gotIt")}
+                </button>
+              </div>
+            ) : (
+              <>
             {/* Quest selectors */}
             {[0, 1].map((idx) => (
               <div key={idx}>
@@ -134,6 +154,8 @@ export default function ParallelTracks({ parallelTracks, quests, onToggleStep, o
             >
               {t("tracks.startBtn")}
             </button>
+              </>
+            )}
           </div>
         </div>
       </div>

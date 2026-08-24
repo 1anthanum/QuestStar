@@ -2,9 +2,12 @@
 // Guidance Engine — Post-Step Recommendations
 // ═══════════════════════════════════════════
 
-function getTodayStr() {
-  return new Date().toISOString().split("T")[0];
-}
+import { getTodayStr } from "./gameLogic.js";
+
+// CLAUDE.md gotcha #16: post-step recommendations rank "due today" / "overdue"
+// against the LOCAL calendar date. Using a UTC-derived today here would tag a
+// deadline of "2026-05-31" as overdue while the user (in their local timezone)
+// still believes it's May 30 — silently mis-ranking what the user sees.
 
 function daysUntil(dateStr) {
   if (!dateStr) return Infinity;

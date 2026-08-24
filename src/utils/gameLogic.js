@@ -82,6 +82,22 @@ export function getTodayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// ── 任意日期/时间戳 → LOCAL YYYY-MM-DD ──
+// Use this whenever you need "what calendar day did event X happen on?" — eg.
+// bucketing completedAt timestamps into a day key, or formatting a Date the
+// caller already constructed in local-time arithmetic (setDate +/- N).
+//
+// CLAUDE.md gotcha #16: never reach for `.toISOString().split("T")[0]` for
+// this — that returns the UTC calendar day, not the user's local one, and
+// will drift by 1 day for any user past their UTC-offset cutoff (eg. a
+// Pacific user after ~17:00 PDT). Always go through this helper so web and
+// iOS see the same day key.
+export function formatLocalDate(input) {
+  const d = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 // ── 生成唯一 ID ──
 export function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);

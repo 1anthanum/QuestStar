@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { useLanguage } from "../hooks/useLanguage";
+import { getTodayStr } from "../utils/gameLogic";
 import ProgressRing from "./ProgressRing";
 
 // ═══════════════════════════════════════════
@@ -21,9 +22,7 @@ const BOSS_PORTRAITS = [
 
 const DAMAGE_VALUES = { easy: 1, medium: 2, hard: 3 };
 
-function getTodayStr() {
-  return new Date().toISOString().split("T")[0];
-}
+// CLAUDE.md gotcha #16 — local-day for "overdue" comparison.
 
 export default function BossRush({ quests, onToggleStep, onNavigateQuest, onClose, theme }) {
   const { lang } = useLanguage();

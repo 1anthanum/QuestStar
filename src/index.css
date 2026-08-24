@@ -45,12 +45,34 @@ html[data-time-dark="true"] .qt-card .text-gray-400 { color: #94a3b8; }
    bright cutouts floating over it. Targets the common Tailwind utility
    classes used throughout the dashboard. Each rule is scoped behind
    data-time-dark so day bands are untouched. */
-html[data-time-dark="true"] .qt-card {
-  /* Tighter white + a thin highlighted border + warmer shadow so the
-     card reads as \"frosted glass under moonlight\" instead of \"sticker\". */
-  background: rgba(245, 247, 252, 0.94);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 8px 28px rgba(8, 11, 34, 0.42);
+/* Dark-mode card surface — stage 1 restyle: flat neutral dark
+   (#1F1F1F), zero translucency, zero color cast. Overrides every
+   skin variant below so cards stay opaque. */
+html[data-time-dark="true"] .qt-card,
+html[data-time-dark="true"] [data-skin="soft"] .qt-card,
+html[data-time-dark="true"] [data-skin="glass"] .qt-card,
+html[data-time-dark="true"] [data-skin="vivid"] .qt-card,
+html[data-time-dark="true"] [data-skin="outline"] .qt-card,
+html[data-time-dark="true"] [data-skin="aurora"] .qt-card {
+  background: #1F1F1F !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Modal card surface — most modals use bg-white directly (not .qt-card)
+   as their main panel. In dark mode they were rendering white-on-white
+   text because the body-level dark-mode text inversion (lines 26-34)
+   doesn't get scoped to white surfaces. Treat any direct-child .bg-white
+   of a .fixed.inset-0 overlay as a card and give it the same dark
+   surface as .qt-card so the inverted text reads against it. */
+html[data-time-dark="true"] .fixed.inset-0 > .bg-white,
+html[data-time-dark="true"] .fixed.inset-0 .bg-white.rounded-2xl,
+html[data-time-dark="true"] .fixed.inset-0 .bg-white.rounded-3xl {
+  background-color: #1F1F1F !important;
+  color: var(--time-text-strong);
 }
 
 /* Light-gray pill / chip backgrounds OUTSIDE cards (action chips,
@@ -173,6 +195,107 @@ html[data-time-dark="true"] header [data-xp-bar] {
   background-color: rgba(255, 255, 255, 0.10) !important;
 }
 
+/* ═══ Night-mode pastel-pill polish ═══
+   The Budget category rows (Groceries / Dining / …) and the TransferStatus
+   info banner render directly on the page using emerald-50 / amber-50 /
+   rose-50 / blue-50 tints — pastels designed for the daytime light page
+   gradient. On the night band these wash out into "barely-there grey",
+   killing both the row's identity and the contrast of any text inside.
+   Lift each hue to a translucent saturated version so the row reads as
+   a tinted stripe without shouting. Specific selectors only — we don't
+   want to touch the colored bubble headers or other components that may
+   rely on the pale day-mode tint. */
+html[data-time-dark="true"] .bg-emerald-50:not(header *) {
+  background-color: rgba(16, 185, 129, 0.18);
+}
+html[data-time-dark="true"] .bg-amber-50:not(header *) {
+  background-color: rgba(245, 158, 11, 0.18);
+}
+html[data-time-dark="true"] .bg-rose-50:not(header *) {
+  background-color: rgba(244, 63, 94, 0.18);
+}
+/* Study-mode also uses red-50 / orange-50 / blue-50 for standalone pills
+   (stagnant quest button in TodayDashboard, race "behind" indicator, etc.). */
+html[data-time-dark="true"] .bg-red-50:not(header *) {
+  background-color: rgba(239, 68, 68, 0.18);
+}
+html[data-time-dark="true"] .bg-orange-50:not(header *) {
+  background-color: rgba(249, 115, 22, 0.18);
+}
+html[data-time-dark="true"] .bg-blue-50:not(header *):not(.bg-blue-50\/60) {
+  background-color: rgba(59, 130, 246, 0.18);
+}
+/* Solid-saturation pill bgs (bg-*-100) — NextStepCard reason tags, difficulty
+   chips, "停滞 7 天" badge etc. The day pastel is fine when the surrounding
+   surface is bright; on the dark backdrop directly (eg. ghost-race inline
+   pill) they still need a touch more lift. Slightly higher alpha than the
+   -50 set because the -100 family is the "more prominent" pill role. */
+html[data-time-dark="true"] .bg-emerald-100:not(header *):not(.qt-card *) {
+  background-color: rgba(16, 185, 129, 0.22);
+}
+html[data-time-dark="true"] .bg-amber-100:not(header *):not(.qt-card *) {
+  background-color: rgba(245, 158, 11, 0.22);
+}
+html[data-time-dark="true"] .bg-rose-100:not(header *):not(.qt-card *) {
+  background-color: rgba(244, 63, 94, 0.22);
+}
+html[data-time-dark="true"] .bg-red-100:not(header *):not(.qt-card *) {
+  background-color: rgba(239, 68, 68, 0.22);
+}
+html[data-time-dark="true"] .bg-orange-100:not(header *):not(.qt-card *) {
+  background-color: rgba(249, 115, 22, 0.22);
+}
+html[data-time-dark="true"] .bg-blue-100:not(header *):not(.qt-card *) {
+  background-color: rgba(59, 130, 246, 0.22);
+}
+/* TransferStatus uses *-50/60 — separate selectors so the /60 alpha
+   doesn't bleed back through. Banner border-color stays in dark mode
+   via the existing border-*-200 → border-white/10 rule above. */
+html[data-time-dark="true"] .bg-blue-50\/60 {
+  background-color: rgba(59, 130, 246, 0.18);
+}
+html[data-time-dark="true"] .bg-amber-50\/60 {
+  background-color: rgba(245, 158, 11, 0.18);
+}
+html[data-time-dark="true"] .bg-emerald-50\/60 {
+  background-color: rgba(16, 185, 129, 0.18);
+}
+
+/* TransferStatus banner: when the banner's bg is lifted above, its
+   text-*-700 labels (text-blue-700 / text-amber-700 / text-emerald-700)
+   stay dark-on-dark. Pair each banner-hue with a lifted text tone so
+   the contrast holds. Descendant selectors so we catch the title + body
+   spans inside the banner without sweeping up other text-*-700 in the
+   tree (eg. status-pill text-emerald-600 inside CategoryTable rows). */
+html[data-time-dark="true"] .bg-blue-50\/60 .text-blue-700 {
+  color: rgba(191, 219, 254, 0.96); /* ~blue-200 */
+}
+html[data-time-dark="true"] .bg-blue-50\/60 .text-blue-500 {
+  color: rgba(147, 197, 253, 0.85); /* ~blue-300 */
+}
+html[data-time-dark="true"] .bg-amber-50\/60 .text-amber-700 {
+  color: rgba(253, 230, 138, 0.96); /* ~amber-200 */
+}
+html[data-time-dark="true"] .bg-emerald-50\/60 .text-emerald-700 {
+  color: rgba(167, 243, 208, 0.96); /* ~emerald-200 */
+}
+
+/* CategoryTable status-pill rows (inside qt-card now): the row bg is
+   bg-emerald-50/amber-50/rose-50 (already lifted above), but the
+   right-side text uses text-emerald-600 / text-amber-600 / text-rose-600
+   which sits on the lifted translucent hue — still visible but borderline.
+   Brightening one notch keeps it readable. Scoped to .qt-card so we
+   don't touch standalone emerald/amber/rose elements elsewhere. */
+html[data-time-dark="true"] .qt-card .bg-emerald-50 .text-emerald-600 {
+  color: rgba(110, 231, 183, 0.96); /* ~emerald-300 */
+}
+html[data-time-dark="true"] .qt-card .bg-amber-50 .text-amber-600 {
+  color: rgba(252, 211, 77, 0.96); /* ~amber-300 */
+}
+html[data-time-dark="true"] .qt-card .bg-rose-50 .text-rose-600 {
+  color: rgba(253, 164, 175, 0.96); /* ~rose-300 */
+}
+
 /* ═══ Post-planning attention guide ═══
    When body[data-qt-attention="1"], elements opted-in via
    data-attention-target get a soft amber pulsing ring drawing the eye.
@@ -204,51 +327,31 @@ body[data-qt-attention="1"] [data-attention-target] {
   }
 }
 
-/* ═══ Card skins — switchable surface styles for the Life panel ═══ */
-/* .qt-card is the shared surface; the active skin (data-skin on the wrapper)
-   restyles every card at once so the user can compare looks live. */
+/* ═══ Card surface ═══
+   Stage 1 of dashboard restyle (2026-06-03): cards are flat, opaque,
+   and free of backdrop-filter / gradient so the neutral page canvas
+   can't show color through them. The data-skin attribute is kept so
+   the existing skin picker UI keeps working, but every skin variant
+   renders identically until a follow-up restyle gives them
+   differentiated FLAT tones. */
 .qt-card {
+  background: #FFFFFF;
   border-radius: 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: background 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease;
 }
-/* soft (default) — clean white, gentle shadow */
-[data-skin="soft"] .qt-card {
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 1px 3px rgba(2, 6, 23, 0.06);
-}
-/* glass — frosted, translucent, blurred over the colorful background */
-[data-skin="glass"] .qt-card {
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 8px 32px rgba(2, 6, 23, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-}
-/* vivid — branded gradient surface + accent glow */
-[data-skin="vivid"] .qt-card {
-  background: linear-gradient(160deg, #ffffff 0%, var(--accent-light) 100%);
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
-  box-shadow: 0 10px 30px -8px var(--accent-glow);
-}
-/* outline — flat editorial, crisp borders, no shadow */
-[data-skin="outline"] .qt-card {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1.5px solid #e2e8f0;
-  box-shadow: none;
-}
-/* aurora — gradient border ring + soft inner glow (the "cool" one) */
+[data-skin="soft"] .qt-card,
+[data-skin="glass"] .qt-card,
+[data-skin="vivid"] .qt-card,
+[data-skin="outline"] .qt-card,
 [data-skin="aurora"] .qt-card {
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid transparent;
-  background-image:
-    linear-gradient(rgba(255,255,255,0.82), rgba(255,255,255,0.82)),
-    linear-gradient(135deg, var(--accent), #22d3ee 50%, #a855f7);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
-  box-shadow: 0 8px 28px -10px var(--accent-glow);
+  background: #FFFFFF;
+  background-image: none;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 /* ═══ KaTeX inline fixes ═══ */

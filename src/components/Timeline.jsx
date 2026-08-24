@@ -2,10 +2,9 @@ import { useMemo, useState } from "react";
 import { useLanguage } from "../hooks/useLanguage";
 import { CATEGORIES } from "../utils/constants";
 import { predictCompletion, formatPrediction } from "../utils/timePredictor";
+import { getTodayStr } from "../utils/gameLogic";
 
-function getTodayStr() {
-  return new Date().toISOString().split("T")[0];
-}
+// CLAUDE.md gotcha #16 — local-day anchor (was a UTC reimplementation).
 
 function daysUntil(dateStr) {
   const today = new Date(getTodayStr());

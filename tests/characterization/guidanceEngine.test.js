@@ -11,8 +11,13 @@
 
 import { describe, it, expect } from "vitest";
 import { getNextRecommendations } from "../../src/utils/guidanceEngine.js";
+import { getTodayStr } from "../../src/utils/gameLogic.js";
 
-const todayStr = new Date().toISOString().split("T")[0];
+// Use the same canonical local-date helper the source under test uses, so the
+// reference "today" the tests compute always matches what the engine sees.
+// Computing today via toISOString() here (UTC) while the source uses local
+// time would break "due today" / "overdue" assertions at UTC-boundary hours.
+const todayStr = getTodayStr();
 const dayOffset = (n) => {
   const d = new Date(todayStr);
   d.setDate(d.getDate() + n);

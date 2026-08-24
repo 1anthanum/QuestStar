@@ -146,17 +146,23 @@ Return strictly in this JSON format:
 // Shared Helpers
 // ═══════════════════════════════════════════
 
+// Errors thrown from this module use stable code-style messages (e.g.
+// "ai.error.unexpectedFormat") so the display layer can look them up in
+// translations. If a consumer just renders the .message directly, the code
+// string is still readable enough as a fallback ("ai.error.unexpectedFormat").
+// Legacy free-text messages still in use elsewhere display unchanged because
+// t() returns the key on lookup miss.
 function extractJsonArray(text) {
   const match = text.match(/\[[\s\S]*\]/);
-  if (!match) throw new Error("Unexpected AI response format — please try again");
+  if (!match) throw new Error("ai.error.unexpectedFormat");
   const arr = JSON.parse(match[0]);
-  if (!Array.isArray(arr) || arr.length === 0) throw new Error("AI returned empty results — please try again");
+  if (!Array.isArray(arr) || arr.length === 0) throw new Error("ai.error.emptyArray");
   return arr;
 }
 
 function extractJsonObject(text) {
   const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error("Unexpected AI response format — please try again");
+  if (!match) throw new Error("ai.error.unexpectedFormat");
   return JSON.parse(match[0]);
 }
 
@@ -404,7 +410,7 @@ Here are my plans:\n\n"${inputText}"${langPart}\n\nPlease organize these into da
   const result = extractJsonObject(text);
 
   if (!result.groups || !Array.isArray(result.groups)) {
-    throw new Error("AI returned invalid format — please try again");
+    throw new Error("ai.error.invalidFormat");
   }
 
   return result.groups.map((g) => ({
@@ -517,7 +523,7 @@ Generate the two plans now. Remember: aggressive = exactly 8 tasks, progressive 
   const proTasks = Array.isArray(raw?.progressive?.tasks) ? raw.progressive.tasks.map(normalizeTask).filter((t) => t.label) : [];
 
   if (aggTasks.length === 0 && proTasks.length === 0) {
-    throw new Error("AI returned no usable tasks — please try again");
+    throw new Error("ai.error.noTasks");
   }
 
   return {
@@ -612,7 +618,7 @@ Generate EXACTLY ${count} more aggressive tasks.`;
   });
 
   const tasks = Array.isArray(raw?.tasks) ? raw.tasks.map(normalizeTask).filter((t) => t.label) : [];
-  if (tasks.length === 0) throw new Error("AI returned no usable tasks — please try again");
+  if (tasks.length === 0) throw new Error("ai.error.noTasks");
   return { tasks };
 }
 
@@ -923,4 +929,462 @@ Return ONLY a JSON object: { "L": string, "M": string, "H": string }`;
     M: String(result.M || "").trim(),
     H: String(result.H || "").trim(),
   };
+}
+
+// ═══════════════════════════════════════════
+// Budget — Bank Statement Sync (BUDGET_PATH_A_PLAN Part 2)
+// ═══════════════════════════════════════════
+
+// Strip anything that looks like an account or card number before sending raw
+// bank-statement text to the LLM. Eight or more consecutive digits covers card
+// numbers (16), routing/account (8-12), and most reference IDs without
+// shredding legitimate amounts ($12.34, $1,234.56 are well under 8 digits).
+function stripAccountNumbers(text) {
+  if (typeof text !== "string") return "";
+  return text.replace(/\d{8,}/g, "[REDACTED]");
+}
+
+const BANK_PARSE_SYSTEM_EN = `You are a budgeting assistant. The user will paste raw text from a bank statement or transactions page. Extract every transaction you can identify and return it as JSON.
+
+Output rules:
+- Return ONLY a JSON array, no other text, no markdown.
+- Each entry must have: date (YYYY-MM-DD, infer year if the source omits it — use the current year unless the date is clearly in the recent past beyond that), merchant (preserve original merchant string), amount (positive number for outgoing expenses, negative for refunds/credits), suggestedCategory (one of: Groceries | Dining | Transport | Medical | Household | Buffer | Fun).
+- Category rules:
+  - Whole Foods, Trader Joe's, 99 Ranch, supermarkets → Groceries
+  - Restaurants, coffee shops, food delivery → Dining
+  - Uber, Lyft, gas stations, transit → Transport
+  - Hospitals, pharmacies, insurance → Medical
+  - Amazon general goods, furniture, home supplies → Household
+  - Anything cross-category or unclear → Buffer
+  - Entertainment, games, recurring subscriptions → Fun
+- Skip pending authorizations, balance lines, and non-transaction noise.
+- If the text contains no parseable transactions, return an empty array [].`;
+
+const BANK_PARSE_SYSTEM_ZH = `你是预算助手。用户会粘贴银行流水原文。请提取每一笔交易为 JSON。
+
+输出规则：
+- 只返回 JSON 数组，无其他文字，无 markdown。
+- 每条必须有：date (YYYY-MM-DD，若原文无年份用当前年份)，merchant (保留原始商家名)，amount (正数=支出，负数=退款/credit)，suggestedCategory (仅限：Groceries | Dining | Transport | Medical | Household | Buffer | Fun)。
+- 类别匹配规则：
+  - Whole Foods、Trader Joe's、99 Ranch、超市 → Groceries
+  - 餐厅、咖啡店、外卖 → Dining
+  - Uber、Lyft、加油、公交 → Transport
+  - 医院、药房、保险 → Medical
+  - Amazon 日用品、家具、家居 → Household
+  - 不明类别或跨类别 → Buffer
+  - 娱乐、游戏、月度订阅 → Fun
+- 跳过 pending 授权、余额行和非交易噪声。
+- 若文本无可解析交易，返回 []。`;
+
+const CATEGORY_WHITELIST = new Set(["Groceries", "Dining", "Transport", "Medical", "Household", "Buffer", "Fun"]);
+
+/**
+ * Parse pasted bank-statement text into structured transactions.
+ * Returns an array (possibly empty) of { date, merchant, amount, suggestedCategory } objects.
+ * Caller is expected to apply the user's merchant aliases and present a review table before commit.
+ */
+export async function parseBankStatement(rawText, provider, model, apiKey, lang = "en") {
+  const cleaned = stripAccountNumbers(rawText || "");
+  if (!cleaned.trim()) return [];
+
+  const systemPrompt = lang === "zh" ? BANK_PARSE_SYSTEM_ZH : BANK_PARSE_SYSTEM_EN;
+  const todayHint = new Date();
+  const userMessage = (lang === "zh"
+    ? `参考日期：${todayHint.getFullYear()}-${String(todayHint.getMonth() + 1).padStart(2, "0")}-${String(todayHint.getDate()).padStart(2, "0")}。\n\n银行流水文本：\n${cleaned}`
+    : `Reference date: ${todayHint.getFullYear()}-${String(todayHint.getMonth() + 1).padStart(2, "0")}-${String(todayHint.getDate()).padStart(2, "0")}.\n\nStatement text:\n${cleaned}`);
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt,
+    messages: [{ role: "user", content: userMessage }],
+    maxTokens: 2048,
+  });
+
+  // Empty result is legitimate (no transactions found); don't throw.
+  const match = text.match(/\[[\s\S]*\]/);
+  if (!match) return [];
+  let arr;
+  try {
+    arr = JSON.parse(match[0]);
+  } catch {
+    throw new Error("ai.error.malformedJson");
+  }
+  if (!Array.isArray(arr)) return [];
+
+  // Normalize + filter: drop entries with missing required fields, clamp categories to the whitelist (fallback Buffer).
+  return arr
+    .map((row) => {
+      if (!row || typeof row !== "object") return null;
+      const date = typeof row.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(row.date) ? row.date : null;
+      const amount = typeof row.amount === "number" ? row.amount : parseFloat(row.amount);
+      const merchant = typeof row.merchant === "string" ? row.merchant.trim() : "";
+      const suggestedCategory = CATEGORY_WHITELIST.has(row.suggestedCategory) ? row.suggestedCategory : "Buffer";
+      if (!date || !merchant || !Number.isFinite(amount)) return null;
+      return { date, merchant, amount, suggestedCategory };
+    })
+    .filter(Boolean);
+}
+
+// ── Weekly observation card ──
+
+const ANALYSIS_SYSTEM_EN = `You are a budgeting assistant. Tone is: gentle, observational, factual, no commands. Reframe "over budget" as "above the original plan." Include at least one positive observation. Never tell the user to spend less or judge them. Output 3-4 bullets, each ≤2 lines, prefixed with "✦ ". Return ONLY the bullet list with no other text.`;
+
+const ANALYSIS_SYSTEM_ZH = `你是预算助手。语气：温柔、观察性、事实性、无命令。把"超过预算"重新框架为"在原计划之上"。至少包含一条正向观察。不要叫用户少花钱或评判他们。输出 3-4 条 bullet，每条 ≤2 行，前缀 "✦ "。只返回 bullet list，无其他文字。`;
+
+/**
+ * Generate the "this week's observations" weekly analysis card text.
+ * @param {Object} input
+ * @param {Array}  input.transactions    last 7 days of expenses [{date, category, amount, merchant?}]
+ * @param {Object} input.categoryBudgets monthly budget by category {Groceries: 300, ...}
+ * @param {Number} input.monthProgress   0..1 fraction of month elapsed
+ * @param {String} input.today           "YYYY-MM-DD" local
+ * @returns {Promise<String[]>}          bullet strings (without the "✦ " prefix)
+ */
+export async function generateWeeklyBudgetAnalysis(input, provider, model, apiKey, lang = "en") {
+  const { transactions = [], categoryBudgets = {}, monthProgress = 0, today = "" } = input || {};
+
+  // Build a compact transaction table the LLM can scan.
+  const txLines = transactions
+    .map((t) => `${t.date}\t${t.category}\t$${Number(t.amount).toFixed(2)}${t.merchant ? `\t${t.merchant}` : ""}`)
+    .join("\n");
+  const budgetLines = Object.entries(categoryBudgets)
+    .map(([cat, amt]) => `${cat}: $${amt}`)
+    .join("\n");
+
+  const pctStr = `${Math.round(monthProgress * 100)}%`;
+  const systemPrompt = lang === "zh" ? ANALYSIS_SYSTEM_ZH : ANALYSIS_SYSTEM_EN;
+  const userMessage = lang === "zh"
+    ? `【过去 7 天支出】\n${txLines || "（无）"}\n\n【月度预算】\n${budgetLines || "（未设置）"}\n\n【月份进度】今天是 ${today}，月份过去 ${pctStr}。\n\n请按规则输出 3-4 条观察。`
+    : `[Past 7 days of expenses]\n${txLines || "(none)"}\n\n[Monthly budgets]\n${budgetLines || "(unset)"}\n\n[Month progress] Today is ${today}, ${pctStr} of the month elapsed.\n\nReturn 3-4 observations per the rules.`;
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt,
+    messages: [{ role: "user", content: userMessage }],
+    maxTokens: 600,
+  });
+
+  // Split on lines, keep only those that look like bullets, strip the leading marker.
+  const bullets = (text || "")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*[✦\-•*]\s*/, "").trim())
+    .filter((line) => line.length > 0 && line.length < 240); // sanity cap per line
+  return bullets.slice(0, 4);
+}
+
+// ═══════════════════════════════════════════
+// Budget — Financial Report Integrator
+// ═══════════════════════════════════════════
+//
+// Accepts a finalized financial report (markdown / plain text, often
+// covering a month or quarter) and extracts whatever the user might want
+// merged into the live budget: a transactions list, proposed budget-config
+// adjustments, and free-form observations. Unlike parseBankStatement (which
+// only emits transactions), this function returns a multi-section payload
+// the modal can review section by section — user opts in per section, so
+// nothing is auto-applied without explicit confirmation.
+
+const REPORT_SYSTEM_EN = `You are a financial-report integrator. The user supplies a markdown financial report covering some period. Extract any structured data they could integrate into a personal budget tracker. Return ONLY a JSON object — no markdown, no code fences, no commentary.
+
+Schema (always include every top-level field; use null or empty array if absent):
+{
+  "period": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" } | null,
+  "summary": "one-sentence description of what the report covers",
+  "transactions": [
+    { "date": "YYYY-MM-DD", "merchant": "...", "amount": <positive number for expenses, negative for refunds>, "suggestedCategory": "Groceries|Dining|Transport|Medical|Household|Buffer|Fun" }
+  ],
+  "budgetSuggestions": {
+    "income": <number> | null,
+    "rent": <number> | null,
+    "savingsTarget": <number> | null,
+    "variable": { "<Category>": <number>, ... } | null,
+    "subs": { "<Subscription name>": <number>, ... } | null
+  } | null,
+  "notes": [ "user observation 1", "user observation 2" ]
+}
+
+Rules:
+- Period: if a date range is explicit, use it. If only a month name like "April 2026" is given, set start = first-day and end = last-day of that month. If the report omits the year, use the reference year provided below.
+- Transactions: extract every concrete transaction (date + merchant + amount) you can find in tables or lists. Skip income/credit lines. Clamp suggestedCategory to the 7-category whitelist; if unclear, use "Buffer".
+- budgetSuggestions: ONLY include a field if the report EXPLICITLY proposes a new budget target (e.g. "raise grocery budget to $350"). Do NOT fill it from actuals — actuals are not budget proposals. If the report only describes spending without proposing changes, set budgetSuggestions to null.
+- Notes: include the user's own observations or recommendations the report carries (e.g. "ate out too much, want to cut by 30%"). Be faithful — do not invent.
+- Summary: one short sentence. Always include.
+- If multiple report files are concatenated together (separated by clear markers), merge all transactions and observations into single arrays, and choose a sensible enclosing period.`;
+
+const REPORT_SYSTEM_ZH = `你是财政报告整合助手。用户给你一份 markdown 形式的财政报告（通常覆盖一个月或一个季度）。请提取其中所有可整合到个人预算追踪器的结构化数据。只返回 JSON 对象 — 不要 markdown，不要代码块，不要其他文字。
+
+结构（所有顶级字段都必须存在；缺失用 null 或空数组）：
+{
+  "period": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" } | null,
+  "summary": "一句话描述报告覆盖什么",
+  "transactions": [
+    { "date": "YYYY-MM-DD", "merchant": "...", "amount": <支出为正、退款为负>, "suggestedCategory": "Groceries|Dining|Transport|Medical|Household|Buffer|Fun" }
+  ],
+  "budgetSuggestions": {
+    "income": <数字> | null,
+    "rent": <数字> | null,
+    "savingsTarget": <数字> | null,
+    "variable": { "<类别>": <数字>, ... } | null,
+    "subs": { "<订阅名>": <数字>, ... } | null
+  } | null,
+  "notes": [ "用户观察 1", "用户观察 2" ]
+}
+
+规则：
+- period：有显式日期范围就直接用。只写月份名（如"2026 年 4 月"）就 start = 该月 1 号、end = 该月最后一天。若省略年份，用下方给的参考年份。
+- transactions：从表格或列表里抽出每一笔具体交易（日期 + 商家 + 金额）。跳过收入 / credit 行。suggestedCategory 必须是 7 类白名单之一；不明确就用 "Buffer"。
+- budgetSuggestions：**只**在报告明确建议新预算目标时才填（例如"把杂货预算调到 $350"）。**不要**从实际花费里反推 — 实际花费不是预算建议。如果报告只描述花了什么、没提建议，budgetSuggestions 设为 null。
+- notes：把用户自己的观察或建议如实摘出来（例如"外食太多，想减 30%"）。不要编造。
+- summary：一句短话，必填。
+- 若多份报告文件被拼接在一起（有清晰分隔标记），把所有交易和观察合并成一个数组，period 选一个合理的覆盖范围。`;
+
+const REPORT_CATEGORY_WHITELIST = new Set(["Groceries", "Dining", "Transport", "Medical", "Household", "Buffer", "Fun"]);
+
+/**
+ * Parse a markdown financial report into a multi-section integration payload.
+ * Returns an object whose shape is documented in the prompt above. Empty result
+ * (no transactions, no budgetSuggestions, no notes) is legitimate — the caller
+ * shows "nothing actionable" rather than throwing.
+ */
+export async function parseFinancialReport(rawText, provider, model, apiKey, lang = "en") {
+  const cleaned = stripAccountNumbers(rawText || "");
+  if (!cleaned.trim()) return null;
+
+  const systemPrompt = lang === "zh" ? REPORT_SYSTEM_ZH : REPORT_SYSTEM_EN;
+  const today = new Date();
+  const refYear = today.getFullYear();
+  const userMessage = lang === "zh"
+    ? `参考年份：${refYear}。\n\n报告内容：\n${cleaned}`
+    : `Reference year: ${refYear}.\n\nReport content:\n${cleaned}`;
+
+  const text = await callAI({
+    provider, model, apiKey,
+    systemPrompt,
+    messages: [{ role: "user", content: userMessage }],
+    maxTokens: 3000,
+  });
+
+  // Extract the first {...} object. Tolerate code-fence wrapping.
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(match[0]);
+  } catch {
+    throw new Error("ai.error.malformedJson");
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+
+  // Normalize each section defensively — LLM may omit, miscase, or fabricate.
+
+  const periodOk =
+    parsed.period &&
+    typeof parsed.period === "object" &&
+    typeof parsed.period.start === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(parsed.period.start) &&
+    typeof parsed.period.end === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(parsed.period.end);
+  const period = periodOk ? { start: parsed.period.start, end: parsed.period.end } : null;
+
+  const summary = typeof parsed.summary === "string" ? parsed.summary.trim().slice(0, 280) : "";
+
+  const transactions = Array.isArray(parsed.transactions)
+    ? parsed.transactions
+        .map((row) => {
+          if (!row || typeof row !== "object") return null;
+          const date = typeof row.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(row.date) ? row.date : null;
+          const amount = typeof row.amount === "number" ? row.amount : parseFloat(row.amount);
+          const merchant = typeof row.merchant === "string" ? row.merchant.trim() : "";
+          const suggestedCategory = REPORT_CATEGORY_WHITELIST.has(row.suggestedCategory) ? row.suggestedCategory : "Buffer";
+          if (!date || !merchant || !Number.isFinite(amount)) return null;
+          return { date, merchant, amount, suggestedCategory };
+        })
+        .filter(Boolean)
+    : [];
+
+  // budgetSuggestions: only keep fields that are finite numbers. Maps too.
+  let budgetSuggestions = null;
+  const bs = parsed.budgetSuggestions;
+  if (bs && typeof bs === "object") {
+    const clean = {};
+    for (const k of ["income", "rent", "savingsTarget"]) {
+      if (typeof bs[k] === "number" && Number.isFinite(bs[k]) && bs[k] >= 0) clean[k] = bs[k];
+    }
+    for (const mapKey of ["variable", "subs"]) {
+      if (bs[mapKey] && typeof bs[mapKey] === "object" && !Array.isArray(bs[mapKey])) {
+        const m = {};
+        for (const [cat, val] of Object.entries(bs[mapKey])) {
+          if (typeof val === "number" && Number.isFinite(val) && val >= 0) m[cat] = val;
+        }
+        if (Object.keys(m).length > 0) clean[mapKey] = m;
+      }
+    }
+    if (Object.keys(clean).length > 0) budgetSuggestions = clean;
+  }
+
+  const notes = Array.isArray(parsed.notes)
+    ? parsed.notes
+        .map((n) => (typeof n === "string" ? n.trim() : ""))
+        .filter((n) => n.length > 0 && n.length < 400)
+        .slice(0, 12)
+    : [];
+
+  // Nothing actionable? Tell the caller via null so the modal can show empty state.
+  if (transactions.length === 0 && !budgetSuggestions && notes.length === 0 && !period && !summary) {
+    return null;
+  }
+
+  return { period, summary, transactions, budgetSuggestions, notes };
+}
+
+// ═══════════════════════════════════════════
+// Food Inventory — 订单文本解析 / 三餐润色
+// ═══════════════════════════════════════════
+
+const GROCERY_PARSE_PROMPT = `You are a grocery receipt / order parser. The user pastes raw text copied from an online grocery order page (Weee, Costco Same-Day, Safeway, Amazon Fresh, Instacart) or a photographed receipt transcript. Extract every purchasable product line.
+
+Rules:
+- Output ONE object per distinct product line. Do not merge lines.
+- Keep the product name EXACTLY as written, including Chinese characters, brand, and size. Do not translate, shorten, or "clean up" names — the app does its own normalization and relies on the original string.
+- qty: the number of packs/units purchased (not the weight). "数量: 2" or "Quantity: 2" or "x2" → 2. If absent, use 1.
+- unit: the pack descriptor if present ("10 磅", "16 oz", "40-count"), else "".
+- price: the UNIT price in dollars as a number (not the line total). If only a line total and a qty are shown, divide. If no price, use null.
+- purchasedAt: the order/delivery date in YYYY-MM-DD if the text contains one, else null.
+- store: one of "Weee", "Costco", "Safeway", "Amazon", "Trader Joe's", "Target", "Other" — infer from the text.
+- SKIP: subtotals, taxes, tips, delivery fees, discounts, deposits, point redemptions, refund summary blocks, addresses, and any line that is not a product.
+- INCLUDE non-food household/medicine items (detergent, floss, cold medicine) — the app tracks those too.
+- If a product appears in a "Refunded" or "缺货" / "退款" section, still include it but set "refunded": true.
+
+Return strictly a JSON array, no prose, no markdown fence:
+[
+  {"name":"加州甜橙 10 磅","qty":2,"unit":"10 磅","price":10.99,"purchasedAt":"2026-07-22","store":"Weee","refunded":false}
+]
+
+If the text contains no product lines at all, return [].`;
+
+/**
+ * Parse pasted grocery-order text into structured line items.
+ *
+ * Empty input and "no products found" are both legitimate outcomes and return
+ * [] rather than throwing — the paste modal shows an empty state for those.
+ * Only malformed JSON from the model is treated as an error.
+ */
+export async function parseGroceryOrder(rawText, provider, model, apiKey, lang = "en") {
+  const cleaned = String(rawText || "").trim();
+  if (!cleaned) return [];
+
+  // Very long pastes (a whole order-history page) get truncated to keep the
+  // request affordable; 12k chars covers even a 35-item Weee order comfortably.
+  const input = cleaned.length > 12000 ? cleaned.slice(0, 12000) : cleaned;
+
+  const text = await callAI({
+    provider,
+    model,
+    apiKey,
+    systemPrompt: GROCERY_PARSE_PROMPT,
+    messages: [{ role: "user", content: `Parse this grocery order text:\n\n${input}` }],
+    maxTokens: 4000,
+  });
+
+  const match = text.match(/\[[\s\S]*\]/);
+  if (!match) return [];
+  let arr;
+  try {
+    arr = JSON.parse(match[0]);
+  } catch {
+    throw new Error("ai.error.malformedJson");
+  }
+  if (!Array.isArray(arr)) return [];
+
+  const VALID_STORES = ["Weee", "Costco", "Safeway", "Amazon", "Trader Joe's", "Target", "Other"];
+
+  return arr
+    .map((r) => {
+      const name = String(r?.name || "").trim();
+      if (!name || name.length > 200) return null;
+      const qty = Number(r?.qty);
+      const price = Number(r?.price);
+      const date = String(r?.purchasedAt || "");
+      return {
+        name,
+        qty: Number.isFinite(qty) && qty > 0 && qty < 1000 ? qty : 1,
+        unit: String(r?.unit || "").trim().slice(0, 40),
+        price: Number.isFinite(price) && price >= 0 && price < 10000 ? price : null,
+        purchasedAt: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
+        store: VALID_STORES.includes(r?.store) ? r.store : "Other",
+        refunded: r?.refunded === true,
+      };
+    })
+    .filter(Boolean)
+    .filter((r) => !r.refunded)   // 退款的不进库存
+    .slice(0, 200);
+}
+
+const MEAL_POLISH_PROMPT = `You are a practical home-cooking assistant for someone with ADHD who is recovering from depression. A rule engine has already picked WHICH ingredients to use for each meal — your only job is to turn each ingredient set into one concrete dish with brief steps.
+
+Hard constraints:
+- Use ONLY the ingredients listed for that meal, plus salt/pepper/oil/water which are always assumed available. Never introduce a new ingredient.
+- Respect the stated effort level. effort 1-2 means genuinely minimal: microwave, boil water, eat raw, no knife work beyond a rough chop. Do not suggest marinating, roasting, or multi-pan cooking at effort 1-2.
+- steps: 2-4 short imperative lines. Each line one action. No numbering (the UI adds it).
+- dish: a short dish name, 2-6 words.
+- Be honest about time: if the picks can't make a real dish, say so plainly in dish (e.g. "Orange + yogurt, as-is").
+
+Return strictly this JSON object, no prose, no markdown fence:
+{"meals":[{"templateId":"b_oatbowl","dish":"Oat bowl with orange","steps":["Boil water","Pour over oats, wait 3 min","Peel orange, eat alongside"]}]}`;
+
+/**
+ * Turn rule-engine meal picks into named dishes with steps.
+ *
+ * This is a pure enhancement layer: the caller already has a usable plan from
+ * mealEngine.suggestDailyMeals(). If this throws (no API key, network down,
+ * rate limit), the caller keeps showing the un-polished plan. Never let a
+ * polish failure hide the meal suggestions themselves.
+ */
+export async function polishMealPlan(plan, provider, model, apiKey, lang = "en") {
+  if (!Array.isArray(plan) || plan.length === 0) return {};
+
+  const compact = plan.map((m) => ({
+    templateId: m.templateId,
+    meal: m.meal,
+    effort: m.effort,
+    minutes: m.minutes,
+    ingredients: (m.picks || []).map((p) => p.item?.name).filter(Boolean),
+  }));
+
+  const langPart =
+    lang === "zh"
+      ? "\n\nIMPORTANT: Write dish names and steps in Chinese (中文). Keep JSON field names and templateId values in English."
+      : "";
+
+  const text = await callAI({
+    provider,
+    model,
+    apiKey,
+    systemPrompt: MEAL_POLISH_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: `Turn each of these into one dish:\n\n${JSON.stringify(compact, null, 1)}${langPart}`,
+      },
+    ],
+    maxTokens: 1500,
+  });
+
+  const result = extractJsonObject(text);
+  if (!result.meals || !Array.isArray(result.meals)) throw new Error("ai.error.invalidFormat");
+
+  // Return a templateId → {dish, steps} map so the caller can merge without
+  // relying on array order (the model sometimes reorders or drops entries).
+  const byTemplate = {};
+  for (const m of result.meals) {
+    const id = String(m?.templateId || "").trim();
+    if (!id) continue;
+    byTemplate[id] = {
+      dish: String(m?.dish || "").trim().slice(0, 80),
+      steps: Array.isArray(m?.steps)
+        ? m.steps.map((s) => String(s || "").trim()).filter((s) => s.length > 0 && s.length < 200).slice(0, 5)
+        : [],
+    };
+  }
+  return byTemplate;
 }

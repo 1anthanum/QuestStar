@@ -197,7 +197,10 @@ export default function AIDecomposeModal({ onAdd, onClose, ai }) {
         {/* Error */}
         {ai.error && (
           <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
-            ❌ {ai.error}
+            {/* aiService now throws stable error codes like "ai.error.unexpectedFormat".
+                t() returns the matching translation; for legacy free-text errors it
+                just returns the original string, so this never makes output worse. */}
+            ❌ {t(ai.error)}
             <button
               onClick={() => ai.setError(null)}
               className="ml-2 text-red-500 underline hover:text-red-700"

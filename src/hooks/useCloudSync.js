@@ -62,6 +62,11 @@ export function useCloudSync() {
     qt_expenses: { table: "extra_state", column: "budget_expenses" },
     qt_budget_config: { table: "extra_state", column: "budget_config" },
     qt_transfer_status: { table: "extra_state", column: "transfer_status" },
+    // budget_tracker — bank sync feature (BUDGET_PATH_A_PLAN Part 2)
+    // Requires columns: ALTER TABLE extra_state ADD COLUMN budget_merchant_aliases JSONB, ADD COLUMN budget_last_bank_sync TEXT, ADD COLUMN budget_weekly_analysis JSONB;
+    qt_merchant_aliases: { table: "extra_state", column: "budget_merchant_aliases" },
+    qt_last_bank_sync: { table: "extra_state", column: "budget_last_bank_sync" },
+    qt_weekly_analysis: { table: "extra_state", column: "budget_weekly_analysis" },
     // Life v3 habit system (Phase 3) — JSONB columns on extra_state
     qt_habit_active: { table: "extra_state", column: "habit_active" },
     qt_habit_log: { table: "extra_state", column: "habit_log" },
@@ -74,6 +79,11 @@ export function useCloudSync() {
     // Display-only label / time overrides (per habit-id or fixed-item-id).
     // Requires column: ALTER TABLE extra_state ADD COLUMN label_overrides JSONB;
     qt_label_overrides: { table: "extra_state", column: "label_overrides" },
+    // Food inventory (Life mode 厨房库存) — JSONB columns on extra_state.
+    // Migration: supabase/migrations/2026-08-11-food-inventory.sql
+    qt_food_items: { table: "extra_state", column: "food_items" },
+    qt_food_meal_log: { table: "extra_state", column: "food_meal_log" },
+    qt_food_prefs: { table: "extra_state", column: "food_prefs" },
   };
 
   // ── Step 1: On authentication, run migration then pull ──
@@ -261,6 +271,9 @@ export function useCloudSync() {
         if (ex.budget_expenses) safeSet("qt_expenses", ex.budget_expenses);
         if (ex.budget_config) safeSet("qt_budget_config", ex.budget_config);
         if (ex.transfer_status) safeSet("qt_transfer_status", ex.transfer_status);
+        if (ex.budget_merchant_aliases) safeSet("qt_merchant_aliases", ex.budget_merchant_aliases);
+        if (ex.budget_last_bank_sync) safeSet("qt_last_bank_sync", ex.budget_last_bank_sync);
+        if (ex.budget_weekly_analysis) safeSet("qt_weekly_analysis", ex.budget_weekly_analysis);
         // Life v3 habit system (columns may not exist on older schemas — guarded)
         if (ex.habit_active) safeSet("qt_habit_active", ex.habit_active);
         if (ex.habit_log) safeSet("qt_habit_log", ex.habit_log);
@@ -271,6 +284,10 @@ export function useCloudSync() {
         if (ex.habit_letters) safeSet("qt_habit_letters", ex.habit_letters);
         if (ex.habit_week_plan) safeSet("qt_habit_week_plan", ex.habit_week_plan);
         if (ex.label_overrides) safeSet("qt_label_overrides", ex.label_overrides);
+        // Food inventory (columns may not exist on older schemas — guarded)
+        if (ex.food_items) safeSet("qt_food_items", ex.food_items);
+        if (ex.food_meal_log) safeSet("qt_food_meal_log", ex.food_meal_log);
+        if (ex.food_prefs) safeSet("qt_food_prefs", ex.food_prefs);
       }
 
       lastPullRef.current = Date.now();
@@ -396,6 +413,9 @@ export function useCloudSync() {
           budget_expenses: safeGet("qt_expenses", []),
           budget_config: safeGet("qt_budget_config", null),
           transfer_status: safeGet("qt_transfer_status", null),
+          budget_merchant_aliases: safeGet("qt_merchant_aliases", {}),
+          budget_last_bank_sync: safeGet("qt_last_bank_sync", null),
+          budget_weekly_analysis: safeGet("qt_weekly_analysis", null),
         }, { onConflict: "user_id" })
       );
 
@@ -424,6 +444,22 @@ export function useCloudSync() {
         supabase.from("extra_state").upsert({
           user_id: userId,
           label_overrides: safeGet("qt_label_overrides", {}),
+        }, { onConflict: "user_id" })
+      );
+
+      // Food inventory — its own upsert for the same reason as label_overrides:
+      // a user who hasn't run the 2026-08-11 migration would otherwise take
+      // down the whole extra_state push with a missing-column 400.
+      // Migration:
+      //   ALTER TABLE extra_state ADD COLUMN IF NOT EXISTS food_items JSONB,
+      //     ADD COLUMN IF NOT EXISTS food_meal_log JSONB,
+      //     ADD COLUMN IF NOT EXISTS food_prefs JSONB;
+      promises.push(
+        supabase.from("extra_state").upsert({
+          user_id: userId,
+          food_items: safeGet("qt_food_items", []),
+          food_meal_log: safeGet("qt_food_meal_log", {}),
+          food_prefs: safeGet("qt_food_prefs", {}),
         }, { onConflict: "user_id" })
       );
 

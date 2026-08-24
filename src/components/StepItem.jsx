@@ -3,6 +3,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { XP_CONFIG, ANCHOR_LAYERS, ANCHOR_STEPS } from "../utils/constants";
 import { useLanguage } from "../hooks/useLanguage";
+import { getTodayStr } from "../utils/gameLogic";
 import MathText from "./MathText";
 
 const DIFFICULTY_LABELS = {
@@ -51,10 +52,12 @@ export default function StepItem({ step, onToggle, index, total, onStepBurst, so
 
     if (!step.done) {
       setJustCompleted(true);
-      // Emit burst position for FlyingXP arc animation
-      if (diff && containerRef.current) {
+      // Emit burst position only — the completion chain (useStepCompletionChain)
+      // commits the authoritative earnedXp value once toggleStep computes streak
+      // + type + daily-first-win bonuses. See Mo3 in MASTER_BUG_LIST.
+      if (containerRef.current) {
         const r = containerRef.current.getBoundingClientRect();
-        onStepBurst?.({ x: r.left + 20, y: r.top + r.height / 2, amount: diff.xp });
+        onStepBurst?.({ x: r.left + 20, y: r.top + r.height / 2 });
       }
       setTimeout(() => setJustCompleted(false), 600);
     }
@@ -126,7 +129,10 @@ export default function StepItem({ step, onToggle, index, total, onStepBurst, so
           {!step.done && (
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               {step.deadline && (() => {
-                const today = new Date(new Date().toISOString().split("T")[0]);
+                // CLAUDE.md gotcha #16 — anchor "today" to the local calendar day
+                // so a step deadline of "2026-05-31" is correctly tagged as "due today"
+                // for a user whose local clock reads May 31, even if UTC has rolled to Jun 1.
+                const today = new Date(getTodayStr());
                 const target = new Date(step.deadline);
                 const days = Math.round((target - today) / (1000 * 60 * 60 * 24));
                 const formatted = target.toLocaleDateString("en-US", { month: "short", day: "numeric" });

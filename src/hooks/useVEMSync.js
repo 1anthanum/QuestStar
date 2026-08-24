@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { useLocalStorage } from "./useLocalStorage";
 import { useAuth } from "./useAuth";
 import { VEM_CONFIG_DEFAULTS, VEM_FEEDBACK_POOL } from "../utils/constants";
+import { getTodayStr } from "../utils/gameLogic";
 
 // ═══════════════════════════════════════════
 // useVEMSync — VEM Energy Map Integration
@@ -19,9 +20,10 @@ import { VEM_CONFIG_DEFAULTS, VEM_FEEDBACK_POOL } from "../utils/constants";
 const FLUSH_DEBOUNCE_MS = 2000;
 const SUMMARY_CACHE_TTL_MS = 30 * 60 * 1000; // 30 min
 
-function todayStr() {
-  return new Date().toISOString().split("T")[0];
-}
+// CLAUDE.md gotcha #16 — VEM daily summary keyed by local calendar day so
+// the cache TTL doesn't get blown away every UTC-midnight boundary, and so
+// "today's summary" matches what the user sees on their phone.
+const todayStr = getTodayStr;
 
 export function useVEMSync() {
   const { user, isAuthenticated } = useAuth();

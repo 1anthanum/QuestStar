@@ -1,5 +1,6 @@
 import { useMemo, useCallback } from "react";
 import { useLocalStorage } from "./useLocalStorage";
+import { getTodayStr, formatLocalDate } from "../utils/gameLogic";
 
 // ═══════════════════════════════════════════
 // Smart Launcher — Anti-Paralysis + Rescue Mode
@@ -18,9 +19,9 @@ import { useLocalStorage } from "./useLocalStorage";
 //   - Quest type bonus (challenge > bonus > daily)
 //   - Variety penalty (avoid recommending same quest repeatedly)
 
-function getTodayStr() {
-  return new Date().toISOString().split("T")[0];
-}
+// CLAUDE.md gotcha #16 — use the canonical local-date helper from gameLogic,
+// not a UTC-derived reimplementation. Deadline urgency, stagnation, and
+// rescue-split logic all hang off "today" matching the user's local calendar.
 
 function daysSince(dateStr) {
   if (!dateStr) return Infinity;
@@ -48,11 +49,12 @@ function getHourBucket() {
 function getQuestStagnation(quest) {
   const completedSteps = quest.steps.filter((s) => s.done && s.completedAt);
   if (completedSteps.length === 0) {
-    // Never touched — use createdAt
-    return daysSince(new Date(quest.createdAt).toISOString().split("T")[0]);
+    // Never touched — use createdAt. formatLocalDate buckets by local day,
+    // matching the "today" key daysSince() compares against.
+    return daysSince(formatLocalDate(quest.createdAt));
   }
   const lastCompleted = Math.max(...completedSteps.map((s) => s.completedAt));
-  return daysSince(new Date(lastCompleted).toISOString().split("T")[0]);
+  return daysSince(formatLocalDate(lastCompleted));
 }
 
 // ── Rescue Mode: generate micro-step suggestions ──

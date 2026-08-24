@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { CATEGORIES, XP_CONFIG } from "../utils/constants";
 import { useLanguage } from "../hooks/useLanguage";
-import { generateId } from "../utils/gameLogic";
+import { generateId, getTodayStr } from "../utils/gameLogic";
 
 const QUEST_TYPES = [
   { key: "daily", emoji: "📋", multiplier: XP_CONFIG.typeMultiplier.daily },
@@ -106,7 +106,7 @@ export default function AddQuestModal({ onAdd, onClose }) {
               type="date"
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
-              min={new Date().toISOString().split("T")[0]}
+              min={getTodayStr()}
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-400 focus:outline-none text-gray-800 text-base"
             />
           </div>
@@ -144,7 +144,7 @@ export default function AddQuestModal({ onAdd, onClose }) {
                       type="date"
                       value={stepDeadlines[i] || ""}
                       onChange={(e) => setStepDeadlines((prev) => ({ ...prev, [i]: e.target.value }))}
-                      min={new Date().toISOString().split("T")[0]}
+                      min={getTodayStr()}
                       className="text-xs px-2 py-1 border border-gray-200 rounded-lg focus:border-indigo-400 focus:outline-none"
                     />
                   </div>

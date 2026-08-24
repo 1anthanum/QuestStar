@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useLanguage } from "../hooks/useLanguage";
+import { getTodayStr, formatLocalDate } from "../utils/gameLogic";
 
 const BUCKET_RANGES = {
   morning: { start: 6, end: 12, label: "6am–12pm" },
@@ -35,12 +36,15 @@ export default function EnergyDashboard({ energy, quests, onClose, theme }) {
 
   // Today's completed steps with timestamps
   const todayCompletions = useMemo(() => {
-    const todayStr = new Date().toISOString().split("T")[0];
+    // CLAUDE.md gotcha #16 — bucket by the LOCAL day a step was completed on.
+    // A step completed at 23:30 local should land in today's local bucket, not
+    // tomorrow's UTC one.
+    const todayStr = getTodayStr();
     const completions = [];
     quests.forEach((q) => {
       q.steps.forEach((s) => {
         if (s.done && s.completedAt) {
-          const completedDate = new Date(s.completedAt).toISOString().split("T")[0];
+          const completedDate = formatLocalDate(s.completedAt);
           if (completedDate === todayStr) {
             const hour = new Date(s.completedAt).getHours() + new Date(s.completedAt).getMinutes() / 60;
             const pos = Math.max(0, Math.min(1, (hour - 6) / 17));

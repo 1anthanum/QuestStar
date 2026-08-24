@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { CATEGORIES } from "../utils/constants";
 import { useLanguage } from "../hooks/useLanguage";
+import { getTodayStr } from "../utils/gameLogic";
 import MathText from "./MathText";
 import ProgressRing from "./ProgressRing";
 import VEMWeatherCard from "./VEMWeatherCard";
@@ -46,7 +47,7 @@ function WeeklySparkline({ weeklyTrend, theme, lang }) {
 
   const max = Math.max(...weeklyTrend.map((d) => d.count), 1);
   const accent = theme?.accent || "#6366f1";
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getTodayStr();
   const dayLabels = lang === "zh" ? DAY_LABELS_ZH : DAY_LABELS_EN;
 
   return (
@@ -96,7 +97,7 @@ function WeeklySparkline({ weeklyTrend, theme, lang }) {
 function NextStepCard({ topPick, onAccept, onSelectQuest, theme, lang, t }) {
   if (!topPick) {
     return (
-      <div className="rounded-2xl p-5 bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-100 text-center">
+      <div className="qt-card rounded-2xl p-5 bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-100 text-center">
         <span className="text-3xl mb-2 block">🎉</span>
         <p className="text-sm font-bold text-emerald-600">
           {t("today.allCaughtUp")}
@@ -125,7 +126,7 @@ function NextStepCard({ topPick, onAccept, onSelectQuest, theme, lang, t }) {
   };
 
   return (
-    <div className="rounded-2xl overflow-hidden border-2 border-white/60 bg-white/95 shadow-sm">
+    <div className="qt-card rounded-2xl overflow-hidden border-2 border-white/60 bg-white/95 shadow-sm">
       {/* Header strip */}
       <div
         className="px-5 py-2.5 flex items-center justify-between"
@@ -276,7 +277,7 @@ export default function TodayDashboard({
       {/* ── Stats Ribbon (3-col: XP, Streak, Level) ── */}
       <div className="grid grid-cols-3 gap-2.5">
         {/* XP */}
-        <div className="rounded-2xl p-3.5 bg-white/90 border border-white/60 shadow-sm text-center">
+        <div className="qt-card rounded-2xl p-3.5 bg-white/90 border border-white/60 shadow-sm text-center">
           <div className="text-2xl font-black" style={{ color: accent }}>
             {xp >= 1000 ? `${(xp / 1000).toFixed(1)}k` : xp}
           </div>
@@ -285,7 +286,7 @@ export default function TodayDashboard({
           </div>
         </div>
         {/* Streak */}
-        <div className="rounded-2xl p-3.5 bg-white/90 border border-white/60 shadow-sm text-center relative overflow-hidden">
+        <div className="qt-card rounded-2xl p-3.5 bg-white/90 border border-white/60 shadow-sm text-center relative overflow-hidden">
           {streak > 0 && (
             <div className="absolute inset-0 bg-gradient-to-t from-orange-50 to-transparent" />
           )}
@@ -298,7 +299,7 @@ export default function TodayDashboard({
           </div>
         </div>
         {/* Level */}
-        <div className="rounded-2xl p-3.5 bg-white/90 border border-white/60 shadow-sm text-center relative overflow-hidden">
+        <div className="qt-card rounded-2xl p-3.5 bg-white/90 border border-white/60 shadow-sm text-center relative overflow-hidden">
           <div className="absolute inset-0 opacity-[0.08]" style={{ background: `linear-gradient(135deg, ${accent}, transparent)` }} />
           <div className="relative flex items-center justify-center gap-1">
             <span className="text-2xl font-black text-gray-800">Lv.{levelInfo.level}</span>
@@ -355,7 +356,7 @@ export default function TodayDashboard({
 
       {/* ── 7-Day Activity Sparkline ── */}
       {weeklyTrend && weeklyTrend.some((d) => d.count > 0) && (
-        <div className="rounded-2xl p-4 bg-white/90 border border-white/60 shadow-sm">
+        <div className="qt-card rounded-2xl p-4 bg-white/90 border border-white/60 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-gray-500">
               {t("today.thisWeek")}

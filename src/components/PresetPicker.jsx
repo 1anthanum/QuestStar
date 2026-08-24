@@ -12,14 +12,24 @@ export default function PresetPicker({ onSelect, theme }) {
 
   const handlePick = (preset) => {
     setJustPicked(preset.id);
-    // 构造 quest 数据，兼容 addQuest
+    // 构造 quest 数据，兼容 addQuest。
+    // R17-N3/N2: name + step text must match the locale the user clicked.
+    // The card title (line ~66) already calls t("preset." + preset.id); the
+    // created quest now mirrors that. Step text uses an indexed key per step
+    // ("preset.<id>.step.<i>") with the English text in constants.js as the
+    // ultimate fallback if a key is missing.
     const questData = {
-      name: preset.name,
+      name: t(`preset.${preset.id}`),
       category: preset.category,
-      steps: preset.steps.map((s) => ({
-        text: s.text,
-        difficulty: s.difficulty,
-      })),
+      steps: preset.steps.map((s, i) => {
+        const key = `preset.${preset.id}.step.${i}`;
+        const translated = t(key);
+        // t() returns the key itself when no entry exists — treat that as fallback.
+        return {
+          text: translated && translated !== key ? translated : s.text,
+          difficulty: s.difficulty,
+        };
+      }),
     };
     // 小延时让动画播放
     setTimeout(() => onSelect(questData), 300);

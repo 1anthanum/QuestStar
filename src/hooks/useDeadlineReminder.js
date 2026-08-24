@@ -1,9 +1,10 @@
 import { useEffect, useCallback } from "react";
 import { useLocalStorage } from "./useLocalStorage";
+import { getTodayStr } from "../utils/gameLogic";
 
-function getTodayStr() {
-  return new Date().toISOString().split("T")[0];
-}
+// CLAUDE.md gotcha #16 — local-date helper. Notification dedup keyed by
+// today's local date so a Pacific user past 17:00 PDT doesn't get re-pinged
+// after UTC midnight rolls over.
 
 function daysUntil(dateStr) {
   const today = new Date(getTodayStr());

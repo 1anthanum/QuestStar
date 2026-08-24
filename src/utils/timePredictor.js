@@ -2,11 +2,14 @@
 // Time Predictor — Quest Completion Estimation
 // ═══════════════════════════════════════════
 
-const DAY_MS = 1000 * 60 * 60 * 24;
+import { getTodayStr } from "./gameLogic.js";
 
-function getTodayStr() {
-  return new Date().toISOString().split("T")[0];
-}
+// CLAUDE.md gotcha #16: "today" must be the LOCAL calendar date everywhere — never
+// derived from toISOString() (UTC), or web ↔ iOS date keys drift apart at the
+// UTC-offset boundary (e.g. Pacific user past 17:00 PDT). Reuse the canonical
+// gameLogic.getTodayStr() rather than reimplementing here.
+
+const DAY_MS = 1000 * 60 * 60 * 24;
 
 function daysUntil(dateStr) {
   if (!dateStr) return null;

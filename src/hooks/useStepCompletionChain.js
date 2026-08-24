@@ -33,6 +33,7 @@ export function useStepCompletionChain({
   pact,
   vem,
   showXpGain,
+  commitBurstAmount,
   setSurprisePopup,
   setLoreDrop,
   setStepGuide,
@@ -43,6 +44,12 @@ export function useStepCompletionChain({
   return useCallback(
     (questId, stepId) => {
       const result = game.toggleStep(questId, stepId);
+
+      // Mo3: commit the authoritative earnedXp to the in-flight FlyingXP arc
+      // so it shows the same number as the XpPopup. Same-tick update — React
+      // batches it with the burst that StepItem emitted, so the user only ever
+      // sees the final value.
+      commitBurstAmount?.(result.earnedXp);
 
       if (result.earnedXp > 0) {
         // 2. Friction Calibrator: record step completion time
@@ -135,6 +142,7 @@ export function useStepCompletionChain({
       pact,
       vem,
       showXpGain,
+      commitBurstAmount,
       setSurprisePopup,
       setLoreDrop,
       setStepGuide,

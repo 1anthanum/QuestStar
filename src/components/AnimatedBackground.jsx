@@ -1,20 +1,30 @@
-import { useMemo, useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useState } from "react";
 import { timeOfDayPalette } from "../utils/timeOfDay";
 
-/**
- * 多层动态背景
- * Layer 1: 主题渐变底色
- * Layer 2: 柔和点阵网格
- * Layer 3: 3 个大光球（慢速漂浮）
- * Layer 4: 浮游微粒
- * Layer 5: 鼠标跟随光效（主角）
- * Layer 6: 顶部/底部渐隐
- */
-export default function AnimatedBackground({ theme }) {
-  // Ambient background follows the local clock (re-checks every 5 min); theme drives accents.
-  // The BgPreviewer pill (?bgPreview=1) emits qt-bg-preview-tick when the
-  // override hour changes — re-resolve immediately so design QA doesn't
-  // have to wait for the next 5-minute interval.
+// ═══════════════════════════════════════════════════════════
+// AnimatedBackground — flat neutral canvas
+// ═══════════════════════════════════════════════════════════
+//
+// Stage 1 of the dashboard restyle (2026-06-03): the page bg is a
+// single solid neutral color with zero saturation. No linear or
+// radial gradients, no orbs, no mouse-follow glow, no particles,
+// no edge fades, no dot grid.
+//
+// The component still resolves the time-of-day palette ONLY to:
+//   - detect dark mode (palette.isDark → data-time-dark="true")
+//   - keep publishing --time-text-strong / --time-text-muted so
+//     other CSS that depends on these vars continues to work
+// The palette's pageBg / orbs / glow fields are no longer used.
+//
+// Background colors (stage 1 fixed):
+//   light  #FAFAF9   near-white neutral (saturation ≈ 0)
+//   dark   #171717   true neutral dark (zero blue/purple cast)
+
+const NEUTRAL_LIGHT = "#FAFAF9";
+const NEUTRAL_DARK = "#171717";
+
+export default function AnimatedBackground(/* theme prop kept for parent
+  call-site stability; intentionally unused this stage */ _props) {
   const [palette, setPalette] = useState(() => timeOfDayPalette());
   useEffect(() => {
     const refresh = () => setPalette(timeOfDayPalette());
@@ -26,95 +36,24 @@ export default function AnimatedBackground({ theme }) {
     };
   }, []);
 
-  // Publish text colors + dark-mode flag to <html> as CSS vars / data
-  // attribute. body uses --time-text-strong via index.css; the data
-  // attribute lets component CSS opt in to dark-mode overrides.
   useEffect(() => {
     const html = document.documentElement;
-    html.style.setProperty("--time-text-strong", palette.textStrong || "#1e293b");
-    html.style.setProperty("--time-text-muted", palette.textMuted || "#475569");
+    html.style.setProperty("--time-text-strong", palette.textStrong || "#1c1917");
+    html.style.setProperty("--time-text-muted", palette.textMuted || "#57534e");
     if (palette.isDark) html.setAttribute("data-time-dark", "true");
     else html.removeAttribute("data-time-dark");
   }, [palette]);
 
-  const cursorRef = useRef(null);
-  const trailRefs = useRef([]);
-  const mousePos = useRef({ x: -200, y: -200 });
-  const rafId = useRef(null);
-
-  // 光球配置
-  const orbStyles = useMemo(() => [
-    { width: "45vw", height: "45vw", top: "-10%", left: "-10%", animationDuration: "18s", animationDelay: "0s" },
-    { width: "35vw", height: "35vw", top: "50%", right: "-8%", animationDuration: "22s", animationDelay: "-7s" },
-    { width: "30vw", height: "30vw", bottom: "-5%", left: "30%", animationDuration: "20s", animationDelay: "-12s" },
-  ], []);
-
-  // 微粒
-  const particles = useMemo(() =>
-    Array.from({ length: 10 }, (_, i) => ({
-      left: `${8 + (i * 37 + 13) % 84}%`,
-      top: `${5 + (i * 53 + 7) % 85}%`,
-      size: 2 + (i % 3) * 1.5,
-      duration: 6 + (i % 4) * 3,
-      delay: -(i * 1.7),
-    })),
-  []);
-
-  // 拖尾位置（3 个延迟跟随点）
-  const trailPositions = useRef([
-    { x: -200, y: -200 },
-    { x: -200, y: -200 },
-    { x: -200, y: -200 },
-  ]);
-
-  const animate = useCallback(() => {
-    const { x, y } = mousePos.current;
-
-    // 主光标
-    if (cursorRef.current) {
-      cursorRef.current.style.transform = `translate(${x - 160}px, ${y - 160}px)`;
-    }
-
-    // 拖尾 — 每个比前一个更慢地跟随
-    const lerpFactors = [0.08, 0.05, 0.03];
-    trailPositions.current.forEach((pos, i) => {
-      const target = i === 0 ? mousePos.current : trailPositions.current[i - 1];
-      pos.x += (target.x - pos.x) * lerpFactors[i];
-      pos.y += (target.y - pos.y) * lerpFactors[i];
-
-      const el = trailRefs.current[i];
-      if (el) {
-        const size = 220 + i * 60; // 越远越大
-        el.style.transform = `translate(${pos.x - size / 2}px, ${pos.y - size / 2}px)`;
-      }
-    });
-
-    rafId.current = requestAnimationFrame(animate);
-  }, []);
-
-  useEffect(() => {
-    const handleMove = (e) => {
-      mousePos.current = { x: e.clientX, y: e.clientY };
-    };
-
-    window.addEventListener("mousemove", handleMove, { passive: true });
-    rafId.current = requestAnimationFrame(animate);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMove);
-      if (rafId.current) cancelAnimationFrame(rafId.current);
-    };
-  }, [animate]);
+  const isDark = !!palette.isDark;
 
   return (
     <div
-      className="fixed inset-0 -z-10 overflow-hidden transition-all duration-1000"
-      style={{ background: palette.pageBg }}
+      className="fixed inset-0 -z-10 overflow-hidden"
+      style={{ background: isDark ? NEUTRAL_DARK : NEUTRAL_LIGHT }}
     >
-      {/* M2 — paper-grain texture (SVG noise via feTurbulence). 3%
-          opacity so the page feels textured but you can't see the
-          grain unless you look for it. Single inline SVG sized to
-          viewport; tiled implicitly via background-repeat. */}
+      {/* Monochrome SVG paper-grain — pure noise (feColorMatrix to neutral),
+          no gradient, no color cast. Kept because it adds a subtle
+          tactile feel without affecting hue. */}
       <svg
         aria-hidden
         className="absolute inset-0 w-full h-full pointer-events-none mix-blend-multiply"
@@ -131,81 +70,6 @@ export default function AnimatedBackground({ theme }) {
         </filter>
         <rect width="100%" height="100%" filter="url(#paperGrain)" />
       </svg>
-
-      {/* Layer 2: Dot grid */}
-      <div
-        className="absolute inset-0 opacity-[0.03] pointer-events-none"
-        style={{
-          backgroundImage: `radial-gradient(circle, ${theme.accent} 1px, transparent 1px)`,
-          backgroundSize: "32px 32px",
-        }}
-      />
-
-      {/* Layer 3: Big orbs */}
-      {orbStyles.map((pos, i) => (
-        <div
-          key={`orb-${i}`}
-          className="absolute rounded-full blur-3xl animate-orb-float transition-colors duration-1000 pointer-events-none"
-          style={{
-            ...pos,
-            background: `radial-gradient(circle, ${palette.orbs[i] || "transparent"} 0%, transparent 70%)`,
-          }}
-        />
-      ))}
-
-      {/* Layer 4: Micro-particles */}
-      {particles.map((p, i) => (
-        <div
-          key={`particle-${i}`}
-          className="absolute rounded-full pointer-events-none animate-particle-drift"
-          style={{
-            left: p.left,
-            top: p.top,
-            width: p.size,
-            height: p.size,
-            background: theme.accent,
-            opacity: 0.12,
-            animationDuration: `${p.duration}s`,
-            animationDelay: `${p.delay}s`,
-          }}
-        />
-      ))}
-
-      {/* Layer 5: Mouse-follow glow — 3 trailing blurs + main cursor */}
-      {[0, 1, 2].map((i) => (
-        <div
-          key={`trail-${i}`}
-          ref={(el) => (trailRefs.current[i] = el)}
-          className="absolute rounded-full pointer-events-none transition-colors duration-700"
-          style={{
-            width: 220 + i * 60,
-            height: 220 + i * 60,
-            background: `radial-gradient(circle, ${palette.glow} 0%, transparent 70%)`,
-            opacity: 0.25 - i * 0.06,
-            filter: `blur(${40 + i * 20}px)`,
-            willChange: "transform",
-          }}
-        />
-      ))}
-      <div
-        ref={cursorRef}
-        className="absolute rounded-full pointer-events-none transition-colors duration-700"
-        style={{
-          width: 320,
-          height: 320,
-          background: `radial-gradient(circle, ${palette.glow} 0%, transparent 60%)`,
-          opacity: 0.35,
-          filter: "blur(30px)",
-          willChange: "transform",
-        }}
-      />
-
-      {/* Layer 6: Edge fades */}
-      <div
-        className="absolute top-0 left-0 right-0 h-60 pointer-events-none opacity-40 transition-all duration-1000"
-        style={{ background: `linear-gradient(180deg, ${palette.glow} 0%, transparent 100%)` }}
-      />
-      <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none bg-gradient-to-t from-white/30 to-transparent" />
     </div>
   );
 }

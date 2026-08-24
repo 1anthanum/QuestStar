@@ -3,6 +3,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from 
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CATEGORIES, XP_CONFIG, ANCHOR_LAYERS } from "../utils/constants";
 import { useLanguage } from "../hooks/useLanguage";
+import { getTodayStr } from "../utils/gameLogic";
 import { predictCompletion, formatPrediction } from "../utils/timePredictor";
 import { getQuestNarrative } from "../utils/narrativeEngine";
 import ProgressRing from "./ProgressRing";
@@ -29,7 +30,8 @@ function groupByLayer(steps) {
 
 function deadlineBadge(dateStr, isDone, t, lang) {
   if (!dateStr) return null;
-  const today = new Date(new Date().toISOString().split("T")[0]);
+  // CLAUDE.md gotcha #16 — local-day anchor so the quest's "due today" badge matches what the user sees on iOS.
+  const today = new Date(getTodayStr());
   const target = new Date(dateStr);
   const days = Math.round((target - today) / (1000 * 60 * 60 * 24));
   const formatted = target.toLocaleDateString(lang === "zh" ? "zh-CN" : "en-US", { month: "short", day: "numeric" });

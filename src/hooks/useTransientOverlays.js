@@ -24,18 +24,33 @@ export function useTransientOverlays() {
   const [microFeedback, setMicroFeedback] = useState(null);
   const [browseSlot, setBrowseSlot] = useState(null);
 
-  const handleStepBurst = useCallback(({ x, y, amount }) => {
+  // Mo3: split the arc's position (known at click time from the step row) from
+  // its amount (only known after toggleStep computes streak/type/first-win bonuses).
+  // Previously StepItem sent the BASE difficulty XP (e.g. 20) as `amount`, while
+  // the XP popup later showed the full result (e.g. 51). Two visible surfaces,
+  // two different numbers. Now StepItem only emits position; the chain commits
+  // the real amount after toggleStep returns, in the same render tick.
+  const handleStepBurst = useCallback(({ x, y }) => {
     const bar = document.querySelector("[data-xp-bar]");
-    if (bar && amount > 0) {
-      const rect = bar.getBoundingClientRect();
-      setFlyingXp({
-        fromX: x,
-        fromY: y,
-        toX: rect.left + rect.width / 2,
-        toY: rect.top + rect.height / 2,
-        amount,
-      });
+    if (!bar) return;
+    const rect = bar.getBoundingClientRect();
+    setFlyingXp({
+      fromX: x,
+      fromY: y,
+      toX: rect.left + rect.width / 2,
+      toY: rect.top + rect.height / 2,
+      amount: 0, // placeholder — committed below once known
+    });
+  }, []);
+
+  // Called from the completion chain with the authoritative earnedXp. If no
+  // burst was queued (eg. non-click toggle path), this is a no-op.
+  const commitBurstAmount = useCallback((amount) => {
+    if (!(amount > 0)) {
+      setFlyingXp(null);
+      return;
     }
+    setFlyingXp((prev) => (prev ? { ...prev, amount } : prev));
   }, []);
 
   return {
@@ -47,5 +62,6 @@ export function useTransientOverlays() {
     microFeedback, setMicroFeedback,
     browseSlot, setBrowseSlot,
     handleStepBurst,
+    commitBurstAmount,
   };
 }

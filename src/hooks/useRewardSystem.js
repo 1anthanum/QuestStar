@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useLocalStorage } from "./useLocalStorage";
 import { REWARD_CONFIG } from "../utils/constants";
+import { getTodayStr } from "../utils/gameLogic";
 
 /**
  * 奖励系统 Hook
@@ -14,7 +15,9 @@ export function useRewardSystem(streak) {
   const [dailyClearRecord, setDailyClearRecord] = useLocalStorage("qt_daily_clear", null);
   const [dailyStepCount, setDailyStepCount] = useLocalStorage("qt_daily_steps", { date: null, count: 0 });
 
-  const today = new Date().toISOString().split("T")[0];
+  // CLAUDE.md gotcha #16 — daily-clear bonus + 5-step bonus keyed by local day so
+  // they fire exactly once per the user's calendar day (not their UTC day).
+  const today = getTodayStr();
 
   // ── 获取本周的 ISO 周编号 ──
   const getWeekId = () => {

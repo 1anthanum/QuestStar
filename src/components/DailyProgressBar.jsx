@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useLanguage } from "../hooks/useLanguage";
+import { getTodayStr } from "../utils/gameLogic";
 
 // ═══════════════════════════════════════════
 // DailyProgressBar — Cumulative daily progress visualization
@@ -24,8 +25,8 @@ export default function DailyProgressBar({ todaySteps, weeklyTrend, theme }) {
   const dailyGoal = useMemo(() => {
     if (!weeklyTrend || weeklyTrend.length === 0) return 8;
     const pastDays = weeklyTrend.filter((d) => {
-      // Exclude today from average calculation
-      const todayStr = new Date().toISOString().split("T")[0];
+      // Exclude today from average calculation (CLAUDE.md gotcha #16 — local day)
+      const todayStr = getTodayStr();
       return d.date !== todayStr && d.count > 0;
     });
     if (pastDays.length === 0) return 8;
@@ -41,7 +42,7 @@ export default function DailyProgressBar({ todaySteps, weeklyTrend, theme }) {
   const bonusPosition = Math.min((DAILY_BONUS_THRESHOLD / dailyGoal) * 100, 100);
 
   return (
-    <div className="rounded-2xl p-4 bg-white/90 border border-white/60 shadow-sm">
+    <div className="qt-card rounded-2xl p-4 bg-white/90 border border-white/60 shadow-sm">
       {/* Header row */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">

@@ -9,6 +9,7 @@ import { ChallengeCard } from "./ChallengeMode";
 import { ReflectionCard } from "./DailyReflection";
 import { StudyRoadmapCard } from "./StudyRoadmap";
 import { HabitDashboardCard, TimeBlockCard } from "./LifeHabitDashboard";
+import { FoodInventoryCard } from "./FoodInventoryCard";
 import TodayDashboard from "./TodayDashboard";
 import EnergyBudget from "./EnergyBudget";
 import QuickAddTask from "./QuickAddTask";
@@ -69,7 +70,7 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDel
 
       {/* ── Seasonal World Event (compact, below dashboard) ── */}
       {season && (
-        <div className="mb-4 rounded-xl px-4 py-2.5 bg-white/60 backdrop-blur border border-white/40 flex items-center gap-2.5">
+        <div className="qt-card mb-4 rounded-xl px-4 py-2.5 bg-white/60 backdrop-blur border border-white/40 flex items-center gap-2.5">
           <span className="text-xl">{season.icon}</span>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold text-gray-600 truncate">{season.name}</p>
@@ -215,6 +216,19 @@ export default function QuestBoard({ quests, activeQuestId, onSelectQuest, onDel
           accent={accent}
         >
           <TimeBlockCard theme={theme} />
+        </CollapsibleSection>
+      )}
+
+      {/* ── Kitchen inventory + daily meal suggestions (life only) ── */}
+      {isLife && (
+        <CollapsibleSection
+          storageKey="qt_section_food"
+          defaultOpen={true}
+          title={t("food.sectionTitle")}
+          icon="🍳"
+          accent={accent}
+        >
+          <FoodInventoryCard theme={theme} ai={ai} />
         </CollapsibleSection>
       )}
 
