@@ -14,6 +14,20 @@ struct AppTheme: Identifiable, Equatable {
     let orbs: [Color]         // 3 orb colors for MeshBackground
     let pageBgTop: Color
     let pageBgBottom: Color
+
+    /// Hex string of accent color — useful for cross-process rendering (Live Activity, App Intents)
+    /// where Color values can't easily be serialized.
+    var accentHex: String {
+        switch id {
+        case "aurora": "#6366F1"
+        case "sunset": "#F97316"
+        case "ocean": "#06B6D4"
+        case "sakura": "#EC4899"
+        case "forest": "#10B981"
+        case "midnight": "#8B5CF6"
+        default: "#6366F1"
+        }
+    }
 }
 
 extension AppTheme {
@@ -26,8 +40,8 @@ extension AppTheme {
         gradient1: Color(hex: "#6366F1"),
         gradient2: Color(hex: "#8B5CF6"),
         orbs: [Color(hex: "#6366F1"), Color(hex: "#8B5CF6"), Color(hex: "#7C3AED")],
-        pageBgTop: Color(hex: "#F8F7FF"),
-        pageBgBottom: Color(hex: "#F0EFFF")
+        pageBgTop: Color.dynamic(light: "#F8F7FF", dark: "#1E1B2E"),
+        pageBgBottom: Color.dynamic(light: "#F0EFFF", dark: "#15131F")
     )
 
     static let sunset = AppTheme(
@@ -39,8 +53,8 @@ extension AppTheme {
         gradient1: Color(hex: "#F97316"),
         gradient2: Color(hex: "#EF4444"),
         orbs: [Color(hex: "#F97316"), Color(hex: "#F59E0B"), Color(hex: "#EF4444")],
-        pageBgTop: Color(hex: "#FFF7ED"),
-        pageBgBottom: Color(hex: "#FEF3C7")
+        pageBgTop: Color.dynamic(light: "#FFF7ED", dark: "#2A1A0E"),
+        pageBgBottom: Color.dynamic(light: "#FEF3C7", dark: "#1F1208")
     )
 
     static let ocean = AppTheme(
@@ -52,8 +66,8 @@ extension AppTheme {
         gradient1: Color(hex: "#06B6D4"),
         gradient2: Color(hex: "#6366F1"),
         orbs: [Color(hex: "#06B6D4"), Color(hex: "#3B82F6"), Color(hex: "#6366F1")],
-        pageBgTop: Color(hex: "#ECFEFF"),
-        pageBgBottom: Color(hex: "#E0F2FE")
+        pageBgTop: Color.dynamic(light: "#ECFEFF", dark: "#0A2330"),
+        pageBgBottom: Color.dynamic(light: "#E0F2FE", dark: "#091C28")
     )
 
     static let sakura = AppTheme(
@@ -65,8 +79,8 @@ extension AppTheme {
         gradient1: Color(hex: "#EC4899"),
         gradient2: Color(hex: "#8B5CF6"),
         orbs: [Color(hex: "#EC4899"), Color(hex: "#F43F5E"), Color(hex: "#D946EF")],
-        pageBgTop: Color(hex: "#FDF2F8"),
-        pageBgBottom: Color(hex: "#FCE7F3")
+        pageBgTop: Color.dynamic(light: "#FDF2F8", dark: "#2A0E1F"),
+        pageBgBottom: Color.dynamic(light: "#FCE7F3", dark: "#1F0817")
     )
 
     static let forest = AppTheme(
@@ -78,8 +92,8 @@ extension AppTheme {
         gradient1: Color(hex: "#10B981"),
         gradient2: Color(hex: "#14B8A6"),
         orbs: [Color(hex: "#10B981"), Color(hex: "#22C55E"), Color(hex: "#14B8A6")],
-        pageBgTop: Color(hex: "#ECFDF5"),
-        pageBgBottom: Color(hex: "#D1FAE5")
+        pageBgTop: Color.dynamic(light: "#ECFDF5", dark: "#0A2818"),
+        pageBgBottom: Color.dynamic(light: "#D1FAE5", dark: "#08200F")
     )
 
     static let midnight = AppTheme(
@@ -91,8 +105,8 @@ extension AppTheme {
         gradient1: Color(hex: "#8B5CF6"),
         gradient2: Color(hex: "#6366F1"),
         orbs: [Color(hex: "#8B5CF6"), Color(hex: "#7C3AED"), Color(hex: "#6366F1")],
-        pageBgTop: Color(hex: "#F5F3FF"),
-        pageBgBottom: Color(hex: "#EDE9FE")
+        pageBgTop: Color.dynamic(light: "#F5F3FF", dark: "#1A1230"),
+        pageBgBottom: Color.dynamic(light: "#EDE9FE", dark: "#120A24")
     )
 
     static let all: [AppTheme] = [.aurora, .sunset, .ocean, .sakura, .forest, .midnight]

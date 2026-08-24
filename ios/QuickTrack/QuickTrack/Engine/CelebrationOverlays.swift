@@ -613,3 +613,46 @@ struct FloatingParticles: View {
         }
     }
 }
+
+// MARK: - Previews
+
+#if DEBUG
+#Preview("XP Popup") {
+    XpPopupView(xp: 35, streakBonus: 8, isFirstWin: true, isVisible: .constant(true))
+        .padding()
+        .background(Color.black.opacity(0.1))
+}
+
+#Preview("Coin Burst") {
+    CoinBurstView(amount: 5, isVisible: .constant(true))
+        .frame(width: 300, height: 300)
+        .background(Color.black.opacity(0.1))
+}
+
+#Preview("Lore Drop - Epic") {
+    LoreDropView(
+        fragment: LoreFragment(
+            id: "test", title: "Quantum Entanglement",
+            bookTitle: "Cosmic Data", rarity: .epic
+        ),
+        isVisible: .constant(true)
+    )
+    .padding()
+    .background(Color.black.opacity(0.1))
+}
+
+#Preview("Level Up") {
+    LevelUpOverlay(
+        levelName: "Adept",
+        levelIndex: 4,
+        isVisible: .constant(true)
+    )
+}
+
+#Preview("Quest Complete") {
+    QuestCompleteOverlay(
+        questName: "Morning Routine",
+        isVisible: .constant(true)
+    )
+}
+#endif

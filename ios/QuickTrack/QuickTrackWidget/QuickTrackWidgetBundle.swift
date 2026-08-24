@@ -8,5 +8,13 @@ struct QuickTrackWidgetBundle: WidgetBundle {
         WaterWidget()
         QuestStarWidget()
         SleepWidget()
+        DailyProgressWidget()
+
+        // Live Activity (iOS 16.2+, ActivityKit not available on macOS)
+        #if os(iOS)
+        if #available(iOS 16.2, *) {
+            QuestSessionLiveActivity()
+        }
+        #endif
     }
 }

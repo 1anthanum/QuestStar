@@ -129,7 +129,7 @@ struct WaterWidgetView: View {
                             .padding(.vertical, 4)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .fill(item.isCompleted ? color.opacity(0.1) : Color(.systemGray6))
+                                    .fill(item.isCompleted ? color.opacity(0.1) : Color.systemGray6)
                             )
                         }
                         .buttonStyle(.plain)

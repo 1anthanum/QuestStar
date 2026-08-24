@@ -295,6 +295,37 @@ actor SupabaseClient {
         }
     }
 
+    /// DELETE rows matching a query filter.
+    func deleteWithQuery(table: String, query: String) async throws {
+        let appGroup = AppGroupManager.shared
+        guard let baseURL = appGroup.supabaseURL, !baseURL.isEmpty,
+              let anonKey = appGroup.supabaseAnonKey, !anonKey.isEmpty else {
+            throw SupabaseError.notConfigured
+        }
+        guard let jwt = appGroup.supabaseJWT, !jwt.isEmpty else {
+            throw SupabaseError.notAuthenticated
+        }
+
+        let urlString = "\(baseURL)/rest/v1/\(table)?\(query)"
+        guard let url = URL(string: urlString) else {
+            throw SupabaseError.invalidResponse
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(jwt)", forHTTPHeaderField: "Authorization")
+        request.setValue(anonKey, forHTTPHeaderField: "apikey")
+
+        let (data, response) = try await session.data(for: request)
+        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+
+        guard (200..<300).contains(statusCode) else {
+            let message = String(data: data, encoding: .utf8) ?? "Unknown error"
+            logger.error("Delete \(table) failed: HTTP \(statusCode)")
+            throw SupabaseError.httpError(statusCode, message)
+        }
+    }
+
     /// PATCH a single row by user_id.
     func patch(table: String, body: [String: Any]) async throws {
         let appGroup = AppGroupManager.shared

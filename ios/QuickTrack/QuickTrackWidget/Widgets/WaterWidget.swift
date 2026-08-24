@@ -31,7 +31,7 @@ struct WaterTimelineProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<WaterEntry>) -> Void) {
         Task {
             let entry = await fetchEntry()
-            let nextRefresh = Calendar.current.date(byAdding: .minute, value: 30, to: .now)!
+            let nextRefresh = WidgetRefreshPolicy.nextRefresh()
             completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
         }
     }

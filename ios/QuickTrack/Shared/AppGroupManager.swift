@@ -1,7 +1,9 @@
 import Foundation
 
 /// Manages shared state between the host app and widget extension via App Group UserDefaults.
-final class AppGroupManager: Sendable {
+/// UserDefaults is documented thread-safe by Apple — `@unchecked Sendable` is appropriate here.
+/// All access goes through the singleton, so we can guarantee a single instance.
+final class AppGroupManager: @unchecked Sendable {
     static let shared = AppGroupManager()
 
     let defaults: UserDefaults?

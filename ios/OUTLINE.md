@@ -1,6 +1,24 @@
 # QuickTrack -- iOS/macOS Widget Project Outline (Finalized)
 
-> Decisions locked on 2026-05-07. This document is the single source of truth for project scope.
+> Decisions locked on 2026-05-07. This document captures the original v1 scope.
+
+---
+
+## Evolution Note (2026-05-17)
+
+Since the original v1 plan, QuickTrack has grown beyond a widget carrier into a full SwiftUI host app. Current canonical architecture is in [CLAUDE.md](CLAUDE.md). Highlights since v1:
+
+- **5 widgets** instead of 3: added Water + DailyProgress widgets
+- **Full host app**: TodayView dashboard, QuestsView, AchievementsView, QuestDetailView, AddQuestView
+- **Engagement engine layer**: RewardChain (XP/coin/lore/level/quest), CelebrationQueue (FIFO overlays), EngagementEngine (combos, personal bests, today's score, weekly reports), HapticEngine (patterned haptics), ThemeManager (6 themes)
+- **Reliability layer**: RetryQueue with exponential backoff, optimistic UI, lifecycle-aware polling (auto-pause on background)
+- **Auth**: Email/password + GitHub OAuth via ASWebAuthenticationSession
+- **Performance**: GPU-friendly static gradient background (replaced heavy blur+animation)
+- **App Intents**: LogEventIntent, CompleteStepIntent, RefreshSummaryIntent
+
+The original scope red lines still mostly hold (no Android, no third-party deps, no App Store, no new Supabase tables). The "no data visualization" red line is the next candidate to relax (Swift Charts trend visualization is on the Phase 6 roadmap).
+
+The original v1 phase plan below is preserved for historical context. **All v1 phases (1–3) are complete.**
 
 ---
 

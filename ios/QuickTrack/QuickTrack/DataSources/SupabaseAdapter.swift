@@ -32,14 +32,85 @@ struct GameStateRow: Decodable {
 }
 
 /// Matches quests table row
-struct QuestRow: Decodable {
+struct QuestRow: Decodable, Identifiable {
     let id: String
     let name: String
     let steps: [QuestStep]
     let deadline: String?
     let tag: String?
     let quest_type: String?
+    let category: String?
+    let created_at: Int?
+
+    /// Whether this quest belongs to the "daily" type
+    var isDaily: Bool { quest_type == "daily" }
+
+    /// Convenience: remaining incomplete step count
+    var remainingSteps: Int { steps.filter { !$0.done }.count }
+
+    /// Whether all steps are complete
+    var isComplete: Bool { steps.allSatisfy(\.done) }
+
+    /// Whether this quest was created within the last 24 hours
+    var isNewFromWeb: Bool {
+        guard let ts = created_at else { return false }
+        let createdDate = Date(timeIntervalSince1970: Double(ts) / 1000.0)
+        return Date().timeIntervalSince(createdDate) < 86400
+    }
+
+    /// Progress 0.0–1.0
+    var progress: Double {
+        guard !steps.isEmpty else { return 1.0 }
+        return Double(steps.filter(\.done).count) / Double(steps.count)
+    }
+
+    /// Category icon (SF Symbol)
+    var categoryIcon: String {
+        switch category {
+        case "learning": "book.fill"
+        case "code": "chevron.left.forwardslash.chevron.right"
+        case "work": "briefcase.fill"
+        case "habit": "heart.fill"
+        default: "scroll.fill"
+        }
+    }
+
+    /// Category color
+    var categoryColor: Color {
+        switch category {
+        case "learning": Color(hex: "#6366F1")
+        case "code": Color(hex: "#10B981")
+        case "work": Color(hex: "#F59E0B")
+        case "habit": Color(hex: "#EC4899")
+        default: Color(hex: "#8B5CF6")
+        }
+    }
+
+    /// Whether this quest has a deadline that's overdue
+    var isOverdue: Bool {
+        guard let d = deadline else { return false }
+        return d < Config.todayString()
+    }
+
+    /// Whether deadline is today
+    var isDueToday: Bool {
+        deadline == Config.todayString()
+    }
+
+    /// Days until deadline (negative = overdue)
+    var daysUntilDeadline: Int? {
+        guard let d = deadline else { return nil }
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        guard let deadlineDate = fmt.date(from: d) else { return nil }
+        let today = Calendar.current.startOfDay(for: Date())
+        let target = Calendar.current.startOfDay(for: deadlineDate)
+        return Calendar.current.dateComponents([.day], from: today, to: target).day
+    }
 }
+
+import SwiftUI
 
 struct QuestStep: Decodable {
     let id: String
@@ -108,6 +179,11 @@ struct MedicationAdapter: TrackerDataSource {
         Config.dateString(daysAgo: daysAgo)
     }
 
+    /// Public so DailyProgressWidget can also resolve activities
+    static func resolveActivitiesStatic(from timeBlocks: [TimeBlockRow]?) -> [(id: String, label: String)] {
+        resolveActivities(from: timeBlocks)
+    }
+
     private static func resolveActivities(from timeBlocks: [TimeBlockRow]?) -> [(id: String, label: String)] {
         if let blocks = timeBlocks {
             return blocks.flatMap { block in
@@ -140,7 +216,7 @@ struct QuestStarAdapter: TrackerDataSource {
         )
         async let quests: [QuestRow] = client.fetchMany(
             table: "quests",
-            query: "select=id,name,steps,deadline,tag,quest_type&user_id=eq.\(userId)&order=created_at.desc"
+            query: "select=id,name,steps,deadline,tag,quest_type,category,created_at&user_id=eq.\(userId)&order=created_at.desc"
         )
 
         let state = try await gameState
@@ -163,9 +239,13 @@ struct QuestStarAdapter: TrackerDataSource {
             .first
         let nextStep = urgentQuest?.steps.first { !$0.done }
 
+        let newQuestCount = allQuests.filter(\.isNewFromWeb).count
+
         let subtitle: String
         if streakAtRisk && streak > 0 {
             subtitle = "Streak at risk! Do 1 step now"
+        } else if newQuestCount > 0 {
+            subtitle = "Streak: \(streak)d | \(newQuestCount) new task\(newQuestCount > 1 ? "s" : "")"
         } else {
             subtitle = "Streak: \(streak) days"
         }

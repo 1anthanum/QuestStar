@@ -31,7 +31,7 @@ struct QuestStarTimelineProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<QuestStarEntry>) -> Void) {
         Task {
             let entry = await fetchEntry()
-            let nextRefresh = Calendar.current.date(byAdding: .minute, value: 30, to: .now)!
+            let nextRefresh = WidgetRefreshPolicy.nextRefresh()
             completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
         }
     }
@@ -75,6 +75,15 @@ struct QuestStarTimelineProvider: TimelineProvider {
 struct QuestStarWidget: Widget {
     let kind = "QuestStarWidget"
 
+    private var families: [WidgetFamily] {
+        var result: [WidgetFamily] = [.systemSmall, .systemMedium]
+        #if os(iOS)
+        // Lock Screen widgets are iOS-only (iPhone lock screen accessory family)
+        result.append(contentsOf: [.accessoryCircular, .accessoryRectangular, .accessoryInline])
+        #endif
+        return result
+    }
+
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: QuestStarTimelineProvider()) { entry in
             QuestStarWidgetView(entry: entry)
@@ -82,6 +91,6 @@ struct QuestStarWidget: Widget {
         }
         .configurationDisplayName("QuestStar")
         .description("XP, streak, and next quest step")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies(families)
     }
 }

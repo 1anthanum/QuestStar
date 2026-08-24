@@ -5,117 +5,354 @@ struct TodayView: View {
     @ObservedObject private var sync = SyncManager.shared
     @ObservedObject private var theme = ThemeManager.shared
 
-    // Reward chain state
-    @State private var xpPopupResult: RewardChainResult?
-    @State private var showXpPopup = false
-    @State private var showCoinBurst = false
-    @State private var coinAmount: Int = 0
-    @State private var showLoreDrop = false
-    @State private var loreFragment: LoreFragment?
-    @State private var showLevelUp = false
-    @State private var levelUpName = ""
-    @State private var levelUpIndex = 0
-    @State private var showQuestComplete = false
-    @State private var questCompleteName = ""
+    // Celebration queue (replaces individual show* booleans)
+    @StateObject private var celebrationQueue = CelebrationQueue()
+
+    // Post-step guidance (appears after celebrations finish)
+    @State private var postStepGuidance: GuidanceEngine.GuidanceResult?
 
     // Interaction state
     @State private var waterBounce: String?
     @State private var completedStepId: String?
+    @State private var habitSectionExpanded = true
+
+    // Engagement + network state
+    @ObservedObject private var engagement = EngagementEngine.shared
+    @ObservedObject private var retryQueue = RetryQueue.shared
+    @ObservedObject private var focusFilter = FocusFilterStore.shared
+    @State private var showRandomPicker = false
+    @State private var showConfetti = false
+    @State private var showWeeklyReport = false
 
     private var accent: Color { theme.current.accent }
     private var accentGradient: LinearGradient { theme.accentGradient }
 
+    /// Source of truth: quests filtered by the active focus mode (or all if nil).
+    private var filteredQuests: [QuestRow] {
+        sync.quests.filter { focusFilter.matches($0) }
+    }
+
+    /// Categories with at least one active quest — populates the focus picker
+    private var availableCategories: [String] {
+        Array(Set(sync.quests.compactMap { $0.category })).filter { !$0.isEmpty }
+    }
+
+    // Quest groupings
+    private var newFromWebQuests: [QuestRow] {
+        filteredQuests.filter { $0.isNewFromWeb && !$0.isComplete }
+    }
+    private var dailyQuests: [QuestRow] {
+        filteredQuests.filter { $0.quest_type == "daily" && !$0.isComplete }
+    }
+    private var learningQuests: [QuestRow] {
+        filteredQuests.filter { ($0.category == "learning" || $0.category == "code") && $0.quest_type != "daily" && !$0.isComplete }
+    }
+    private var overdueQuests: [QuestRow] {
+        filteredQuests.filter { $0.isOverdue && !$0.isComplete }
+    }
+    private var todayDueQuests: [QuestRow] {
+        filteredQuests.filter { $0.isDueToday && !$0.isComplete }
+    }
+
+    // Quick Win: find the easiest incomplete step
+    private var quickWin: (quest: QuestRow, step: QuestStep)? {
+        let active = sync.quests.filter { !$0.isComplete }
+        // Priority: easy difficulty → today due → daily type
+        let candidates: [(QuestRow, QuestStep)] = active.flatMap { quest in
+            quest.steps.filter { !$0.done }.map { (quest, $0) }
+        }
+        return candidates
+            .sorted { a, b in
+                let aScore = difficultyScore(a.1.difficulty) + (a.0.isDueToday ? 10 : 0)
+                let bScore = difficultyScore(b.1.difficulty) + (b.0.isDueToday ? 10 : 0)
+                return aScore > bScore
+            }
+            .first
+    }
+
+    private func difficultyScore(_ d: String?) -> Int {
+        switch d {
+        case "easy": 3
+        case "medium": 2
+        case "hard": 1
+        default: 2
+        }
+    }
+
+    /// Up to 6 random unfinished steps to feed the spinner wheel.
+    private var spinnerCandidates: [(quest: QuestRow, step: QuestStep)] {
+        let active = sync.quests.filter { !$0.isComplete }
+        let pairs: [(quest: QuestRow, step: QuestStep)] = active.flatMap { q in
+            q.steps.filter { !$0.done }.map { (q, $0) }
+        }
+        return Array(pairs.shuffled().prefix(6))
+    }
+
+    private var todayScore: Int {
+        let todayKey = Config.todayString()
+        let todayChecks = sync.habits?.daily_checks?[todayKey] ?? [:]
+        let totalHabits = resolveActivities().count
+        let habitsDone = resolveActivities().filter { todayChecks[$0.id] == true }.count
+        let stepsDone = engagement.todayStepsFromEngine()
+        let hasStreak = (sync.gameState?.last_active_date == todayKey)
+        return engagement.calculateTodayScore(
+            stepsDone: stepsDone, habitsChecked: habitsDone,
+            totalHabits: totalHabits, hasStreak: hasStreak
+        )
+    }
+
     var body: some View {
         ZStack {
             MeshBackground(theme: theme.current)
+            TimeOfDayOverlay()
 
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 10) {
                     if !AppGroupManager.shared.isAuthenticated {
                         notLoggedInCard
                     } else if sync.isLoading {
                         ProgressView()
                             .padding(.top, 40)
                     } else {
-                        greetingHeader
-                        statsBar
-                        waterCard
-                        nextStepCard
-                        habitsCard
+                        NarrativeBanner(accent: accent)
+                        CompanionView(
+                            accent: accent,
+                            todayScore: todayScore,
+                            streak: sync.gameState?.streak ?? 0
+                        )
+                        BentoStatsGrid(
+                            sync: sync,
+                            engagement: engagement,
+                            accent: accent,
+                            accentGradient: accentGradient
+                        )
+                        // Daily check-in: CTA bar -> opens 4-step modal flow
+                        CheckInSummaryCard(accent: accent)
+
+                        // Mystery box surfaces when earned (auto-hides otherwise)
+                        MysteryBoxCard(accent: accent) { reward in
+                            handleMysteryBoxReward(reward)
+                        }
+
+                        DailyDiceCard(accent: accent) { xp in
+                            engagement.addXpToday(xp)
+                            celebrationQueue.enqueue(.xpPopup(RewardChainResult(
+                                xpGained: xp, newTotalXp: (sync.gameState?.xp ?? 0) + xp,
+                                coinDrop: nil, loreDrop: nil, leveledUp: false,
+                                newLevelName: nil, questCompleted: false, questName: nil,
+                                streakBonus: 0, isFirstWinToday: false
+                            )))
+                        }
+
+                        DailyContentCard(accent: accent)
+                        MantraCard(accent: accent)
+
+                        if availableCategories.count > 1 {
+                            FocusModePicker(
+                                availableCategories: availableCategories,
+                                accent: accent
+                            )
+                        }
+                        if sync.quests.isEmpty {
+                            emptyQuestsGuide
+                        }
+                        streakWarning
+                        urgentActionCard
+                        if let qw = quickWin {
+                            QuickWinCard(quest: qw.quest, step: qw.step) {
+                                await runRewardChain(quest: qw.quest, step: qw.step)
+                            }
+                        }
+                        if !newFromWebQuests.isEmpty { newFromWebSection }
+                        if !overdueQuests.isEmpty { overdueAlert }
+                        if !todayDueQuests.isEmpty { todayDueSection }
+                        dailyQuestSection
+                        learningQuestSection
+                        WaterCardView(sync: sync, waterBounce: $waterBounce)
+                        HabitsCardView(sync: sync, accent: accent, expanded: $habitSectionExpanded)
+                        overallProgressCard
+                        todaySummaryCard
+                        retryBanner
                         syncFooter
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 20)
+                .padding(.horizontal, 14)
+                .padding(.bottom, 16)
             }
 
-            // MARK: - Celebration Overlays (z-layered)
+            // MARK: - Celebration Overlays (FIFO queue)
 
-            if showXpPopup, let result = xpPopupResult {
-                XpPopupView(
-                    xp: result.xpGained,
-                    streakBonus: result.streakBonus,
-                    isFirstWin: result.isFirstWinToday,
-                    isVisible: $showXpPopup
-                )
-                .transition(.asymmetric(insertion: .scale, removal: .opacity))
+            CelebrationOverlayStack(queue: celebrationQueue, accent: accent)
                 .zIndex(10)
-            }
 
-            if showCoinBurst {
-                CoinBurstView(amount: coinAmount, isVisible: $showCoinBurst)
-                    .zIndex(20)
-            }
+            // MARK: - Post-Step Guidance (appears after celebrations finish)
 
-            if showLoreDrop, let frag = loreFragment {
-                LoreDropView(fragment: frag, isVisible: $showLoreDrop)
-                    .zIndex(20)
+            if let guidance = postStepGuidance {
+                VStack {
+                    Spacer()
+                    PostStepGuideCard(
+                        result: guidance,
+                        accent: accent,
+                        onSelect: { rec in
+                            postStepGuidance = nil
+                            // Find quest + step and run reward chain
+                            if let q = sync.quests.first(where: { $0.id == rec.questId }),
+                               let s = q.steps.first(where: { $0.id == rec.id }) {
+                                Task { await runRewardChain(quest: q, step: s) }
+                            }
+                        },
+                        onDismiss: { postStepGuidance = nil }
+                    )
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .zIndex(5)
             }
-
-            if showLevelUp {
-                LevelUpOverlay(
-                    levelName: levelUpName,
-                    levelIndex: levelUpIndex,
-                    isVisible: $showLevelUp
+            if showWeeklyReport {
+                WeeklyReportCard(
+                    report: engagement.generateWeeklyReport(
+                        currentXp: sync.gameState?.xp ?? 0,
+                        previousXp: 0,
+                        quests: sync.quests
+                    ),
+                    isVisible: $showWeeklyReport,
+                    accent: accent
                 )
-                .zIndex(30)
+                .zIndex(40)
             }
-
-            if showQuestComplete {
-                QuestCompleteOverlay(
-                    questName: questCompleteName,
-                    isVisible: $showQuestComplete
-                )
-                .zIndex(30)
+            #if os(iOS)
+            if showConfetti {
+                ConfettiView(isVisible: $showConfetti, colors: [accent, theme.current.accentLight, .yellow, .green])
+                    .zIndex(50)
             }
+            #endif
         }
+        #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        #endif
         .toolbar {
             ToolbarItem(placement: .principal) {
+                let hour = Calendar.current.component(.hour, from: Date())
+                let (greeting, gIcon) = greetingForHour(hour)
                 HStack(spacing: 6) {
-                    Image(systemName: "sparkle")
+                    Image(systemName: gIcon)
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(accent)
-                    Text("QuestStar")
-                        .font(.headline)
+                        .foregroundStyle(.orange)
+                    Text(greeting)
+                        .font(.system(size: 15, weight: .bold))
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    HapticEngine.selection()
-                    theme.cycle()
-                } label: {
-                    Image(systemName: theme.current.icon)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(accent)
-                        .padding(6)
-                        .background(accent.opacity(0.1), in: Circle())
+            ToolbarItem(placement: .automatic) {
+                HStack(spacing: 6) {
+                    if !sync.quests.filter({ !$0.isComplete }).isEmpty {
+                        Button {
+                            #if os(iOS)
+                            HapticEngine.selection()
+                            #endif
+                            showRandomPicker = true
+                        } label: {
+                            Image(systemName: "dice.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.orange)
+                                .padding(6)
+                                .background(Color.orange.opacity(0.12), in: Circle())
+                        }
+                        .accessibilityLabel("Spin the wheel to pick a random step")
+                    }
+
+                    Button {
+                        #if os(iOS)
+                        HapticEngine.selection()
+                        #endif
+                        theme.cycle()
+                    } label: {
+                        Image(systemName: theme.current.icon)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(accent)
+                            .padding(6)
+                            .background(accent.opacity(0.1), in: Circle())
+                    }
                 }
             }
         }
         .refreshable { await sync.refresh() }
-        .onAppear { sync.startPolling() }
-        .onDisappear { sync.stopPolling() }
+        .sheet(isPresented: $showRandomPicker) {
+            SkillSpinnerView(
+                candidates: spinnerCandidates,
+                accent: accent
+            ) { quest, step in
+                Task { await runRewardChain(quest: quest, step: step) }
+            }
+        }
+        .onAppear {
+            sync.startPolling()
+
+            // HealthKit auto-complete (opt-in via Settings)
+            Task {
+                let activities = MedicationAdapter.resolveActivitiesStatic(from: sync.habits?.time_blocks)
+                let newlyChecked = await HealthKitAutoComplete.shared.runIfNeeded(activities: activities)
+                for habitId in newlyChecked {
+                    // Skip if already checked (avoid toggling off something the user did themselves)
+                    let todayKey = Config.todayString()
+                    let alreadyChecked = sync.habits?.daily_checks?[todayKey]?[habitId] ?? false
+                    if !alreadyChecked {
+                        await sync.toggleCheck(habitId)
+                    }
+                }
+            }
+
+            // Daily login bonus
+            if engagement.shouldShowDailyBonus() {
+                engagement.incrementLoginDays()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    celebrationQueue.enqueue(.dailyBonus(
+                        streak: sync.gameState?.streak ?? 0,
+                        loginDays: engagement.consecutiveLoginDays
+                    ))
+                }
+            }
+            // Check for Monday weekly report
+            let weekday = Calendar.current.component(.weekday, from: Date())
+            if weekday == 2 { // Monday
+                let lastReport = UserDefaults.standard.string(forKey: "quicktrack_last_report_week")
+                let thisWeek = Config.todayString()
+                if lastReport != thisWeek {
+                    UserDefaults.standard.set(thisWeek, forKey: "quicktrack_last_report_week")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        showWeeklyReport = true
+                    }
+                }
+            }
+        }
+        .onDisappear {
+            sync.stopPolling()
+            celebrationQueue.clear()
+        }
+        #if os(iOS)
+        .background(
+            ShakeDetectorView {
+                showRandomPicker = true
+                HapticEngine.selection()
+            }
+            .frame(width: 0, height: 0)
+        )
+        #endif
+    }
+
+    // MARK: - Mystery Box Reward Handler
+
+    private func handleMysteryBoxReward(_ reward: MysteryBoxStore.BoxReward) {
+        // Apply XP if any
+        if reward.xpAmount > 0 {
+            engagement.addXpToday(reward.xpAmount)
+            celebrationQueue.enqueue(.xpPopup(RewardChainResult(
+                xpGained: reward.xpAmount,
+                newTotalXp: (sync.gameState?.xp ?? 0) + reward.xpAmount,
+                coinDrop: nil, loreDrop: nil,
+                leveledUp: false, newLevelName: nil,
+                questCompleted: false, questName: nil,
+                streakBonus: 0, isFirstWinToday: false
+            )))
+        }
     }
 
     // MARK: - Reward Chain Trigger
@@ -123,16 +360,25 @@ struct TodayView: View {
     private func runRewardChain(quest: QuestRow, step: QuestStep) async {
         let oldXp = sync.gameState?.xp ?? 0
         let isFirstWin = sync.gameState?.daily_first_win != Config.todayString()
-
-        // 1. Complete the step (writes to Supabase)
         let xpGained = await sync.toggleStep(quest: quest, step: step)
 
-        // 2. Haptic: step done
-        HapticEngine.stepComplete()
+        #if os(iOS)
+        // XP-proportional haptic: small reward = light tap, big reward = heavy
+        HapticEngine.xpGain(xpGained)
+
+        // Update Live Activity if this quest has an active session
+        if #available(iOS 16.2, *),
+           LiveActivityManager.shared.activeQuestId == quest.id,
+           let updatedQuest = sync.quests.first(where: { $0.id == quest.id }) {
+            await LiveActivityManager.shared.updateSession(
+                quest: updatedQuest,
+                gameState: sync.gameState
+            )
+        }
+        #endif
 
         let newXp = sync.gameState?.xp ?? oldXp
 
-        // 3. Run reward chain evaluation
         let result = RewardChain.evaluate(
             xpGained: xpGained,
             oldXp: oldXp,
@@ -143,128 +389,112 @@ struct TodayView: View {
             streak: sync.gameState?.streak ?? 0
         )
 
-        // 4. Sequence the celebrations with delays for maximum dopamine
-
-        // XP popup (immediate)
-        xpPopupResult = result
-        withAnimation(.spring(response: 0.3)) { showXpPopup = true }
+        // Brief step-complete highlight
         completedStepId = step.id
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             withAnimation { completedStepId = nil }
         }
 
-        // Coin drop (8% chance, after 0.8s)
+        // Track XP for daily trend chart
+        if xpGained > 0 {
+            engagement.addXpToday(xpGained)
+        }
+
+        // Evaluate mystery box eligibility (weekly milestone reward)
+        let stepsThisWeek = engagement.stepHistory(days: 7).reduce(0) { $0 + $1.value }
+        MysteryBoxStore.shared.evaluateEligibility(stepsThisWeek: stepsThisWeek)
+
+        // Build ordered celebration sequence
+        var celebrations: [CelebrationQueue.Celebration] = []
+
+        // 1. Always show XP popup first
+        celebrations.append(.xpPopup(result))
+
+        // 2. Engagement: combo alert
+        if let comboAlert = engagement.recordStepCompletion() {
+            celebrations.append(.combo(comboAlert))
+        }
+
+        // 3. Coin burst (8% chance)
         if let coin = result.coinDrop {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                HapticEngine.coinDrop()
-                coinAmount = coin
-                withAnimation(.spring(response: 0.3)) { showCoinBurst = true }
-            }
+            celebrations.append(.coinBurst(amount: coin))
         }
 
-        // Lore drop (12% chance, after delay)
+        // 4. Lore drop (12% chance)
         if let lore = result.loreDrop {
-            let loreDelay = result.coinDrop != nil ? 2.8 : 1.5
-            DispatchQueue.main.asyncAfter(deadline: .now() + loreDelay) {
-                HapticEngine.loreDrop()
-                loreFragment = lore
-                withAnimation(.spring(response: 0.3)) { showLoreDrop = true }
-            }
+            celebrations.append(.loreDrop(lore))
         }
 
-        // Level up
+        // 5. Personal best (checked after combo/coins so it doesn't interrupt the flow)
+        let stepsToday = engagement.todayStepsFromEngine()
+        if let pb = engagement.checkPersonalBests(
+            stepsToday: stepsToday,
+            streak: sync.gameState?.streak ?? 0,
+            xpToday: xpGained,
+            questsToday: sync.quests.filter(\.isComplete).count
+        ) {
+            celebrations.append(.personalBest(pb))
+        }
+
+        // 6. Level up (dramatic, near the end)
         if result.leveledUp, let name = result.newLevelName {
-            let levelDelay: Double = {
-                var d = 1.0
-                if result.coinDrop != nil { d += 2.0 }
-                if result.loreDrop != nil { d += 2.0 }
-                return d
-            }()
-            DispatchQueue.main.asyncAfter(deadline: .now() + levelDelay) {
-                HapticEngine.levelUp()
-                levelUpName = name
-                levelUpIndex = Config.level(for: result.newTotalXp).index
-                withAnimation { showLevelUp = true }
-            }
+            celebrations.append(.levelUp(
+                name: name,
+                index: Config.level(for: result.newTotalXp).index
+            ))
         }
 
-        // Quest complete
+        // 7. Quest complete (grand finale)
         if result.questCompleted, let qName = result.questName {
-            let qDelay: Double = {
-                var d = 1.5
-                if result.coinDrop != nil { d += 2.0 }
-                if result.loreDrop != nil { d += 2.0 }
-                if result.leveledUp { d += 3.0 }
-                return d
-            }()
-            DispatchQueue.main.asyncAfter(deadline: .now() + qDelay) {
-                HapticEngine.questComplete()
-                questCompleteName = qName
-                withAnimation { showQuestComplete = true }
-            }
+            celebrations.append(.questComplete(questName: qName))
         }
+
+        // Compute post-step guidance now (frozen against current state)
+        let guidance = GuidanceEngine.getNextRecommendations(
+            completedStep: step,
+            quest: quest,
+            allQuests: sync.quests
+        )
+
+        celebrationQueue.enqueue(celebrations, onEmpty: { [weak celebrationQueue] in
+            _ = celebrationQueue
+            // Only show guidance if there's something useful to suggest
+            if !guidance.recommendations.isEmpty || guidance.allClear {
+                withAnimation(.spring(response: 0.5)) {
+                    postStepGuidance = guidance
+                }
+                // Auto-dismiss after 10 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                    withAnimation {
+                        postStepGuidance = nil
+                    }
+                }
+            }
+        })
     }
 
-    // MARK: - Greeting
+    // MARK: - Greeting (integrated into toolbar)
 
-    private var greetingHeader: some View {
-        let hour = Calendar.current.component(.hour, from: Date())
-        let (greeting, icon) = greetingForHour(hour)
-        let xp = sync.gameState?.xp ?? 0
-        let level = Config.level(for: xp)
-
-        return HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Image(systemName: icon)
-                        .font(.system(size: 14))
-                        .foregroundStyle(.orange)
-                    Text(greeting)
-                        .font(.title3.bold())
-                }
-                Text("\(level.name) · \(xp) XP")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            let streak = sync.gameState?.streak ?? 0
-            if streak > 0 {
-                HStack(spacing: 4) {
-                    Image(systemName: "flame.fill")
-                        .font(.system(size: 14))
-                    Text("\(streak)")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(
-                    LinearGradient(colors: [.orange, .red], startPoint: .topLeading, endPoint: .bottomTrailing),
-                    in: Capsule()
-                )
-                .shadow(color: .orange.opacity(0.4), radius: 10, y: 4)
-            }
-        }
-        .padding(.top, 8)
-    }
-
-    // MARK: - Stats Bar
+    // MARK: - Stats Bar (Hero XP Card)
 
     private var statsBar: some View {
         let xp = sync.gameState?.xp ?? 0
         let level = Config.level(for: xp)
         let progress = Config.levelProgress(for: xp)
-        let active = sync.quests.filter { q in q.steps.contains { !$0.done } }.count
+        let streak = sync.gameState?.streak ?? 0
+        let activeQuests = sync.quests.filter { !$0.isComplete }.count
         let todayKey = SyncManager.todayString()
         let todayChecks = sync.habits?.daily_checks?[todayKey] ?? [:]
         let habitsDone = resolveActivities().filter { todayChecks[$0.id] == true }.count
+        let totalStepsToday = sync.quests.reduce(0) { $0 + $1.steps.filter(\.done).count }
 
         return GradientCard(accent: accent) {
-            VStack(spacing: 14) {
-                HStack(spacing: 14) {
+            VStack(spacing: 12) {
+                // Hero: Large XP + Level ring
+                HStack(spacing: 16) {
                     ZStack {
                         Circle()
-                            .stroke(accent.opacity(0.12), lineWidth: 5)
+                            .stroke(accent.opacity(0.1), lineWidth: 8)
                         Circle()
                             .trim(from: 0, to: progress)
                             .stroke(
@@ -272,370 +502,901 @@ struct TodayView: View {
                                     colors: [theme.current.accentLight, accent, theme.current.accentHover],
                                     center: .center
                                 ),
-                                style: StrokeStyle(lineWidth: 5, lineCap: .round)
+                                style: StrokeStyle(lineWidth: 8, lineCap: .round)
                             )
                             .rotationEffect(.degrees(-90))
-                        Text("Lv\(level.index)")
-                            .font(.system(size: 11, weight: .black, design: .rounded))
-                            .foregroundStyle(accent)
+                            .animation(.spring(response: 0.6), value: progress)
+                        VStack(spacing: 1) {
+                            Text("Lv.\(level.index)")
+                                .font(.system(size: 16, weight: .black, design: .rounded))
+                                .foregroundStyle(accent)
+                        }
                     }
-                    .frame(width: 50, height: 50)
+                    .frame(width: 64, height: 64)
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(level.name)
-                            .font(.subheadline.bold())
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(accent.opacity(0.1))
-                                Capsule()
-                                    .fill(accentGradient)
-                                    .frame(width: geo.size.width * progress)
-                            }
-                        }
-                        .frame(height: 6)
-                        .clipShape(Capsule())
-                    }
-
-                    VStack(alignment: .trailing, spacing: 2) {
                         Text("\(xp)")
-                            .font(.system(size: 20, weight: .bold, design: .rounded))
-                        Text("XP")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.system(size: 32, weight: .black, design: .rounded))
+                            .foregroundStyle(accentGradient)
+                        Text("\(level.name) \u{00B7} \(Int(progress * 100))% to next")
+                            .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(.secondary)
                     }
-                }
 
-                HStack(spacing: 0) {
-                    statPill(icon: "scroll.fill", value: "\(active)", label: "Active", color: Color(hex: "#10B981"))
-                    statPill(icon: "checkmark.circle.fill", value: "\(habitsDone)", label: "Habits", color: .green)
-                    statPill(icon: "star.fill", value: level.name, label: "Rank", color: .yellow)
-                }
-            }
-        }
-    }
-
-    private func statPill(icon: String, value: String, label: String, color: Color) -> some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 10))
-                    .foregroundStyle(color)
-                Text(value)
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-            }
-            Text(label)
-                .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(.tertiary)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    // MARK: - Water Card
-
-    private var waterCard: some View {
-        let todayKey = SyncManager.todayString()
-        let todayChecks = sync.habits?.daily_checks?[todayKey] ?? [:]
-        let completedCount = WaterAdapter.intervals.filter { todayChecks[$0.id] == true }.count
-        let waterProgress = Double(completedCount) / 3.0
-
-        return GradientCard(accent: .cyan) {
-            VStack(spacing: 14) {
-                HStack {
-                    HStack(spacing: 8) {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(colors: [.cyan.opacity(0.2), .blue.opacity(0.1)],
-                                                  startPoint: .top, endPoint: .bottom)
-                                )
-                                .frame(width: 34, height: 34)
-                            Image(systemName: "drop.fill")
-                                .font(.system(size: 15))
-                                .foregroundStyle(
-                                    LinearGradient(colors: [.cyan, .blue], startPoint: .top, endPoint: .bottom)
-                                )
-                        }
-                        Text("Water")
-                            .font(.headline.bold())
-                    }
-                    Spacer()
-                    ZStack {
-                        Circle()
-                            .stroke(Color.cyan.opacity(0.12), lineWidth: 3)
-                        Circle()
-                            .trim(from: 0, to: waterProgress)
-                            .stroke(Color.cyan, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                            .rotationEffect(.degrees(-90))
-                        Text("\(completedCount)/3")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
-                            .foregroundStyle(.cyan)
-                    }
-                    .frame(width: 32, height: 32)
-                }
-
-                HStack(spacing: 10) {
-                    ForEach(WaterAdapter.intervals, id: \.id) { interval in
-                        let done = todayChecks[interval.id] == true
-                        let isBouncing = waterBounce == interval.id
-                        Button {
-                            HapticEngine.selection()
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.4)) {
-                                waterBounce = interval.id
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                                waterBounce = nil
-                            }
-                            Task { await sync.toggleCheck(interval.id) }
-                        } label: {
-                            VStack(spacing: 8) {
-                                ZStack {
-                                    Circle()
-                                        .fill(done
-                                              ? LinearGradient(colors: [.cyan.opacity(0.15), .blue.opacity(0.1)], startPoint: .top, endPoint: .bottom)
-                                              : LinearGradient(colors: [Color(.systemGray6), Color(.systemGray5)], startPoint: .top, endPoint: .bottom)
-                                        )
-                                        .frame(width: 56, height: 56)
-                                    if done {
-                                        Circle()
-                                            .stroke(
-                                                LinearGradient(colors: [.cyan, .blue.opacity(0.5)], startPoint: .top, endPoint: .bottom),
-                                                lineWidth: 2
-                                            )
-                                            .frame(width: 56, height: 56)
-                                    }
-                                    Image(systemName: done ? "drop.fill" : "drop")
-                                        .font(.system(size: 22))
-                                        .foregroundStyle(
-                                            done
-                                                ? LinearGradient(colors: [.cyan, .blue], startPoint: .top, endPoint: .bottom)
-                                                : LinearGradient(colors: [.gray.opacity(0.35), .gray.opacity(0.25)], startPoint: .top, endPoint: .bottom)
-                                        )
-                                    if done {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .font(.system(size: 14))
-                                            .foregroundStyle(.white)
-                                            .background(Circle().fill(.cyan).frame(width: 14, height: 14))
-                                            .offset(x: 16, y: 16)
-                                    }
-                                }
-                                .scaleEffect(isBouncing ? 1.15 : 1.0)
-
-                                Text(interval.label)
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(done ? .cyan : .secondary)
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Next Step Card
-
-    private var nextStepCard: some View {
-        let activeQuests = sync.quests.filter { q in q.steps.contains { !$0.done } }
-        let urgent = activeQuests
-            .sorted { ($0.deadline ?? "9999") < ($1.deadline ?? "9999") }
-            .first
-        let nextStep = urgent?.steps.first { !$0.done }
-
-        return Group {
-            if let quest = urgent, let step = nextStep {
-                GradientCard(accent: accent) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack(spacing: 10) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(accentGradient)
-                                    .frame(width: 36, height: 36)
-                                Image(systemName: "bolt.fill")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundStyle(.white)
-                            }
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Next Step")
-                                    .font(.subheadline.bold())
-                                Text(quest.name)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                            Spacer()
-                            let xpText = xpForDifficulty(step.difficulty)
-                            Text(xpText)
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(accentGradient, in: Capsule())
-                                .shadow(color: accent.opacity(0.3), radius: 6, y: 3)
-                        }
-
-                        Button {
-                            Task { await runRewardChain(quest: quest, step: step) }
-                        } label: {
-                            HStack(spacing: 12) {
-                                let isCompleting = completedStepId == step.id
-                                ZStack {
-                                    Circle()
-                                        .stroke(
-                                            isCompleting
-                                                ? LinearGradient(colors: [.green, .green], startPoint: .top, endPoint: .bottom)
-                                                : LinearGradient(colors: [accent.opacity(0.4), accent.opacity(0.2)], startPoint: .top, endPoint: .bottom),
-                                            lineWidth: 2
-                                        )
-                                        .frame(width: 30, height: 30)
-                                    if isCompleting {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 12, weight: .bold))
-                                            .foregroundStyle(.green)
-                                            .transition(.scale.combined(with: .opacity))
-                                    }
-                                }
-                                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isCompleting)
-
-                                Text(step.text)
-                                    .font(.subheadline)
-                                    .lineLimit(2)
-                                    .multilineTextAlignment(.leading)
-                                Spacer()
-                                Image(systemName: "play.circle.fill")
-                                    .font(.title2)
-                                    .foregroundStyle(accentGradient)
-                            }
-                            .padding(14)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .fill(Color(.systemBackground).opacity(0.6))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 14)
-                                            .stroke(accent.opacity(0.12), lineWidth: 1)
-                                    )
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Habits Card
-
-    private var habitsCard: some View {
-        let todayKey = SyncManager.todayString()
-        let todayChecks = sync.habits?.daily_checks?[todayKey] ?? [:]
-        let activities = resolveActivities()
-        let checked = activities.filter { todayChecks[$0.id] == true }.count
-        let total = activities.count
-        let progress = total > 0 ? Double(checked) / Double(total) : 0
-
-        return GradientCard(accent: .pink) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    HStack(spacing: 8) {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(colors: [.pink.opacity(0.2), .red.opacity(0.1)],
-                                                  startPoint: .topLeading, endPoint: .bottomTrailing)
-                                )
-                                .frame(width: 34, height: 34)
-                            Image(systemName: "heart.fill")
-                                .font(.system(size: 15))
-                                .foregroundStyle(
-                                    LinearGradient(colors: [.pink, .red], startPoint: .topLeading, endPoint: .bottomTrailing)
-                                )
-                        }
-                        Text("Habits")
-                            .font(.headline.bold())
-                    }
                     Spacer()
 
-                    HStack(spacing: 4) {
-                        Text("\(checked)/\(total)")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                        if progress >= 1.0 {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 10))
+                    if streak > 0 {
+                        VStack(spacing: 2) {
+                            Image(systemName: "flame.fill")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.orange)
+                            Text("\(streak)")
+                                .font(.system(size: 18, weight: .black, design: .rounded))
+                                .foregroundStyle(.orange)
+                            Text("streak")
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundStyle(.secondary)
                         }
                     }
-                    .foregroundStyle(progress >= 1.0 ? .green : .secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(
-                        (progress >= 1.0 ? Color.green : Color(.systemGray5)).opacity(0.15),
-                        in: Capsule()
-                    )
                 }
 
+                // XP progress bar
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        Capsule().fill(Color.pink.opacity(0.08))
+                        Capsule().fill(accent.opacity(0.1))
                         Capsule()
-                            .fill(
-                                LinearGradient(colors: [.pink, .red.opacity(0.8)], startPoint: .leading, endPoint: .trailing)
-                            )
-                            .frame(width: geo.size.width * progress)
+                            .fill(accentGradient)
+                            .frame(width: max(geo.size.width * progress, 4))
                     }
                 }
                 .frame(height: 5)
                 .clipShape(Capsule())
 
-                VStack(spacing: 0) {
-                    ForEach(Array(activities.enumerated()), id: \.element.id) { index, activity in
-                        let done = todayChecks[activity.id] == true
-                        Button {
-                            HapticEngine.selection()
-                            Task { await sync.toggleCheck(activity.id) }
-                        } label: {
-                            HStack(spacing: 12) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 7)
-                                        .fill(done ? Color.green.opacity(0.15) : Color(.systemGray6))
-                                        .frame(width: 26, height: 26)
-                                    if done {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 11, weight: .bold))
-                                            .foregroundStyle(.green)
-                                    } else {
-                                        RoundedRectangle(cornerRadius: 7)
-                                            .stroke(Color(.systemGray4), lineWidth: 1.5)
-                                            .frame(width: 26, height: 26)
-                                    }
-                                }
-                                Text(activity.label)
-                                    .font(.subheadline)
-                                    .foregroundStyle(done ? .secondary : .primary)
-                                Spacer()
-                                if done {
-                                    Image(systemName: "sparkle")
-                                        .font(.system(size: 10))
-                                        .foregroundStyle(.green.opacity(0.7))
+                // Compact stat row
+                HStack(spacing: 0) {
+                    miniStat(value: "\(activeQuests)", label: "Quests", color: accent)
+                    miniStat(value: "\(totalStepsToday)", label: "Steps", color: Color(hex: "#10B981"))
+                    miniStat(value: "\(habitsDone)", label: "Habits", color: .pink)
+                }
+            }
+        }
+    }
+
+    private func miniStat(value: String, color: Color) -> some View {
+        Text(value)
+            .font(.system(size: 13, weight: .bold, design: .rounded))
+            .foregroundStyle(color)
+    }
+
+    private func miniStat(value: String, label: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 14, weight: .black, design: .rounded))
+                .foregroundStyle(color)
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Weekly Activity Heatmap
+
+    // MARK: - Streak Warning
+
+    @ViewBuilder
+    private var streakWarning: some View {
+        let streak = sync.gameState?.streak ?? 0
+        let isActiveToday = sync.gameState?.last_active_date == Config.todayString()
+        let hour = Calendar.current.component(.hour, from: Date())
+
+        if streak > 0 && !isActiveToday {
+            let isUrgent = hour >= 18
+
+            GradientCard(accent: isUrgent ? .red : .orange) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: isUrgent ? [.red.opacity(0.3), .orange.opacity(0.15)] : [.orange.opacity(0.2), .yellow.opacity(0.1)],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "flame.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(isUrgent ? .red : .orange)
+                            .symbolEffect(.pulse, options: .repeating)
+                    }
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(isUrgent ? "Streak at Risk!" : "Keep Your Streak!")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(isUrgent ? .red : .orange)
+                        Text("\(streak)-day streak \u{00B7} Complete 1 step to keep it alive")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Text("\(streak)")
+                        .font(.system(size: 28, weight: .black, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: isUrgent ? [.red, .orange] : [.orange, .yellow],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        )
+                }
+            }
+        }
+    }
+
+    // MARK: - Urgent Action Card (Smart Launcher)
+
+    @ViewBuilder
+    private var urgentActionCard: some View {
+        let allActive = sync.quests.filter { !$0.isComplete }
+        let urgent: QuestRow? = {
+            if let overdue = allActive.first(where: { $0.isOverdue }) { return overdue }
+            if let todayDue = allActive.first(where: { $0.isDueToday }) { return todayDue }
+            if let byDeadline = allActive.filter({ $0.deadline != nil }).sorted(by: { ($0.deadline ?? "") < ($1.deadline ?? "") }).first { return byDeadline }
+            return allActive.first
+        }()
+
+        if let quest = urgent, let step = quest.steps.first(where: { !$0.done }) {
+            let cardColor = quest.categoryColor
+
+            GradientCard(accent: cardColor) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkle")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(cardColor)
+                        Text("Just This One")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(cardColor)
+                        Spacer()
+                        if let days = quest.daysUntilDeadline {
+                            Text(days <= 0 ? "OVERDUE" : days == 1 ? "TOMORROW" : "\(days)d left")
+                                .font(.system(size: 9, weight: .black))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(
+                                    (days <= 0 ? Color.red : days <= 2 ? Color.orange : cardColor),
+                                    in: Capsule()
+                                )
+                        }
+                    }
+
+                    NavigationLink(destination: QuestDetailView(quest: quest)) {
+                        HStack(spacing: 6) {
+                            Image(systemName: quest.categoryIcon)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                            Text(quest.name)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 8))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    AnimatedButton {
+                        Task { await runRewardChain(quest: quest, step: step) }
+                    } label: {
+                        HStack(spacing: 12) {
+                            let isCompleting = completedStepId == step.id
+
+                            ZStack {
+                                Circle()
+                                    .fill(isCompleting ? Color.green.opacity(0.2) : cardColor.opacity(0.1))
+                                    .frame(width: 40, height: 40)
+                                if isCompleting {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundStyle(.green)
+                                        .transition(.scale.combined(with: .opacity))
+                                } else {
+                                    Text("\(quest.steps.filter(\.done).count + 1)")
+                                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                                        .foregroundStyle(cardColor)
                                 }
                             }
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 6)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(done ? Color.green.opacity(0.03) : .clear)
-                            )
-                        }
-                        .buttonStyle(.plain)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isCompleting)
 
-                        if index < activities.count - 1 {
-                            Divider().padding(.leading, 38)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(step.text)
+                                    .font(.system(size: 15, weight: .medium))
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
+                                if let d = step.difficulty {
+                                    Text(xpForDifficulty(d))
+                                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                                        .foregroundStyle(cardColor.opacity(0.7))
+                                }
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 32))
+                                .foregroundStyle(
+                                    LinearGradient(colors: [cardColor, cardColor.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                                )
+                                .shadow(color: cardColor.opacity(0.3), radius: 8, y: 4)
                         }
+                        .padding(14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.systemBackground.opacity(0.6))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(cardColor.opacity(0.15), lineWidth: 1)
+                                )
+                        )
                     }
                 }
             }
         }
     }
 
+    // MARK: - New From Web Section
+
+    private var newFromWebSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.cyan)
+                Text("New from Web")
+                    .font(.system(size: 15, weight: .bold))
+                Spacer()
+                Text("\(newFromWebQuests.count) new")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(.cyan, in: Capsule())
+            }
+            .padding(.top, 6)
+
+            ForEach(newFromWebQuests.prefix(3), id: \.id) { quest in
+                NavigationLink(destination: QuestDetailView(quest: quest)) {
+                    newQuestCard(quest)
+                }
+                .buttonStyle(.plain)
+            }
+            if newFromWebQuests.count > 3 {
+                HStack {
+                    Spacer()
+                    Text("+\(newFromWebQuests.count - 3) more")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func newQuestCard(_ quest: QuestRow) -> some View {
+        let cardColor = quest.categoryColor
+
+        GradientCard(accent: .cyan) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(
+                            LinearGradient(
+                                colors: [.cyan.opacity(0.15), cardColor.opacity(0.1)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 38, height: 38)
+                    Image(systemName: quest.categoryIcon)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(cardColor)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text("NEW")
+                            .font(.system(size: 8, weight: .black))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(.cyan, in: Capsule())
+                        Text(quest.name)
+                            .font(.subheadline.bold())
+                            .lineLimit(1)
+                    }
+
+                    HStack(spacing: 6) {
+                        Text("\(quest.steps.count) steps")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.secondary)
+                        if let tag = quest.tag {
+                            Text(tag)
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(cardColor.opacity(0.8))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(cardColor.opacity(0.08), in: Capsule())
+                        }
+                        if let days = quest.daysUntilDeadline {
+                            HStack(spacing: 2) {
+                                Image(systemName: "clock.fill")
+                                    .font(.system(size: 7))
+                                Text("\(days)d")
+                                    .font(.system(size: 9, weight: .semibold))
+                            }
+                            .foregroundStyle(days <= 2 ? .orange : .secondary)
+                        }
+                    }
+                }
+
+                Spacer()
+
+                if let step = quest.steps.first(where: { !$0.done }) {
+                    AnimatedButton {
+                        Task { await runRewardChain(quest: quest, step: step) }
+                    } label: {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundStyle(
+                                LinearGradient(colors: [cardColor, cardColor.opacity(0.7)],
+                                              startPoint: .topLeading, endPoint: .bottomTrailing)
+                            )
+                    }
+                }
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    // MARK: - Overdue Alert
+
+    private var overdueAlert: some View {
+        NavigationLink(destination: QuestsView()) {
+            GradientCard(accent: .red) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(LinearGradient(colors: [.red.opacity(0.2), .orange.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .frame(width: 40, height: 40)
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(.red)
+                    }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("\(overdueQuests.count) Overdue Quest\(overdueQuests.count > 1 ? "s" : "")")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.red)
+                        Text(overdueQuests.prefix(2).map(\.name).joined(separator: ", "))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Today Due Section
+
+    private var todayDueSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader(icon: "calendar.badge.clock", title: "Due Today", color: .orange)
+
+            ForEach(todayDueQuests, id: \.id) { quest in
+                NavigationLink(destination: QuestDetailView(quest: quest)) {
+                    compactQuestRow(quest, accentColor: .orange)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    // MARK: - Daily Quest Section
+
+    private var dailyQuestSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader(icon: "repeat.circle.fill", title: "Daily Quests", color: accent)
+
+            if dailyQuests.isEmpty {
+                emptySection(text: "No active daily quests", icon: "checkmark.seal.fill")
+            } else {
+                ForEach(dailyQuests, id: \.id) { quest in
+                    questActionCard(quest)
+                }
+            }
+        }
+    }
+
+    // MARK: - Learning Quest Section
+
+    private var learningQuestSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader(icon: "book.fill", title: "Learning Quests", color: Color(hex: "#6366F1"))
+
+            if learningQuests.isEmpty {
+                emptySection(text: "No active learning quests", icon: "book.closed.fill")
+            } else {
+                ForEach(learningQuests.prefix(5), id: \.id) { quest in
+                    questActionCard(quest)
+                }
+                if learningQuests.count > 5 {
+                    HStack {
+                        Spacer()
+                        Text("+\(learningQuests.count - 5) more in Quests tab")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Quest Action Card
+
+    @ViewBuilder
+    private func questActionCard(_ quest: QuestRow) -> some View {
+        let nextStep = quest.steps.first { !$0.done }
+        let cardAccent = quest.categoryColor
+
+        GradientCard(accent: cardAccent) {
+            VStack(alignment: .leading, spacing: 10) {
+                NavigationLink(destination: QuestDetailView(quest: quest)) {
+                    HStack(spacing: 10) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [cardAccent.opacity(0.15), cardAccent.opacity(0.05)],
+                                        startPoint: .topLeading, endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 36, height: 36)
+                            Image(systemName: quest.categoryIcon)
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(cardAccent)
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(quest.name)
+                                .font(.subheadline.bold())
+                                .lineLimit(1)
+                                .foregroundStyle(.primary)
+
+                            HStack(spacing: 6) {
+                                if let tag = quest.tag {
+                                    Text(tag)
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .foregroundStyle(cardAccent.opacity(0.8))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(cardAccent.opacity(0.08), in: Capsule())
+                                }
+                                if let days = quest.daysUntilDeadline {
+                                    HStack(spacing: 2) {
+                                        Image(systemName: "clock.fill")
+                                            .font(.system(size: 7))
+                                        Text(days == 0 ? "Today" : days < 0 ? "\(-days)d overdue" : "\(days)d left")
+                                            .font(.system(size: 9, weight: .semibold))
+                                    }
+                                    .foregroundStyle(days <= 0 ? .red : days <= 2 ? .orange : .secondary)
+                                }
+                            }
+                        }
+
+                        Spacer()
+
+                        ZStack {
+                            Circle()
+                                .stroke(cardAccent.opacity(0.12), lineWidth: 3)
+                            Circle()
+                                .trim(from: 0, to: quest.progress)
+                                .stroke(cardAccent, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                                .rotationEffect(.degrees(-90))
+                            Text("\(Int(quest.progress * 100))%")
+                                .font(.system(size: 8, weight: .bold, design: .rounded))
+                                .foregroundStyle(cardAccent)
+                        }
+                        .frame(width: 34, height: 34)
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                GeometryReader { geo in
+                    let isQuestComplete = quest.progress >= 1.0
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(cardAccent.opacity(0.1))
+                        Capsule()
+                            .fill(
+                                isQuestComplete
+                                    ? LinearGradient(colors: [.green, .green.opacity(0.8)], startPoint: .leading, endPoint: .trailing)
+                                    : LinearGradient(colors: [cardAccent, cardAccent.opacity(0.7)], startPoint: .leading, endPoint: .trailing)
+                            )
+                            .frame(width: max(geo.size.width * quest.progress, quest.progress > 0 ? 4 : 0))
+                    }
+                }
+                .frame(height: 5)
+                .clipShape(Capsule())
+
+                if let step = nextStep {
+                    AnimatedButton {
+                        Task { await runRewardChain(quest: quest, step: step) }
+                    } label: {
+                        HStack(spacing: 10) {
+                            let isCompleting = completedStepId == step.id
+                            ZStack {
+                                Circle()
+                                    .stroke(
+                                        isCompleting
+                                            ? LinearGradient(colors: [.green, .green], startPoint: .top, endPoint: .bottom)
+                                            : LinearGradient(colors: [cardAccent.opacity(0.4), cardAccent.opacity(0.2)], startPoint: .top, endPoint: .bottom),
+                                        lineWidth: 2
+                                    )
+                                    .frame(width: 26, height: 26)
+                                if isCompleting {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundStyle(.green)
+                                        .transition(.scale.combined(with: .opacity))
+                                }
+                            }
+                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isCompleting)
+
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(step.text)
+                                    .font(.system(size: 13))
+                                    .lineLimit(1)
+                                if let d = step.difficulty {
+                                    Text(xpForDifficulty(d))
+                                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                                        .foregroundStyle(cardAccent.opacity(0.7))
+                                }
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 22))
+                                .foregroundStyle(LinearGradient(colors: [cardAccent, cardAccent.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        }
+                        .padding(10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.systemBackground.opacity(0.5))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(cardAccent.opacity(0.1), lineWidth: 1)
+                                )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Compact Quest Row
+
+    private func compactQuestRow(_ quest: QuestRow, accentColor: Color) -> some View {
+        let nextStep = quest.steps.first { !$0.done }
+
+        return GradientCard(accent: accentColor) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(accentColor.opacity(0.12))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: quest.categoryIcon)
+                        .font(.system(size: 13))
+                        .foregroundStyle(accentColor)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(quest.name)
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1)
+                    if let step = nextStep {
+                        Text(step.text)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer()
+
+                if let step = nextStep {
+                    AnimatedButton {
+                        Task { await runRewardChain(quest: quest, step: step) }
+                    } label: {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(accentColor)
+                    }
+                }
+
+                ZStack {
+                    Circle()
+                        .stroke(accentColor.opacity(0.15), lineWidth: 2.5)
+                    Circle()
+                        .trim(from: 0, to: quest.progress)
+                        .stroke(accentColor, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                }
+                .frame(width: 28, height: 28)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    // Water and Habits cards extracted to Today/WaterCardView.swift and Today/HabitsCardView.swift
+
+    // MARK: - Overall Progress
+
+    private var overallProgressCard: some View {
+        let allQuests = sync.quests
+        let totalQuests = allQuests.count
+        let completedQuests = allQuests.filter(\.isComplete).count
+        let totalSteps = allQuests.reduce(0) { $0 + $1.steps.count }
+        let doneSteps = allQuests.reduce(0) { $0 + $1.steps.filter(\.done).count }
+        let overallProgress = totalSteps > 0 ? Double(doneSteps) / Double(totalSteps) : 0
+
+        return GradientCard(accent: accent) {
+            VStack(spacing: 12) {
+                HStack {
+                    HStack(spacing: 8) {
+                        ZStack {
+                            Circle()
+                                .fill(accent.opacity(0.12))
+                                .frame(width: 30, height: 30)
+                            Image(systemName: "chart.bar.fill")
+                                .font(.system(size: 13))
+                                .foregroundStyle(accent)
+                        }
+                        Text("Overall Progress")
+                            .font(.subheadline.bold())
+                    }
+                    Spacer()
+                    Text("\(Int(overallProgress * 100))%")
+                        .font(.system(size: 14, weight: .black, design: .rounded))
+                        .foregroundStyle(accent)
+                }
+
+                GeometryReader { geo in
+                    let learningDone = allQuests.filter { $0.category == "learning" }.reduce(0) { $0 + $1.steps.filter(\.done).count }
+                    let codeDone = allQuests.filter { $0.category == "code" }.reduce(0) { $0 + $1.steps.filter(\.done).count }
+                    let otherDone = doneSteps - learningDone - codeDone
+
+                    HStack(spacing: 2) {
+                        if totalSteps > 0 {
+                            if learningDone > 0 {
+                                Capsule().fill(Color(hex: "#6366F1"))
+                                    .frame(width: max(geo.size.width * Double(learningDone) / Double(totalSteps), 4))
+                            }
+                            if codeDone > 0 {
+                                Capsule().fill(Color(hex: "#10B981"))
+                                    .frame(width: max(geo.size.width * Double(codeDone) / Double(totalSteps), 4))
+                            }
+                            if otherDone > 0 {
+                                Capsule().fill(Color(hex: "#F59E0B"))
+                                    .frame(width: max(geo.size.width * Double(otherDone) / Double(totalSteps), 4))
+                            }
+                            let remaining = totalSteps - doneSteps
+                            if remaining > 0 {
+                                Capsule().fill(Color.systemGray5)
+                                    .frame(width: geo.size.width * Double(remaining) / Double(totalSteps))
+                            }
+                        } else {
+                            Capsule().fill(Color.systemGray5)
+                        }
+                    }
+                }
+                .frame(height: 7)
+                .clipShape(Capsule())
+
+                HStack(spacing: 16) {
+                    HStack(spacing: 4) {
+                        Circle().fill(Color(hex: "#6366F1")).frame(width: 8, height: 8)
+                        Text("Learning").font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 4) {
+                        Circle().fill(Color(hex: "#10B981")).frame(width: 8, height: 8)
+                        Text("Code").font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 4) {
+                        Circle().fill(Color(hex: "#F59E0B")).frame(width: 8, height: 8)
+                        Text("Other").font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text("\(completedQuests)/\(totalQuests) quests")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+    }
+
+    // MARK: - Today Summary Card
+
+    private var todaySummaryCard: some View {
+        let todayKey = SyncManager.todayString()
+        let isActiveToday = sync.gameState?.last_active_date == todayKey
+        let todayChecks = sync.habits?.daily_checks?[todayKey] ?? [:]
+        let habitsCompleted = resolveActivities().filter { todayChecks[$0.id] == true }.count
+        let totalSteps = sync.quests.reduce(0) { $0 + $1.steps.filter(\.done).count }
+        let xp = sync.gameState?.xp ?? 0
+
+        let (message, emoji): (String, String) = {
+            if !isActiveToday { return ("Start your first step today!", "sparkles") }
+            if totalSteps >= 10 { return ("Legendary day! Keep crushing it!", "crown.fill") }
+            if totalSteps >= 5 { return ("On fire! Incredible progress!", "flame.fill") }
+            if totalSteps >= 3 { return ("Great momentum! Keep going!", "bolt.fill") }
+            return ("Nice start! Every step counts!", "leaf.fill")
+        }()
+
+        return GradientCard(accent: accent) {
+            VStack(spacing: 14) {
+                HStack(spacing: 6) {
+                    Image(systemName: "flag.checkered")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(accent)
+                    Text("Today's Report")
+                        .font(.system(size: 12, weight: .bold))
+                    Spacer()
+                }
+
+                HStack(spacing: 0) {
+                    VStack(spacing: 4) {
+                        Text("\(totalSteps)")
+                            .font(.system(size: 22, weight: .black, design: .rounded))
+                            .foregroundStyle(accent)
+                        Text("Steps Done")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    Rectangle()
+                        .fill(Color.systemGray4.opacity(0.3))
+                        .frame(width: 1, height: 30)
+
+                    VStack(spacing: 4) {
+                        Text("\(xp)")
+                            .font(.system(size: 22, weight: .black, design: .rounded))
+                            .foregroundStyle(.yellow)
+                        Text("Total XP")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    Rectangle()
+                        .fill(Color.systemGray4.opacity(0.3))
+                        .frame(width: 1, height: 30)
+
+                    VStack(spacing: 4) {
+                        Text("\(habitsCompleted)")
+                            .font(.system(size: 22, weight: .black, design: .rounded))
+                            .foregroundStyle(.pink)
+                        Text("Habits")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+
+                HStack(spacing: 6) {
+                    Image(systemName: emoji)
+                        .font(.system(size: 11))
+                        .foregroundStyle(accent)
+                    Text(message)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(accent.opacity(0.06), in: Capsule())
+            }
+        }
+    }
+
+    // MARK: - Section Helpers
+
+    private func sectionHeader(icon: String, title: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(color)
+            Text(title)
+                .font(.system(size: 15, weight: .bold))
+            Spacer()
+        }
+        .padding(.top, 6)
+    }
+
+    private func emptySection(text: String, icon: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundStyle(.secondary.opacity(0.5))
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 14)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color.systemBackground.opacity(0.3))
+        )
+    }
+
     // MARK: - Sync Footer
+
+    @ViewBuilder
+    private var retryBanner: some View {
+        if retryQueue.hasPending {
+            HStack(spacing: 8) {
+                if retryQueue.isRetrying {
+                    ProgressView()
+                        .controlSize(.mini)
+                } else {
+                    Image(systemName: "exclamationmark.icloud.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.orange)
+                }
+
+                Text(retryQueue.lastError ?? "Syncing...")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                if !retryQueue.isRetrying {
+                    Button {
+                        retryQueue.retryNow()
+                    } label: {
+                        Text("Retry")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(accent)
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+            .transition(.opacity.combined(with: .move(edge: .top)))
+        }
+    }
 
     private var syncFooter: some View {
         Group {
@@ -649,6 +1410,40 @@ struct TodayView: View {
                 .foregroundStyle(.quaternary)
                 .padding(.top, 8)
             }
+        }
+    }
+
+    // MARK: - Empty Quests Guide
+
+    private var emptyQuestsGuide: some View {
+        GradientCard(accent: accent) {
+            VStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(accent.opacity(0.1))
+                        .frame(width: 52, height: 52)
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 22))
+                        .foregroundStyle(accent)
+                }
+                Text("Your adventure starts here!")
+                    .font(.system(size: 15, weight: .bold))
+                Text("Create your first quest on QuestStar web to see tasks here.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                HStack(spacing: 4) {
+                    Image(systemName: "globe")
+                        .font(.system(size: 10))
+                    Text("quest-star.vercel.app")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .foregroundStyle(accent)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(accent.opacity(0.08), in: Capsule())
+            }
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -703,6 +1498,7 @@ struct TodayView: View {
         }
     }
 
+
     private func xpForDifficulty(_ d: String?) -> String {
         switch d {
         case "easy": "+10 XP"
@@ -710,5 +1506,34 @@ struct TodayView: View {
         case "hard": "+35 XP"
         default: "+15 XP"
         }
+    }
+}
+
+// MARK: - Animated Button (press scale + spring)
+
+struct AnimatedButton<Label: View>: View {
+    let action: () -> Void
+    @ViewBuilder let label: () -> Label
+
+    @State private var isPressed = false
+
+    var body: some View {
+        Button {
+            action()
+        } label: {
+            label()
+                .scaleEffect(isPressed ? 0.95 : 1.0)
+                .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isPressed)
+        }
+        .buttonStyle(.plain)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if !isPressed { isPressed = true }
+                }
+                .onEnded { _ in
+                    isPressed = false
+                }
+        )
     }
 }

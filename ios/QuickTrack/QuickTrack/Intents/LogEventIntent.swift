@@ -1,11 +1,13 @@
 import AppIntents
 import WidgetKit
+import os
 
-/// App Intent: check off a medication/habit activity from the widget.
-/// Writes directly to Supabase daily_habits.daily_checks.
+/// App Intent: toggle a medication/habit activity from the widget.
+/// Reads current state, flips it (true ↔ false), writes back to Supabase.
+/// Allows users to uncheck mistakes by tapping again.
 struct LogEventIntent: AppIntent {
     static var title: LocalizedStringResource = "Log Activity"
-    static var description: IntentDescription = "Check off a daily activity"
+    static var description: IntentDescription = "Toggle a daily activity check"
 
     @Parameter(title: "Activity ID")
     var activityId: String
@@ -21,49 +23,47 @@ struct LogEventIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
+        let logger = Logger(subsystem: "QuickTrack", category: "LogEventIntent")
         let appGroup = AppGroupManager.shared
         guard appGroup.isAuthenticated,
               let userId = appGroup.supabaseUserId else {
+            logger.warning("LogEventIntent: not authenticated, skipping")
             return .result()
         }
 
         let client = SupabaseClient.shared
 
-        // 1. Read current daily_checks from Supabase (nil if no row yet)
-        let row: DailyHabitsRow? = try await client.fetchOneOptional(
-            table: "daily_habits",
-            query: "select=daily_checks&user_id=eq.\(userId)"
-        )
+        do {
+            // 1. Read current daily_checks from Supabase
+            let row: DailyHabitsRow? = try await client.fetchOneOptional(
+                table: "daily_habits",
+                query: "select=daily_checks&user_id=eq.\(userId)"
+            )
 
-        // 2. Merge new check into today's date
-        var allChecks = row?.daily_checks ?? [:]
-        let todayKey = Config.todayString()
-        var todayChecks = allChecks[todayKey] ?? [:]
-        todayChecks[activityId] = true
-        allChecks[todayKey] = todayChecks
+            // 2. Toggle today's check for this activity
+            var allChecks = row?.daily_checks ?? [:]
+            let todayKey = Config.todayString()
+            var todayChecks = allChecks[todayKey] ?? [:]
+            let wasChecked = todayChecks[activityId] ?? false
+            todayChecks[activityId] = !wasChecked
+            allChecks[todayKey] = todayChecks
 
-        // 3. Write back to Supabase (upsert in case row doesn't exist yet)
-        try await client.upsert(
-            table: "daily_habits",
-            body: ["user_id": userId, "daily_checks": allChecks]
-        )
+            // 3. Write back to Supabase
+            try await client.upsert(
+                table: "daily_habits",
+                body: ["user_id": userId, "daily_checks": allChecks]
+            )
 
-        // 4. Invalidate widget cache and refresh
-        if let summaryData = try? JSONEncoder().encode(TrackerSummary(
-            trackerId: "medication",
-            currentValue: Double(todayChecks.count),
-            label: "Updated",
-            subtitle: "Checked: \(activityLabel)",
-            progress: nil,
-            trend: nil,
-            updatedAt: Date(),
-            actionItems: nil,
-            stepMeta: nil
-        )) {
-            appGroup.cacheData(summaryData, forKey: "medication")
+            logger.info("LogEventIntent: toggled \(activityId, privacy: .public) to \(!wasChecked)")
+
+            // 4. Reload all widgets that depend on daily_checks
+            WidgetCenter.shared.reloadTimelines(ofKind: "MedicationWidget")
+            WidgetCenter.shared.reloadTimelines(ofKind: "WaterWidget")
+            WidgetCenter.shared.reloadTimelines(ofKind: "DailyProgressWidget")
+        } catch {
+            logger.error("LogEventIntent failed: \(error.localizedDescription)")
+            // Don't throw — widget intents shouldn't surface errors loudly
         }
-
-        WidgetCenter.shared.reloadTimelines(ofKind: "MedicationWidget")
 
         return .result()
     }

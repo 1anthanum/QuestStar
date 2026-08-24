@@ -2,6 +2,9 @@ import Foundation
 import Combine
 import WidgetKit
 import os
+#if os(iOS)
+import UIKit
+#endif
 
 /// Manages automatic polling to keep iOS app in sync with the QuestStar web app.
 /// Polls Supabase every 30 seconds when the app is in the foreground.
@@ -11,6 +14,7 @@ final class SyncManager: ObservableObject {
 
     private let logger = Logger(subsystem: "QuickTrack", category: "Sync")
     private let client = SupabaseClient.shared
+    private let retryQueue = RetryQueue.shared
     private var timer: Timer?
 
     /// Published data — views observe these for automatic updates
@@ -28,8 +32,10 @@ final class SyncManager: ObservableObject {
         case error(String)
     }
 
-    /// Polling interval in seconds
-    private let pollInterval: TimeInterval = 30
+    /// Polling interval in seconds (60s = balance freshness with battery)
+    private let pollInterval: TimeInterval = 60
+
+    private var didRegisterBackgroundObservers = false
 
     private init() {}
 
@@ -38,6 +44,9 @@ final class SyncManager: ObservableObject {
     func startPolling() {
         guard timer == nil else { return }
         logger.info("Starting sync polling (every \(self.pollInterval)s)")
+
+        // Register once for app lifecycle notifications to pause polling in background
+        registerBackgroundObserversIfNeeded()
 
         // Initial fetch
         Task { await refresh() }
@@ -54,6 +63,27 @@ final class SyncManager: ObservableObject {
         timer?.invalidate()
         timer = nil
         logger.info("Stopped sync polling")
+    }
+
+    private func registerBackgroundObserversIfNeeded() {
+        guard !didRegisterBackgroundObservers else { return }
+        didRegisterBackgroundObservers = true
+
+        #if os(iOS)
+        let center = NotificationCenter.default
+        center.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.stopPolling() }
+        }
+        center.addObserver(
+            forName: UIApplication.willEnterForegroundNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.startPolling() }
+        }
+        #endif
     }
 
     /// Force an immediate refresh (e.g., after a local write)
@@ -77,7 +107,7 @@ final class SyncManager: ObservableObject {
             )
             async let qs: [QuestRow] = client.fetchMany(
                 table: "quests",
-                query: "select=id,name,steps,deadline,tag,quest_type&user_id=eq.\(userId)&order=created_at.desc"
+                query: "select=id,name,steps,deadline,tag,quest_type,category,created_at&user_id=eq.\(userId)&order=created_at.desc"
             )
 
             let fetchedGs = try await gs
@@ -127,7 +157,17 @@ final class SyncManager: ObservableObject {
             WidgetCenter.shared.reloadTimelines(ofKind: "MedicationWidget")
             WidgetCenter.shared.reloadTimelines(ofKind: "WaterWidget")
         } catch {
-            await refresh()
+            let checksSnapshot = allChecks
+            retryQueue.enqueue(
+                label: "toggleCheck(\(activityId))",
+                operation: { [client] in
+                    try await client.upsert(
+                        table: "daily_habits",
+                        body: ["user_id": userId, "daily_checks": checksSnapshot]
+                    )
+                },
+                revert: { [weak self] in await self?.refresh() }
+            )
         }
     }
 
@@ -173,7 +213,7 @@ final class SyncManager: ObservableObject {
             let newSteps = quest.steps.map { s in
                 s.id == step.id ? QuestStep(id: s.id, text: s.text, done: true, difficulty: s.difficulty) : s
             }
-            quests[idx] = QuestRow(id: quest.id, name: quest.name, steps: newSteps, deadline: quest.deadline, tag: quest.tag, quest_type: quest.quest_type)
+            quests[idx] = QuestRow(id: quest.id, name: quest.name, steps: newSteps, deadline: quest.deadline, tag: quest.tag, quest_type: quest.quest_type, category: quest.category, created_at: quest.created_at)
         }
         gameState = GameStateRow(
             xp: newXp,
@@ -204,10 +244,97 @@ final class SyncManager: ObservableObject {
             WidgetCenter.shared.reloadTimelines(ofKind: "QuestStarWidget")
         } catch {
             logger.error("toggleStep write failed: \(error.localizedDescription)")
-            await refresh()
+            let stepsSnapshot = updatedSteps
+            let questId = quest.id
+            var gameBody: [String: Any] = [
+                "user_id": userId, "xp": newXp, "streak": newStreak, "last_active_date": today
+            ]
+            if isFirstWinToday { gameBody["daily_first_win"] = today }
+            retryQueue.enqueue(
+                label: "toggleStep(\(step.id))",
+                operation: { [client] in
+                    try await client.patchWithQuery(
+                        table: "quests",
+                        query: "user_id=eq.\(userId)&id=eq.\(questId)",
+                        body: ["steps": stepsSnapshot]
+                    )
+                    try await client.upsert(table: "game_state", body: gameBody)
+                },
+                revert: { [weak self] in await self?.refresh() }
+            )
         }
 
         return totalXp
+    }
+
+    /// Delete a quest from Supabase and local state.
+    func deleteQuest(_ quest: QuestRow) async {
+        guard let userId = AppGroupManager.shared.supabaseUserId else { return }
+
+        // Optimistic removal
+        quests.removeAll { $0.id == quest.id }
+
+        do {
+            try await client.deleteWithQuery(
+                table: "quests",
+                query: "user_id=eq.\(userId)&id=eq.\(quest.id)"
+            )
+            WidgetCenter.shared.reloadTimelines(ofKind: "QuestStarWidget")
+        } catch {
+            logger.error("deleteQuest failed: \(error.localizedDescription)")
+            let questId = quest.id
+            retryQueue.enqueue(
+                label: "deleteQuest(\(questId))",
+                operation: { [client] in
+                    try await client.deleteWithQuery(
+                        table: "quests",
+                        query: "user_id=eq.\(userId)&id=eq.\(questId)"
+                    )
+                },
+                revert: { [weak self] in await self?.refresh() }
+            )
+        }
+    }
+
+    /// Remove a step from a quest (updates steps array in Supabase).
+    func removeStep(quest: QuestRow, stepId: String) async {
+        guard let userId = AppGroupManager.shared.supabaseUserId else { return }
+
+        let newSteps = quest.steps.filter { $0.id != stepId }
+
+        // Optimistic update
+        if let idx = quests.firstIndex(where: { $0.id == quest.id }) {
+            quests[idx] = QuestRow(id: quest.id, name: quest.name, steps: newSteps, deadline: quest.deadline, tag: quest.tag, quest_type: quest.quest_type, category: quest.category, created_at: quest.created_at)
+        }
+
+        let stepsPayload: [[String: Any]] = newSteps.map { s in
+            var dict: [String: Any] = ["id": s.id, "text": s.text, "done": s.done]
+            if let d = s.difficulty { dict["difficulty"] = d }
+            return dict
+        }
+
+        do {
+            try await client.patchWithQuery(
+                table: "quests",
+                query: "user_id=eq.\(userId)&id=eq.\(quest.id)",
+                body: ["steps": stepsPayload]
+            )
+        } catch {
+            logger.error("removeStep failed: \(error.localizedDescription)")
+            let payload = stepsPayload
+            let questId = quest.id
+            retryQueue.enqueue(
+                label: "removeStep(\(stepId))",
+                operation: { [client] in
+                    try await client.patchWithQuery(
+                        table: "quests",
+                        query: "user_id=eq.\(userId)&id=eq.\(questId)",
+                        body: ["steps": payload]
+                    )
+                },
+                revert: { [weak self] in await self?.refresh() }
+            )
+        }
     }
 
     // MARK: - Convenience

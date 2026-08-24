@@ -2,7 +2,12 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject private var theme = ThemeManager.shared
+    @ObservedObject private var sync = SyncManager.shared
     @State private var selectedTab = 0
+
+    private var overdueCount: Int {
+        sync.quests.filter { $0.isOverdue && !$0.isComplete }.count
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -20,7 +25,16 @@ struct ContentView: View {
             .tabItem {
                 Label("Quests", systemImage: "map.fill")
             }
+            .badge(overdueCount > 0 ? overdueCount : 0)
             .tag(1)
+
+            NavigationStack {
+                AchievementsView()
+            }
+            .tabItem {
+                Label("Achievements", systemImage: "trophy.fill")
+            }
+            .tag(2)
 
             NavigationStack {
                 SettingsView()
@@ -28,7 +42,7 @@ struct ContentView: View {
             .tabItem {
                 Label("Settings", systemImage: "gearshape.fill")
             }
-            .tag(2)
+            .tag(3)
         }
         .tint(theme.current.accent)
     }
@@ -47,7 +61,7 @@ struct GradientCard<Content: View>: View {
 
     var body: some View {
         content
-            .padding(18)
+            .padding(12)
             .background(
                 ZStack {
                     RoundedRectangle(cornerRadius: 22)
@@ -73,14 +87,12 @@ struct GradientCard<Content: View>: View {
                         lineWidth: 1
                     )
             )
-            .shadow(color: accentColor.opacity(0.1), radius: 16, y: 8)
+            .shadow(color: accentColor.opacity(0.08), radius: 12, y: 6)
     }
 }
 
 struct MeshBackground: View {
     var theme: AppTheme = ThemeManager.shared.current
-
-    @State private var animate = false
 
     var body: some View {
         ZStack {
@@ -88,37 +100,42 @@ struct MeshBackground: View {
                 colors: [
                     theme.pageBgTop,
                     theme.pageBgBottom.opacity(0.5),
-                    Color(.systemBackground)
+                    Color.systemBackground
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
             .ignoresSafeArea()
 
-            // Animated floating orbs
+            // Static gradient accents (no animation, no expensive blur)
+            // Replaces previous 3-orb animated blur which was a GPU killer
             if theme.orbs.count >= 3 {
-                Circle()
-                    .fill(theme.orbs[0].opacity(0.06))
-                    .frame(width: 300, height: 300)
-                    .blur(radius: 60)
-                    .offset(x: animate ? -80 : -120, y: animate ? -180 : -220)
+                RadialGradient(
+                    colors: [theme.orbs[0].opacity(0.10), .clear],
+                    center: UnitPoint(x: 0.2, y: 0.15),
+                    startRadius: 20,
+                    endRadius: 200
+                )
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
 
-                Circle()
-                    .fill(theme.orbs[1].opacity(0.05))
-                    .frame(width: 250, height: 250)
-                    .blur(radius: 50)
-                    .offset(x: animate ? 140 : 100, y: animate ? -30 : -70)
+                RadialGradient(
+                    colors: [theme.orbs[1].opacity(0.08), .clear],
+                    center: UnitPoint(x: 0.85, y: 0.4),
+                    startRadius: 20,
+                    endRadius: 180
+                )
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
 
-                Circle()
-                    .fill(theme.orbs[2].opacity(0.04))
-                    .frame(width: 200, height: 200)
-                    .blur(radius: 40)
-                    .offset(x: animate ? -60 : -100, y: animate ? 220 : 180)
-            }
-        }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 6).repeatForever(autoreverses: true)) {
-                animate = true
+                RadialGradient(
+                    colors: [theme.orbs[2].opacity(0.06), .clear],
+                    center: UnitPoint(x: 0.25, y: 0.85),
+                    startRadius: 20,
+                    endRadius: 160
+                )
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
             }
         }
     }

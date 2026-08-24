@@ -26,3 +26,6 @@ ISSUES.md
 
 # Local-only notes / session-output docs (kept on disk, not on main branch)
 docs-local/
+
+# Xcode per-user state (window layout, breakpoints — not shared)
+**/xcuserdata/

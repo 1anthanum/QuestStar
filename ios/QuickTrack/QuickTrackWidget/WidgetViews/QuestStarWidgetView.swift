@@ -30,10 +30,78 @@ struct QuestStarWidgetView: View {
         switch family {
         case .systemSmall:
             smallView(summary: summary)
+        #if os(iOS)
+        case .accessoryCircular:
+            lockCircular(summary: summary)
+        case .accessoryRectangular:
+            lockRectangular(summary: summary)
+        case .accessoryInline:
+            lockInline(summary: summary)
+        #endif
         default:
             mediumView(summary: summary)
         }
     }
+
+    // MARK: - Lock Screen (iOS only)
+
+    #if os(iOS)
+    private func lockCircular(summary: TrackerSummary) -> some View {
+        Gauge(value: summary.progress ?? 0) {
+            Image(systemName: "star.fill")
+        } currentValueLabel: {
+            Text("Lv\(Config.level(for: Int(summary.currentValue)).index)")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+        }
+        .gaugeStyle(.accessoryCircular)
+        .widgetAccentable()
+    }
+
+    // MARK: - Lock Screen: Rectangular
+
+    private func lockRectangular(summary: TrackerSummary) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 11))
+                Text(summary.label)
+                    .font(.system(size: 11, weight: .bold))
+                    .lineLimit(1)
+            }
+            .widgetAccentable()
+
+            if let items = summary.actionItems, let first = items.first, !first.isCompleted {
+                Text(first.label)
+                    .font(.system(size: 10))
+                    .lineLimit(2)
+            } else if let subtitle = summary.subtitle {
+                Text(subtitle)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            if let progress = summary.progress {
+                ProgressView(value: progress)
+                    .progressViewStyle(.linear)
+                    .widgetAccentable()
+            }
+        }
+    }
+
+    // MARK: - Lock Screen: Inline
+
+    private func lockInline(summary: TrackerSummary) -> some View {
+        let streakText: String = {
+            if let sub = summary.subtitle, sub.contains("Streak") {
+                return sub
+            }
+            return summary.label
+        }()
+        return Label(streakText, systemImage: "star.fill")
+            .font(.system(size: 12, weight: .semibold))
+    }
+    #endif
 
     // MARK: - Small
 

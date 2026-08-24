@@ -7,6 +7,9 @@ struct QuestsView: View {
     @State private var showAddQuest = false
     @State private var expandedQuestId: String?
     @State private var completedStepId: String?
+    @State private var selectedFilter: QuestFilter = .all
+    @State private var searchText = ""
+    @State private var sortMode: SortMode = .newest
 
     // Reward chain state
     @State private var xpPopupResult: RewardChainResult?
@@ -23,6 +26,61 @@ struct QuestsView: View {
 
     private var accent: Color { theme.current.accent }
     private var accentGradient: LinearGradient { theme.accentGradient }
+
+    enum QuestFilter: String, CaseIterable {
+        case all = "All"
+        case active = "Active"
+        case daily = "Daily"
+        case learning = "Learning"
+        case completed = "Done"
+    }
+
+    enum SortMode: String, CaseIterable {
+        case newest = "Newest"
+        case deadline = "Deadline"
+        case progress = "Progress"
+        case name = "Name"
+    }
+
+    private var filteredQuests: [QuestRow] {
+        var result: [QuestRow]
+        switch selectedFilter {
+        case .all: result = sync.quests
+        case .active: result = sync.quests.filter { !$0.isComplete }
+        case .daily: result = sync.quests.filter { $0.quest_type == "daily" && !$0.isComplete }
+        case .learning: result = sync.quests.filter { ($0.category == "learning" || $0.category == "code") && !$0.isComplete }
+        case .completed: result = sync.quests.filter(\.isComplete)
+        }
+
+        // Search
+        if !searchText.isEmpty {
+            let query = searchText.lowercased()
+            result = result.filter {
+                $0.name.lowercased().contains(query)
+                || ($0.tag?.lowercased().contains(query) ?? false)
+                || ($0.category?.lowercased().contains(query) ?? false)
+                || $0.steps.contains { $0.text.lowercased().contains(query) }
+            }
+        }
+
+        // Sort
+        switch sortMode {
+        case .newest:
+            result.sort { ($0.created_at ?? 0) > ($1.created_at ?? 0) }
+        case .deadline:
+            result.sort {
+                let a = $0.deadline ?? "9999"
+                let b = $1.deadline ?? "9999"
+                return a < b
+            }
+        case .progress:
+            result.sort { $0.progress > $1.progress }
+        case .name:
+            result.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
+        }
+
+        return result
+    }
 
     var body: some View {
         ZStack {
@@ -50,35 +108,27 @@ struct QuestsView: View {
                 )
                 .zIndex(10)
             }
-
             if showCoinBurst {
                 CoinBurstView(amount: coinAmount, isVisible: $showCoinBurst)
                     .zIndex(20)
             }
-
             if showLoreDrop, let frag = loreFragment {
                 LoreDropView(fragment: frag, isVisible: $showLoreDrop)
                     .zIndex(20)
             }
-
             if showLevelUp {
-                LevelUpOverlay(
-                    levelName: levelUpName,
-                    levelIndex: levelUpIndex,
-                    isVisible: $showLevelUp
-                )
-                .zIndex(30)
+                LevelUpOverlay(levelName: levelUpName, levelIndex: levelUpIndex, isVisible: $showLevelUp)
+                    .zIndex(30)
             }
-
             if showQuestComplete {
-                QuestCompleteOverlay(
-                    questName: questCompleteName,
-                    isVisible: $showQuestComplete
-                )
-                .zIndex(30)
+                QuestCompleteOverlay(questName: questCompleteName, isVisible: $showQuestComplete)
+                    .zIndex(30)
             }
         }
+        #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        #endif
+        .searchable(text: $searchText, prompt: "Search quests, tags, steps...")
         .toolbar {
             ToolbarItem(placement: .principal) {
                 HStack(spacing: 6) {
@@ -89,18 +139,37 @@ struct QuestsView: View {
                         .font(.headline)
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    HapticEngine.selection()
-                    showAddQuest = true
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(accentGradient)
-                            .frame(width: 30, height: 30)
-                        Image(systemName: "plus")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.white)
+            ToolbarItem(placement: .automatic) {
+                HStack(spacing: 8) {
+                    Menu {
+                        ForEach(SortMode.allCases, id: \.self) { mode in
+                            Button {
+                                withAnimation { sortMode = mode }
+                            } label: {
+                                Label(mode.rawValue, systemImage: sortIcon(mode))
+                                    .foregroundStyle(sortMode == mode ? accent : .primary)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down.circle")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(accent)
+                    }
+
+                    Button {
+                        #if os(iOS)
+                        HapticEngine.selection()
+                        #endif
+                        showAddQuest = true
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(accentGradient)
+                                .frame(width: 30, height: 30)
+                            Image(systemName: "plus")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
                     }
                 }
             }
@@ -118,9 +187,11 @@ struct QuestsView: View {
     private func runRewardChain(quest: QuestRow, step: QuestStep) async {
         let oldXp = sync.gameState?.xp ?? 0
         let isFirstWin = sync.gameState?.daily_first_win != Config.todayString()
-
         let xpGained = await sync.toggleStep(quest: quest, step: step)
+
+        #if os(iOS)
         HapticEngine.stepComplete()
+        #endif
 
         let newXp = sync.gameState?.xp ?? oldXp
 
@@ -134,7 +205,6 @@ struct QuestsView: View {
             streak: sync.gameState?.streak ?? 0
         )
 
-        // XP popup
         xpPopupResult = result
         withAnimation(.spring(response: 0.3)) { showXpPopup = true }
         completedStepId = step.id
@@ -142,49 +212,64 @@ struct QuestsView: View {
             withAnimation { completedStepId = nil }
         }
 
-        // Coin (8%)
         if let coin = result.coinDrop {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                #if os(iOS)
                 HapticEngine.coinDrop()
+                #endif
                 coinAmount = coin
                 withAnimation(.spring(response: 0.3)) { showCoinBurst = true }
             }
         }
 
-        // Lore (12%)
         if let lore = result.loreDrop {
             let delay = result.coinDrop != nil ? 2.8 : 1.5
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                #if os(iOS)
                 HapticEngine.loreDrop()
+                #endif
                 loreFragment = lore
                 withAnimation(.spring(response: 0.3)) { showLoreDrop = true }
             }
         }
 
-        // Level up
         if result.leveledUp, let name = result.newLevelName {
             var d = 1.0
             if result.coinDrop != nil { d += 2.0 }
             if result.loreDrop != nil { d += 2.0 }
             DispatchQueue.main.asyncAfter(deadline: .now() + d) {
+                #if os(iOS)
                 HapticEngine.levelUp()
+                #endif
                 levelUpName = name
                 levelUpIndex = Config.level(for: result.newTotalXp).index
                 withAnimation { showLevelUp = true }
             }
         }
 
-        // Quest complete
         if result.questCompleted, let qName = result.questName {
             var d = 1.5
             if result.coinDrop != nil { d += 2.0 }
             if result.loreDrop != nil { d += 2.0 }
             if result.leveledUp { d += 3.0 }
             DispatchQueue.main.asyncAfter(deadline: .now() + d) {
+                #if os(iOS)
                 HapticEngine.questComplete()
+                #endif
                 questCompleteName = qName
                 withAnimation { showQuestComplete = true }
             }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func sortIcon(_ mode: SortMode) -> String {
+        switch mode {
+        case .newest: "clock.arrow.circlepath"
+        case .deadline: "calendar.badge.exclamationmark"
+        case .progress: "chart.line.uptrend.xyaxis"
+        case .name: "textformat.abc"
         }
     }
 
@@ -229,7 +314,9 @@ struct QuestsView: View {
                     .foregroundStyle(.secondary)
             }
             Button {
+                #if os(iOS)
                 HapticEngine.selection()
+                #endif
                 showAddQuest = true
             } label: {
                 HStack(spacing: 8) {
@@ -253,9 +340,36 @@ struct QuestsView: View {
         ScrollView {
             LazyVStack(spacing: 14) {
                 questSummaryHeader
+                filterTabs
 
-                ForEach(sync.quests, id: \.id) { quest in
-                    questCard(quest)
+                if !searchText.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 10))
+                        Text("\(filteredQuests.count) result\(filteredQuests.count == 1 ? "" : "s") for \"\(searchText)\"")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                if filteredQuests.isEmpty {
+                    VStack(spacing: 10) {
+                        Image(systemName: searchText.isEmpty ? "tray.fill" : "magnifyingglass")
+                            .font(.title2)
+                            .foregroundStyle(.secondary.opacity(0.4))
+                        Text(searchText.isEmpty ? "No quests in this filter" : "No quests match your search")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 30)
+                } else {
+                    ForEach(filteredQuests, id: \.id) { quest in
+                        NavigationLink(destination: QuestDetailView(quest: quest)) {
+                            questCard(quest)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
             .padding(.horizontal, 16)
@@ -265,198 +379,233 @@ struct QuestsView: View {
 
     private var questSummaryHeader: some View {
         let total = sync.quests.count
-        let completed = sync.quests.filter { q in q.steps.allSatisfy(\.done) }.count
+        let completed = sync.quests.filter(\.isComplete).count
         let active = total - completed
+        let overdue = sync.quests.filter { $0.isOverdue && !$0.isComplete }.count
 
-        return HStack(spacing: 16) {
-            Label("\(active) active", systemImage: "flame.fill")
-                .font(.caption.bold())
-                .foregroundStyle(.orange)
-            Label("\(completed) done", systemImage: "checkmark.seal.fill")
-                .font(.caption.bold())
-                .foregroundStyle(.green)
+        return HStack(spacing: 14) {
+            HStack(spacing: 4) {
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 10))
+                Text("\(active)")
+                    .font(.caption.bold())
+            }
+            .foregroundStyle(.orange)
+
+            HStack(spacing: 4) {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 10))
+                Text("\(completed)")
+                    .font(.caption.bold())
+            }
+            .foregroundStyle(.green)
+
+            if overdue > 0 {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10))
+                    Text("\(overdue)")
+                        .font(.caption.bold())
+                }
+                .foregroundStyle(.red)
+            }
+
             Spacer()
+
+            // Sort indicator
+            HStack(spacing: 4) {
+                Image(systemName: sortIcon(sortMode))
+                    .font(.system(size: 9))
+                Text(sortMode.rawValue)
+                    .font(.system(size: 9, weight: .medium))
+            }
+            .foregroundStyle(.tertiary)
+
+            Text("\(total) total")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.tertiary)
         }
         .padding(.horizontal, 4)
-        .padding(.bottom, 4)
     }
+
+    // MARK: - Filter Tabs
+
+    private var filterTabs: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(QuestFilter.allCases, id: \.self) { filter in
+                    let isSelected = selectedFilter == filter
+                    let count = countForFilter(filter)
+
+                    Button {
+                        #if os(iOS)
+                        HapticEngine.selection()
+                        #endif
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            selectedFilter = filter
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: iconForFilter(filter))
+                                .font(.system(size: 10, weight: .bold))
+                            Text(filter.rawValue)
+                                .font(.system(size: 12, weight: .semibold))
+                            if count > 0 {
+                                Text("\(count)")
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
+                            }
+                        }
+                        .foregroundStyle(isSelected ? .white : .secondary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(isSelected ? AnyShapeStyle(accentGradient) : AnyShapeStyle(Color.systemGray6.opacity(0.8)))
+                        )
+                        .shadow(color: isSelected ? accent.opacity(0.2) : .clear, radius: 6, y: 3)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private func iconForFilter(_ filter: QuestFilter) -> String {
+        switch filter {
+        case .all: "square.grid.2x2.fill"
+        case .active: "flame.fill"
+        case .daily: "repeat.circle.fill"
+        case .learning: "book.fill"
+        case .completed: "checkmark.seal.fill"
+        }
+    }
+
+    private func countForFilter(_ filter: QuestFilter) -> Int {
+        switch filter {
+        case .all: sync.quests.count
+        case .active: sync.quests.filter { !$0.isComplete }.count
+        case .daily: sync.quests.filter { $0.quest_type == "daily" && !$0.isComplete }.count
+        case .learning: sync.quests.filter { ($0.category == "learning" || $0.category == "code") && !$0.isComplete }.count
+        case .completed: sync.quests.filter(\.isComplete).count
+        }
+    }
+
+    // MARK: - Quest Card
 
     @ViewBuilder
     private func questCard(_ quest: QuestRow) -> some View {
-        let totalSteps = quest.steps.count
-        let doneSteps = quest.steps.filter(\.done).count
-        let progress = totalSteps > 0 ? Double(doneSteps) / Double(totalSteps) : 0
-        let isComplete = doneSteps == totalSteps
-        let isExpanded = expandedQuestId == quest.id
-
-        let cardColor: Color = isComplete ? .green : accent
+        let cardColor: Color = quest.isComplete ? .green : quest.isOverdue ? .red : quest.categoryColor
 
         GradientCard(accent: cardColor) {
             VStack(alignment: .leading, spacing: 12) {
                 // Header
-                Button {
-                    HapticEngine.selection()
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        expandedQuestId = isExpanded ? nil : quest.id
+                HStack(spacing: 10) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(
+                                quest.isComplete
+                                    ? LinearGradient(colors: [.green.opacity(0.2), .green.opacity(0.1)], startPoint: .top, endPoint: .bottom)
+                                    : LinearGradient(colors: [cardColor.opacity(0.15), cardColor.opacity(0.05)], startPoint: .top, endPoint: .bottom)
+                            )
+                            .frame(width: 38, height: 38)
+                        Image(systemName: quest.isComplete ? "trophy.fill" : quest.categoryIcon)
+                            .font(.system(size: 16))
+                            .foregroundStyle(quest.isComplete ? .yellow : cardColor)
                     }
-                } label: {
-                    HStack(spacing: 10) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(
-                                    isComplete
-                                        ? LinearGradient(colors: [.green.opacity(0.2), .green.opacity(0.1)], startPoint: .top, endPoint: .bottom)
-                                        : LinearGradient(colors: [accent.opacity(0.15), accent.opacity(0.05)], startPoint: .top, endPoint: .bottom)
-                                )
-                                .frame(width: 38, height: 38)
-                            Image(systemName: isComplete ? "trophy.fill" : "scroll.fill")
-                                .font(.system(size: 16))
-                                .foregroundStyle(isComplete ? .yellow : accent)
-                        }
 
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(quest.name)
-                                .font(.subheadline.bold())
-                                .lineLimit(1)
-                                .foregroundStyle(.primary)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(quest.name)
+                            .font(.subheadline.bold())
+                            .lineLimit(1)
+                            .foregroundStyle(.primary)
+                        HStack(spacing: 6) {
                             if let tag = quest.tag {
                                 Text(tag)
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundStyle(.secondary)
-                                    .padding(.horizontal, 7)
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundStyle(cardColor.opacity(0.8))
+                                    .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
-                                    .background(Color(.systemGray5).opacity(0.6), in: Capsule())
+                                    .background(cardColor.opacity(0.08), in: Capsule())
+                            }
+                            if let cat = quest.category {
+                                Text(cat.capitalized)
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let days = quest.daysUntilDeadline {
+                                HStack(spacing: 2) {
+                                    Image(systemName: "clock.fill")
+                                        .font(.system(size: 7))
+                                    Text(days == 0 ? "Today" : days < 0 ? "\(-days)d overdue" : "\(days)d")
+                                        .font(.system(size: 9, weight: .semibold))
+                                }
+                                .foregroundStyle(days <= 0 ? .red : days <= 2 ? .orange : .secondary)
                             }
                         }
-
-                        Spacer()
-
-                        if isComplete {
-                            Image(systemName: "checkmark.seal.fill")
-                                .font(.title3)
-                                .foregroundStyle(.green)
-                        } else {
-                            ZStack {
-                                Circle()
-                                    .stroke(accent.opacity(0.12), lineWidth: 3.5)
-                                Circle()
-                                    .trim(from: 0, to: progress)
-                                    .stroke(
-                                        accentGradient,
-                                        style: StrokeStyle(lineWidth: 3.5, lineCap: .round)
-                                    )
-                                    .rotationEffect(.degrees(-90))
-                                Text("\(Int(progress * 100))%")
-                                    .font(.system(size: 8, weight: .bold, design: .rounded))
-                                    .foregroundStyle(accent)
-                            }
-                            .frame(width: 38, height: 38)
-                        }
-
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.tertiary)
-                            .rotationEffect(.degrees(isExpanded ? 90 : 0))
                     }
+
+                    Spacer()
+
+                    if quest.isComplete {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.title3)
+                            .foregroundStyle(.green)
+                    } else {
+                        ZStack {
+                            Circle()
+                                .stroke(cardColor.opacity(0.12), lineWidth: 3.5)
+                            Circle()
+                                .trim(from: 0, to: quest.progress)
+                                .stroke(
+                                    LinearGradient(colors: [cardColor, cardColor.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                    style: StrokeStyle(lineWidth: 3.5, lineCap: .round)
+                                )
+                                .rotationEffect(.degrees(-90))
+                            Text("\(Int(quest.progress * 100))%")
+                                .font(.system(size: 8, weight: .bold, design: .rounded))
+                                .foregroundStyle(cardColor)
+                        }
+                        .frame(width: 38, height: 38)
+                    }
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.tertiary)
                 }
-                .buttonStyle(.plain)
 
                 // Progress bar
-                if !isComplete {
+                if !quest.isComplete {
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
-                            Capsule().fill(accent.opacity(0.08))
+                            Capsule().fill(cardColor.opacity(0.08))
                             Capsule()
-                                .fill(accentGradient)
-                                .frame(width: max(geo.size.width * progress, 4))
+                                .fill(LinearGradient(colors: [cardColor, cardColor.opacity(0.7)], startPoint: .leading, endPoint: .trailing))
+                                .frame(width: max(geo.size.width * quest.progress, 4))
                         }
                     }
                     .frame(height: 4)
                     .clipShape(Capsule())
-                }
 
-                // Steps (expanded)
-                if isExpanded {
-                    VStack(spacing: 0) {
-                        ForEach(Array(quest.steps.enumerated()), id: \.element.id) { index, step in
-                            let isJustCompleted = completedStepId == step.id
-
-                            Button {
-                                if !step.done {
-                                    Task { await runRewardChain(quest: quest, step: step) }
-                                }
-                            } label: {
-                                HStack(spacing: 12) {
-                                    ZStack {
-                                        if step.done || isJustCompleted {
-                                            Circle()
-                                                .fill(Color.green.opacity(0.15))
-                                                .frame(width: 26, height: 26)
-                                            Image(systemName: "checkmark")
-                                                .font(.system(size: 11, weight: .bold))
-                                                .foregroundStyle(.green)
-                                        } else {
-                                            Circle()
-                                                .stroke(Color(.systemGray3), lineWidth: 1.5)
-                                                .frame(width: 26, height: 26)
-                                            Text("\(index + 1)")
-                                                .font(.system(size: 10, weight: .medium, design: .rounded))
-                                                .foregroundStyle(.tertiary)
-                                        }
-                                    }
-                                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isJustCompleted)
-
-                                    Text(step.text)
-                                        .font(.subheadline)
-                                        .foregroundStyle(step.done ? .secondary : .primary)
-                                        .strikethrough(step.done, color: .secondary.opacity(0.4))
-                                        .lineLimit(2)
-                                        .multilineTextAlignment(.leading)
-
-                                    Spacer()
-
-                                    if !step.done, let d = step.difficulty {
-                                        difficultyBadge(d)
-                                    }
-                                }
-                                .padding(.vertical, 9)
-                                .padding(.horizontal, 6)
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(step.done)
-
-                            if index < quest.steps.count - 1 {
-                                Divider().padding(.leading, 38)
-                            }
+                    // Next step preview
+                    if let nextStep = quest.steps.first(where: { !$0.done }) {
+                        HStack(spacing: 8) {
+                            Text("Next:")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(cardColor.opacity(0.6))
+                            Text(nextStep.text)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            Spacer()
+                            Text("\(quest.steps.filter(\.done).count)/\(quest.steps.count)")
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundStyle(.tertiary)
                         }
                     }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private func difficultyBadge(_ d: String) -> some View {
-        let (color, icon) = difficultyInfo(d)
-        HStack(spacing: 3) {
-            Image(systemName: icon)
-                .font(.system(size: 8))
-            Text(d)
-                .font(.system(size: 9, weight: .semibold))
-        }
-        .foregroundStyle(color)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(color.opacity(0.1), in: Capsule())
-    }
-
-    private func difficultyInfo(_ d: String) -> (Color, String) {
-        switch d {
-        case "easy": (.green, "leaf.fill")
-        case "medium": (.orange, "flame.fill")
-        case "hard": (.red, "bolt.fill")
-        default: (.secondary, "circle.fill")
         }
     }
 }

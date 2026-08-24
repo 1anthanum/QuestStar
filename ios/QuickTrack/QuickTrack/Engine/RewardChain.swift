@@ -2,7 +2,7 @@ import Foundation
 
 /// Result of the full dopamine reward chain after completing a step.
 /// Mirrors web's handleToggleStep chain: XP → coin (8%) → lore (12%) → level-up? → quest complete?
-struct RewardChainResult {
+struct RewardChainResult: Equatable {
     let xpGained: Int
     let newTotalXp: Int
     let coinDrop: Int?              // nil = no drop, else $1–$5
@@ -16,7 +16,7 @@ struct RewardChainResult {
 }
 
 /// A lore fragment that dropped
-struct LoreFragment {
+struct LoreFragment: Equatable {
     let id: String
     let title: String
     let bookTitle: String

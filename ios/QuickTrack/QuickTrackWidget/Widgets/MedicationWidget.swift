@@ -31,8 +31,8 @@ struct MedicationTimelineProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<MedicationEntry>) -> Void) {
         Task {
             let entry = await fetchEntry()
-            // Refresh every 30 minutes
-            let nextRefresh = Calendar.current.date(byAdding: .minute, value: 30, to: .now)!
+            // Smart refresh: varies by time of day (frequent in morning, sparse overnight)
+            let nextRefresh = WidgetRefreshPolicy.nextRefresh()
             completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
         }
     }
